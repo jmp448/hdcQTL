@@ -1,0 +1,5 @@
+data/*
+scDRS/*
+analysis/.ipynb_checkpoints/*
+code/.ipynb_checkpoints/*
+slurmy/.Rhistory
