@@ -1,0 +1,193 @@
+---
+title: "Cell-Type Specific eQTL"
+output: html_notebook
+---
+
+```{r}
+library(mashr)
+```
+
+```{r}
+m <- readRDS("/project2/gilad/jpopp/ebQTL/results/mashr/aggregation/type/highpass_cellid_confident/eqtls/mashr.tophits.rds")
+```
+
+For our visualizations, we'd like an eQTL that is specific to one or two cell types (let's say ectoderm cell types, starting with photoreceptor)
+```{r}
+sighits <- get_significant_results(m)
+qtl_patterns <- as_tibble(m$posterior_weights) %>%
+  rowid_to_column() %>%
+  filter(rowid %in% sighits) %>%
+  pivot_longer(-rowid, names_to="component", values_to="weight") %>%
+  group_by(rowid) %>%
+  slice_max(weight) 
+
+table(qtl_patterns$component)
+```
+
+```{r}
+vasc <- qtl_patterns %>%
+  filter(component=="Vascular-endothelial-cells.14") %>%
+  pull(rowid)
+mash_plot_meta(m, vasc[1]) + title("Vascular endothelial")
+mash_plot_meta(m, vasc[2]) + title("Vascular endothelial")
+
+neur <- qtl_patterns %>%
+  filter(component=="Visceral-neurons.11") %>%
+  pull(rowid)
+mash_plot_meta(m, neur[1]) + title("Visceral neuron")
+mash_plot_meta(m, neur[2]) + title("Visceral neuron")
+
+glia <- qtl_patterns %>%
+  filter(component=="Microglia.25") %>%
+  pull(rowid)
+mash_plot_meta(m, glia) + title("Microglia")
+
+pc5 <- qtl_patterns %>%
+  filter(component=="ED_PCA_5.13") %>%
+  pull(rowid)
+mash_plot_meta(m, pc5[1]) + title("PC 5")
+mash_plot_meta(m, pc5[2]) + title("PC 5")
+
+tpca <- qtl_patterns %>%
+  filter(component=="ED_tPCA.15") %>%
+  pull(rowid)
+mash_plot_meta(m, tpca[1]) + title("tPCA")
+
+tpca2 <- qtl_patterns %>%
+  filter(component=="ED_tPCA.14") %>%
+  pull(rowid)
+mash_plot_meta(m, tpca2[1]) + title("tPCA")
+```
+```{r, fig.width=3, fig.height=5}
+library(RColorBrewer)
+library(rmeta)
+
+mash_plot_meta(m, tpca2[1], colors=meta.colors(box=col_vector[1:25]), boxsize=2)
+```
+
+
+
+```{r}
+qtl_types <- as_tibble(m$result$lfsr <= 0.05) %>%
+  rowid_to_column()
+
+hep <- qtl_types %>%
+  filter((Hepatoblasts == T) & (Cardiomyocytes == F) & (`ENS-neurons` == T)) %>%
+  pull(rowid)
+mash_plot_meta(m, hep[1]) + title("Hep")
+
+cm <- qtl_types %>%
+  filter((Hepatoblasts == F) & (Cardiomyocytes == T) & (`ENS-neurons` == F)) %>%
+  pull(rowid)
+mash_plot_meta(m, cm[1]) + title("CM")
+```
+
+
+Look at expression in this cell type
+```{r}
+expression <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/highpass_cellid_confident.pseudobulk.tsv")
+genotypes <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_cellid_confident/Astrocytes/genotypes.tsv")
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_cellid_confident/sample_summary.tsv") %>%
+  mutate(individual=as.character(individual))
+```
+
+```{r fig.width=3, fig.height=6}
+gv <- rownames(m$result$PosteriorMean)[pc5[7]]
+g <- str_split(gv, "--")[[1]][1]
+v <- str_split(gv, "--")[[1]][2]
+
+geno_v <- genotypes %>%
+  filter(snp_id == v ) %>%
+  select(-snp_id) %>%
+  rename_with(~str_replace(., "NA", "")) %>%
+  pivot_longer(everything(), names_to="individual", values_to="genotype")
+
+exp_g <- expression %>%
+  filter(gene==g) %>%
+  pivot_longer(!gene, names_to="Sample", values_to="Expression") %>%
+  separate(Sample, c("individual", "celltype"), sep="_") %>%
+  left_join(geno_v, by="individual")
+
+exp_gsub <- exp_g %>%
+  filter(celltype %in% c("ENS-neurons", "Hepatoblasts", "Cardiomyocytes", "Goblet-cells", "Epicardial-fat-cells", "ENS-glia"))
+ggplot(exp_gsub, aes(x=factor(genotype), y=Expression)) +
+  facet_grid(rows=vars(celltype), scales="free_y") +
+  geom_boxplot()
+```
+Cleaning this up for the talk
+```{r, fig.width=3, fig.height=3}
+exp_gsub <- exp_g %>%
+  filter(celltype %in% c("Hepatoblasts"))
+ggplot(exp_gsub, aes(x=factor(genotype), y=Expression)) +
+  geom_boxplot(fill='#6FA031', lwd=1) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x=element_blank(), axis.ticks.x = element_blank(), axis.text.y=element_text(color='black')) +
+  xlab("") + ylab("")
+
+exp_gsub <- exp_g %>%
+  filter(celltype %in% c("Cardiomyocytes"))
+ggplot(exp_gsub, aes(x=factor(genotype), y=Expression)) +
+  geom_boxplot(fill='#B51700', lwd=1) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x=element_blank(), axis.ticks.x = element_blank(), axis.text.y=element_text(color='black')) +
+  xlab("") + ylab("")
+
+exp_gsub <- exp_g %>%
+  filter(celltype %in% c("ENS-neurons"))
+ggplot(exp_gsub, aes(x=factor(genotype), y=Expression)) +
+  geom_boxplot(fill='#0076BA', lwd=1) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x=element_blank(), axis.ticks.x = element_blank(), axis.text.y=element_text(color='black')) +
+  xlab("") + ylab("")
+```
+
+
+Another visualization that's useful along with this is the number of cells that went into each of these points (a rough proxy for our confidence in each estimate).
+```{r fig.width=3, fig.height=6}
+summary_v <- sample_summary %>%
+  left_join(geno_v, by="individual")
+
+summary_vsub <- summary_v %>%
+  filter(type %in% c("ENS-neurons", "Photoreceptor-cells", "Vascular-endothelial-cells", 
+                         "Cardiomyocytes", "Hepatoblasts", "Ganglion-cells"))
+
+ggplot(summary_vsub, aes(fill=individual, y=n_cells, x=factor(genotype))) + 
+    geom_bar(position="dodge", stat="identity") +
+  facet_grid(rows=vars(type)) +
+  theme(legend.position = "none")
+```
+We're consistently running into this problem where there are not enough representatives from the homozygous minor allele to obtain good estimates. Why are these still showing up as significant then?
+```{r}
+pca_qtl <- as_tibble(m$posterior_weights) %>%
+  rowid_to_column() %>%
+  filter(rowid %in% sighits) %>%
+  pivot_longer(-rowid, names_to="component", values_to="weight") %>%
+  group_by(rowid) %>%
+  slice_max(weight) %>%
+  filter(component=="ED_PCA_1.21") %>%
+  pull(rowid)
+mash_plot_meta(m, pca_qtl) + title("this")
+```
+
+How many eGenes have a cell type-specific eQTL
+```{r}
+is.qtl <- m$result$lfsr <= 0.05
+  
+```
+
+
+### Total QTLs per cell type
+```{r}
+
+```
+
+### Component plots
+```{r}
+corrplot(m$fitted_g$Ulist$ED_PCA_1)
+corrplot(m$fitted_g$Ulist$ED_PCA_2)
+corrplot(m$fitted_g$Ulist$ED_PCA_3)
+corrplot(m$fitted_g$Ulist$ED_PCA_4)
+corrplot(m$fitted_g$Ulist$ED_PCA_5)
+corrplot(m$fitted_g$Ulist$ED_tPCA)
+```
+
