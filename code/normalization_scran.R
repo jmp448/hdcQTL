@@ -2,11 +2,12 @@ library(scran)
 library(scater)
 library(BiocParallel)
 
-eb_lowpass_sce_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.sce"
-eb_lowpass_libsizeprocessed_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.libsize.normalized.sce"
-eb_lowpass_libsizedec_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.libsize.decomposed.rds"
-eb_lowpass_processed_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.scran.normalized.sce"
-eb_lowpass_dec_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.decomposed.rds"
+# FILL IN
+# eb_lowpass_sce_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.sce"
+# eb_lowpass_libsizeprocessed_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.libsize.normalized.sce"
+# eb_lowpass_libsizedec_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.libsize.decomposed.rds"
+# eb_lowpass_processed_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.scran.normalized.sce"
+# eb_lowpass_dec_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.decomposed.rds"
 
 eb_lowpass <- readRDS(eb_lowpass_sce_dir)
 # eb_lowpass_sub <- eb_lowpass[,sample(seq(1, ncol(eb_lowpass)), 10000)]
