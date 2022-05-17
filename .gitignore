@@ -4,3 +4,6 @@ analysis/.ipynb_checkpoints/*
 code/.ipynb_checkpoints/*
 slurmy/.Rhistory
 .ipynb_checkpoints/*
+.snakemake/*
+logs/*
+results/*
