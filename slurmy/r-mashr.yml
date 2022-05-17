@@ -1,0 +1,11 @@
+name: r-mashr
+channels:
+  - r
+  - bioconda
+  - aksarkar
+  - conda-forge
+dependencies:
+  - r-mashr
+  - bioconductor-qvalue
+  - r-tidyverse
+  - r-vroom

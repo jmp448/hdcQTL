@@ -1,0 +1,12 @@
+#!/bin/bash
+#SBATCH --partition=gilad
+#SBATCH --time=24:00:00
+#SBATCH --mem=500G
+#SBATCH --output=logs/diffmap.out
+#SBATCH --error=logs/diffmap.err
+#SBATCH --job-name=diffmap
+
+module load python
+source activate scvi-scanpy
+
+python ../code/diffmap.py

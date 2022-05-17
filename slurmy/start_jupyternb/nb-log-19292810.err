@@ -1,0 +1,27 @@
+[I 17:07:56.379 NotebookApp] JupyterLab extension loaded from /software/python-anaconda-2020.02-el7-x86_64/lib/python3.7/site-packages/jupyterlab
+[I 17:07:56.507 NotebookApp] JupyterLab application directory is /software/python-anaconda-2020.02-el7-x86_64/share/jupyter/lab
+[W 17:07:58.902 NotebookApp] Error loading server extension voila
+    Traceback (most recent call last):
+      File "/software/python-anaconda-2020.02-el7-x86_64/lib/python3.7/site-packages/notebook/notebookapp.py", line 1670, in init_server_extensions
+        mod = importlib.import_module(modulename)
+      File "/software/python-anaconda-2020.02-el7-x86_64/lib/python3.7/importlib/__init__.py", line 127, in import_module
+        return _bootstrap._gcd_import(name[level:], package, level)
+      File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+      File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+      File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+    ModuleNotFoundError: No module named 'voila'
+[I 17:08:00.561 NotebookApp] Serving notebooks from local directory: /project2/gilad
+[I 17:08:00.687 NotebookApp] The Jupyter Notebook is running at:
+[I 17:08:00.803 NotebookApp] http://10.50.119.96:9091/?token=72b404096212d7e3852c286b8a3ac464126467062552e0c9
+[I 17:08:00.925 NotebookApp]  or http://127.0.0.1:9091/?token=72b404096212d7e3852c286b8a3ac464126467062552e0c9
+[I 17:08:01.053 NotebookApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 17:08:04.099 NotebookApp] 
+    
+    To access the notebook, open this file in a browser:
+        file:///home/jpopp/.local/share/jupyter/runtime/nbserver-195486-open.html
+    Or copy and paste one of these URLs:
+        http://10.50.119.96:9091/?token=72b404096212d7e3852c286b8a3ac464126467062552e0c9
+     or http://127.0.0.1:9091/?token=72b404096212d7e3852c286b8a3ac464126467062552e0c9
+[I 18:52:18.738 NotebookApp] 302 GET /?token=72b404096212d7e3852c286b8a3ac464126467062552e0c9 (10.50.220.72) 28.76ms
+[I 18:52:39.672 NotebookApp] 302 GET /?token=72b404096212d7e3852c286b8a3ac464126467062552e0c9 (10.50.220.72) 0.97ms
+slurmstepd-midway-l16b-31: error: *** JOB 19292810 ON midway-l16b-31 CANCELLED AT 2022-04-14T20:40:15 DUE TO TIME LIMIT ***

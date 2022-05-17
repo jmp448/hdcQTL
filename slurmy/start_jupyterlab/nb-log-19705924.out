@@ -1,0 +1,26 @@
+
+
+   Copy & paste the following to your local computer's terminal to tunnel
+to the remote server:
+
+   ```bash
+
+   ssh -N -L 9636:10.50.119.96:9636 jpopp@midway2.rcc.uchicago.edu -v
+
+   ```
+
+
+
+   Then use a web browser on your local computer to open the following
+address:
+ 
+   ```google-chrome
+
+   localhost:9636
+
+   ```
+
+
+   You may be asked to provide a token (a string of 48 letters + digits).
+Please find it in the `nb-log-*.err` file under your current directory.
+

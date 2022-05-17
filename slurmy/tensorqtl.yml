@@ -1,0 +1,17 @@
+name: tensor-qtl
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - pip
+  - ipykernel
+  - seaborn
+  - scikit-learn
+  - scikit-misc
+  - statsmodels
+  - numba
+  - pandas
+  - cudatoolkit=11.0
+  - pip:
+    - scanpy
+    - tensorqtl

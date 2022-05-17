@@ -1,0 +1,109 @@
+[I 08:06:38.289 LabApp] JupyterLab extension loaded from /software/python-anaconda-2020.02-el7-x86_64/lib/python3.7/site-packages/jupyterlab
+[I 08:06:38.289 LabApp] JupyterLab application directory is /software/python-anaconda-2020.02-el7-x86_64/share/jupyter/lab
+[W 08:06:38.309 LabApp] Error loading server extension voila
+    Traceback (most recent call last):
+      File "/software/python-anaconda-2020.02-el7-x86_64/lib/python3.7/site-packages/notebook/notebookapp.py", line 1670, in init_server_extensions
+        mod = importlib.import_module(modulename)
+      File "/software/python-anaconda-2020.02-el7-x86_64/lib/python3.7/importlib/__init__.py", line 127, in import_module
+        return _bootstrap._gcd_import(name[level:], package, level)
+      File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
+      File "<frozen importlib._bootstrap>", line 983, in _find_and_load
+      File "<frozen importlib._bootstrap>", line 965, in _find_and_load_unlocked
+    ModuleNotFoundError: No module named 'voila'
+[I 08:06:38.339 LabApp] Serving notebooks from local directory: /project2/gilad
+[I 08:06:38.339 LabApp] The Jupyter Notebook is running at:
+[I 08:06:38.339 LabApp] http://10.50.119.96:9636/?token=ca82045ae7c60e0b40126861074b0904148efdd14595cc08
+[I 08:06:38.339 LabApp]  or http://127.0.0.1:9636/?token=ca82045ae7c60e0b40126861074b0904148efdd14595cc08
+[I 08:06:38.339 LabApp] Use Control-C to stop this server and shut down all kernels (twice to skip confirmation).
+[C 08:06:38.532 LabApp] 
+    
+    To access the notebook, open this file in a browser:
+        file:///home/jpopp/.local/share/jupyter/runtime/nbserver-269046-open.html
+    Or copy and paste one of these URLs:
+        http://10.50.119.96:9636/?token=ca82045ae7c60e0b40126861074b0904148efdd14595cc08
+     or http://127.0.0.1:9636/?token=ca82045ae7c60e0b40126861074b0904148efdd14595cc08
+[I 08:32:30.029 LabApp] 302 GET /?token=ca82045ae7c60e0b40126861074b0904148efdd14595cc08 (10.50.220.71) 1.07ms
+[W 08:32:33.066 LabApp] Could not determine jupyterlab build status without nodejs
+[W 08:36:24.596 LabApp] Notebook jpopp/ebQTL/analysis/annotation_subset_clusters.ipynb is not trusted
+[W 08:36:24.955 LabApp] Notebook jpopp/ebQTL/analysis/highpass-celltypes/cellid_overlap_katie.ipynb is not trusted
+[W 08:36:25.715 LabApp] Notebook jpopp/ebQTL/analysis/scDRS_2.ipynb is not trusted
+[W 08:36:26.064 LabApp] Notebook katie/ebQTL/highpass_combinedFiles/Annotate_LinearSCVI_50latent_noContinuousCov.ipynb is not trusted
+[I 08:36:35.927 LabApp] Kernel started: 04a845de-3900-47c7-836e-da985403e2b8
+[I 08:36:36.407 LabApp] Kernel started: c3cc1d92-059b-49cd-9e61-9817d8c06999
+[I 08:36:37.515 LabApp] Kernel started: 737c7a19-64ec-40c1-8b7e-efda1c25c31c
+[I 08:36:37.805 LabApp] Kernel started: b23f6183-1024-4a5d-b850-8a092d49a195
+[I 08:36:39.099 LabApp] Kernel started: de34041d-b7ab-4e0c-ab07-f83905171c37
+[I 08:36:47.831 LabApp] Kernel started: fb89ee86-338c-499a-a9dc-8644ec0620f7
+[I 08:36:50.287 LabApp] Kernel started: cbf8b0a3-bc45-4692-a3ab-8fd38e9f23a7
+[I 08:36:54.128 LabApp] Kernel started: c2889d59-163a-4ac9-befa-5249b1dfbaf5
+[I 08:36:55.325 LabApp] Kernel started: 75a81dc3-a5e7-45ef-ba70-e65be7ea5ae9
+[I 08:36:57.272 LabApp] Starting buffering for cbf8b0a3-bc45-4692-a3ab-8fd38e9f23a7:a9fafaa1-4c92-4128-b4ee-cf9f99ca474d
+[I 08:53:16.455 LabApp] Kernel restarted: fb89ee86-338c-499a-a9dc-8644ec0620f7
+[I 08:55:00.613 LabApp] Kernel started: c2cb04df-d8de-4045-8858-1d9d91fef297
+[I 08:55:00.614 LabApp] Kernel shutdown: 737c7a19-64ec-40c1-8b7e-efda1c25c31c
+[I 08:55:10.421 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 08:55:37.204 LabApp] Starting buffering for c3cc1d92-059b-49cd-9e61-9817d8c06999:b63bbcaf-047b-4b30-a7e4-b4f000f93679
+[I 08:57:10.702 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 08:59:11.165 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:01:11.338 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:05:11.540 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:09:12.371 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:11:12.616 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:13:12.784 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:15:13.144 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:19:13.626 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:21:14.168 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:23:14.773 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:25:15.529 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:27:17.972 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:31:20.272 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:33:21.851 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:35:22.896 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:39:24.098 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 09:41:15.246 LabApp] Kernel interrupted: c2cb04df-d8de-4045-8858-1d9d91fef297
+[I 09:41:26.567 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 11:21:25.330 LabApp] Starting buffering for 04a845de-3900-47c7-836e-da985403e2b8:c8f8aaac-e484-4155-a3f3-d4a50f58550f
+[I 11:21:25.332 LabApp] Starting buffering for b23f6183-1024-4a5d-b850-8a092d49a195:d260d2c1-2b4b-4698-8848-f7d771493719
+[I 11:21:25.332 LabApp] Starting buffering for de34041d-b7ab-4e0c-ab07-f83905171c37:1287466d-0ee6-4c92-9820-0b02d699225a
+[I 11:21:25.332 LabApp] Starting buffering for fb89ee86-338c-499a-a9dc-8644ec0620f7:695fadd7-c19a-4471-93a1-c9fa9c74e666
+[I 11:21:25.332 LabApp] Starting buffering for cbf8b0a3-bc45-4692-a3ab-8fd38e9f23a7:c8e3531f-bb3c-4fc9-8df2-17068c98e4ce
+[I 11:21:25.333 LabApp] Starting buffering for c2889d59-163a-4ac9-befa-5249b1dfbaf5:661516c1-feab-4c7a-a9a0-5844641ec2d9
+[I 11:21:25.333 LabApp] Starting buffering for 75a81dc3-a5e7-45ef-ba70-e65be7ea5ae9:664991ee-c1c1-424c-87e7-6ba5a7df96e3
+[I 11:21:25.333 LabApp] Starting buffering for c2cb04df-d8de-4045-8858-1d9d91fef297:bcddefef-23be-445f-8acd-7adf2e8bba4e
+[I 11:21:25.726 LabApp] Restoring connection for c2cb04df-d8de-4045-8858-1d9d91fef297:bcddefef-23be-445f-8acd-7adf2e8bba4e
+[I 11:21:25.808 LabApp] Restoring connection for 75a81dc3-a5e7-45ef-ba70-e65be7ea5ae9:664991ee-c1c1-424c-87e7-6ba5a7df96e3
+[I 11:21:26.154 LabApp] Restoring connection for c2889d59-163a-4ac9-befa-5249b1dfbaf5:661516c1-feab-4c7a-a9a0-5844641ec2d9
+[I 11:21:26.340 LabApp] Restoring connection for cbf8b0a3-bc45-4692-a3ab-8fd38e9f23a7:c8e3531f-bb3c-4fc9-8df2-17068c98e4ce
+[I 11:21:26.698 LabApp] Restoring connection for b23f6183-1024-4a5d-b850-8a092d49a195:d260d2c1-2b4b-4698-8848-f7d771493719
+[I 11:21:26.856 LabApp] Restoring connection for fb89ee86-338c-499a-a9dc-8644ec0620f7:695fadd7-c19a-4471-93a1-c9fa9c74e666
+[I 11:21:27.086 LabApp] Restoring connection for de34041d-b7ab-4e0c-ab07-f83905171c37:1287466d-0ee6-4c92-9820-0b02d699225a
+[I 11:21:27.234 LabApp] Restoring connection for 04a845de-3900-47c7-836e-da985403e2b8:c8f8aaac-e484-4155-a3f3-d4a50f58550f
+[W 11:22:55.727 LabApp] WebSocket ping timeout after 90001 ms.
+[W 11:22:55.809 LabApp] WebSocket ping timeout after 90000 ms.
+[W 11:22:56.048 LabApp] WebSocket ping timeout after 90001 ms.
+[W 11:22:56.155 LabApp] WebSocket ping timeout after 90000 ms.
+[W 11:22:56.340 LabApp] WebSocket ping timeout after 90000 ms.
+[W 11:22:56.699 LabApp] WebSocket ping timeout after 90000 ms.
+[W 11:22:56.857 LabApp] WebSocket ping timeout after 90000 ms.
+[W 11:22:57.087 LabApp] WebSocket ping timeout after 90000 ms.
+[W 11:22:57.235 LabApp] WebSocket ping timeout after 90000 ms.
+[W 11:22:57.384 LabApp] WebSocket ping timeout after 90001 ms.
+[I 11:23:00.728 LabApp] Starting buffering for c2cb04df-d8de-4045-8858-1d9d91fef297:bcddefef-23be-445f-8acd-7adf2e8bba4e
+[I 11:23:01.050 LabApp] Starting buffering for 75a81dc3-a5e7-45ef-ba70-e65be7ea5ae9:fc3c237d-aa1a-41ec-aa64-0eea3fbe53ae
+[I 11:23:01.342 LabApp] Starting buffering for cbf8b0a3-bc45-4692-a3ab-8fd38e9f23a7:c8e3531f-bb3c-4fc9-8df2-17068c98e4ce
+[I 11:23:01.700 LabApp] Starting buffering for b23f6183-1024-4a5d-b850-8a092d49a195:d260d2c1-2b4b-4698-8848-f7d771493719
+[I 11:23:01.859 LabApp] Starting buffering for fb89ee86-338c-499a-a9dc-8644ec0620f7:695fadd7-c19a-4471-93a1-c9fa9c74e666
+[I 11:23:02.088 LabApp] Starting buffering for de34041d-b7ab-4e0c-ab07-f83905171c37:1287466d-0ee6-4c92-9820-0b02d699225a
+[I 11:23:02.235 LabApp] Starting buffering for 04a845de-3900-47c7-836e-da985403e2b8:c8f8aaac-e484-4155-a3f3-d4a50f58550f
+[I 11:23:02.385 LabApp] Starting buffering for c2889d59-163a-4ac9-befa-5249b1dfbaf5:70614cbe-3972-4950-b79d-ca4cca5a9266
+[I 13:20:16.396 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 13:22:17.814 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 13:31:22.966 LabApp] Kernel interrupted: c2cb04df-d8de-4045-8858-1d9d91fef297
+[W 13:31:29.414 LabApp] Could not determine jupyterlab build status without nodejs
+[W 13:31:31.600 LabApp] Notebook jpopp/ebQTL/analysis/highpass-celltypes/cellid_overlap_katie.ipynb is not trusted
+[W 13:31:32.397 LabApp] Notebook katie/ebQTL/highpass_combinedFiles/Annotate_LinearSCVI_50latent_noContinuousCov.ipynb is not trusted
+[I 13:31:38.990 LabApp] Discarding 6 buffered messages for c2cb04df-d8de-4045-8858-1d9d91fef297:bcddefef-23be-445f-8acd-7adf2e8bba4e
+[I 13:31:42.048 LabApp] Starting buffering for 75a81dc3-a5e7-45ef-ba70-e65be7ea5ae9:b994d751-b234-41dc-9438-50549abad474
+[I 13:53:15.585 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+[I 13:59:17.167 LabApp] Saving file at /jpopp/ebQTL/analysis/highpass-celltypes/Untitled.ipynb
+slurmstepd-midway-l16b-31: error: *** JOB 19705924 ON midway-l16b-31 CANCELLED AT 2022-05-09T15:06:40 DUE TO TIME LIMIT ***

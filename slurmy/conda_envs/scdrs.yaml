@@ -1,0 +1,18 @@
+name: tf-scanpy
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python
+  - pip
+  - ipykernel
+  - seaborn
+  - scikit-learn
+  - scikit-misc
+  - tensorflow
+  - statsmodels
+  - numba
+  - pytables
+  - python-igraph
+  - pip:
+    - scanpy

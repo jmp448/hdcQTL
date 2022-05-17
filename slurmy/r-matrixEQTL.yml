@@ -1,0 +1,7 @@
+name: r-matrixEQTL
+channels:
+  - conda-forge
+  - r
+dependencies:
+  - r-MatrixEQTL
+  - r-tidyverse

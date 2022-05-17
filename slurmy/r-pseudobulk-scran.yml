@@ -1,0 +1,9 @@
+name: r-pseudobulk
+channels:
+  - r
+  - conda-forge
+dependencies:
+  - r-dplyr=1.0.9
+  - r-tidyverse
+  - r-matrix.utils
+  - r-matrixstats

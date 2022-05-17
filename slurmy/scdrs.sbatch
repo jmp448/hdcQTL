@@ -7,6 +7,6 @@
 #SBATCH --mem=300G
 
 module load python
-conda activate singlecell
+source activate scvi-gpflow
 python ../code/scDRS.py
 
