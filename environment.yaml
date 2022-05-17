@@ -1,0 +1,25 @@
+name: scvi-scanpy
+channels:
+  - conda-forge
+  - bioconda
+  - pytorch
+dependencies:
+  - python
+  - pip
+  - ipykernel
+  - seaborn
+  - scikit-learn
+  - scikit-misc
+  - statsmodels
+  - numba
+  - pytables
+  - python-igraph
+  - leidenalg
+  - forceatlas2-python
+  - scvi-tools
+  - pytorch-gpu
+  - cudatoolkit=11.0
+  - geosketch
+  - fa2
+  - pip:
+    - scanpy
