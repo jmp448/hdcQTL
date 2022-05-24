@@ -1,9 +1,9 @@
 data/*
 scDRS/*
-analysis/.ipynb_checkpoints/*
-code/.ipynb_checkpoints/*
+bennystrobes/*
 slurmy/.Rhistory
-.ipynb_checkpoints/*
 .snakemake/*
 logs/*
 results/*
+*.ipynb_checkpoints*
+*nb-log*
