@@ -188,7 +188,7 @@ m$fitted_g$Ulist$ED_tPCA %>%
   .$loadings %>%
   .[,1] %>%
   as_tibble(rownames="type") %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
+  #mutate(type=factor(type, levels=type_levels)) %>%
   ggplot(aes(x=type, y=value, fill=type)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
@@ -197,15 +197,15 @@ m$fitted_g$Ulist$ED_tPCA %>%
 ```
 
 ```{r}
-m$fitted_g$Ulist$ED_PCA_5 %>%
+m$fitted_g$Ulist$ED_PCA_1 %>%
   corrplot(is.corr=F)
 
-m$fitted_g$Ulist$ED_PCA_5 %>%
+m$fitted_g$Ulist$ED_PCA_1 %>%
   princomp %>%
   .$loadings %>%
   .[,1] %>%
   as_tibble(rownames="type") %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
+  #mutate(type=factor(type, levels=type_levels)) %>%
   ggplot(aes(x=type, y=value, fill=type)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +

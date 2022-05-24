@@ -1,0 +1,295 @@
+---
+title: "QTL Exploration"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(mashr)
+library(vroom)
+library(corrplot)
+```
+
+## Motivation
+We are seeing that for many of the context-specific eQTLs, there appears to be notably less confidence on the cell type where the effect was detected.
+```{r}
+m <- readRDS("/project2/gilad/jpopp/ebQTL/results/mashr/aggregation/type/highpass_cellid_confident/eqtls/mashr.tophits.rds")
+```
+
+First, recap of the distribution of n contexts
+```{r}
+tibble(n_contexts=get_n_significant_conditions(m)) %>%
+  filter(n_contexts >= 1) %>%
+  dplyr::count(n_contexts, name="n_eqtl") %>%
+  mutate(n_contexts=factor(n_contexts, levels=seq(1, 24))) %>%
+  ggplot(aes(x=n_contexts, y=n_eqtl)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15)
+```
+
+Now, let's take a look at a few examples of QTLs which are specific to a single cell type
+```{r}
+singletons <- which(get_n_significant_conditions(m) == 1)
+
+for (i in singletons[1:10]) {
+  mash_plot_meta(m, i)
+}
+```
+For that first one, which cell type does the effect appear significant in?
+```{r}
+m$result$lfsr[singletons[1],]
+```
+
+
+How many individuals were tested for mesangial cells?
+```{r}
+nrow(read_tsv("/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_cellid_confident/Mesangial-cells/individuals.tsv", col_names="ind"))
+```
+
+For the third one, what does expression look like in that one cell type (Purkinje neurons)?
+```{r}
+expression <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/highpass_cellid_confident.pseudobulk.tsv")
+genotypes <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_cellid_confident/IGFBP1-DKK1-positive-cells/genotypes.tsv")
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_cellid_confident/sample_summary.tsv") %>%
+  mutate(individual=as.character(individual))
+```
+
+```{r}
+gv <- rownames(m$result$lfsr)[singletons[3]]
+g <- str_split(gv, "--")[[1]][1]
+v <- str_split(gv, "--")[[1]][2]
+
+geno_v <- genotypes %>%
+  filter(snp_id == v ) %>%
+  select(-snp_id) %>%
+  rename_with(~str_replace(., "NA", "")) %>%
+  pivot_longer(everything(), names_to="individual", values_to="genotype")
+
+exp_g <- expression %>%
+  filter(gene==g) %>%
+  pivot_longer(!gene, names_to="Sample", values_to="Expression") %>%
+  separate(Sample, c("individual", "celltype"), sep="_") %>%
+  left_join(geno_v, by="individual")
+
+exp_gsub <- exp_g %>%
+  filter(celltype %in% c("IGFBP1-DKK1-positive-cells"))
+ggplot(exp_gsub, aes(x=factor(genotype), y=Expression)) +
+  facet_grid(rows=vars(celltype), scales="free_y") +
+  geom_boxplot()
+```
+
+
+```{r}
+sample_summary %>%
+  filter(type=="Hepatoblasts") %>%
+  ggplot(aes(x=individual, y=n_cells)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+sample_summary %>%
+  filter(type=="IGFBP1-DKK1-positive-cells") %>%
+  ggplot(aes(x=individual, y=n_cells)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+
+```{r}
+rownames(m$result$lfsr)[singletons[3]]
+```
+
+And, more broadly, what are the patterns that are getting major weight?
+```{r, fig.height=6, fig.width=10}
+as_tibble(get_estimated_pi(m), rownames="component") %>%
+  mutate(component=factor(component, levels=names(get_estimated_pi(m)))) %>%
+  ggplot(aes(x=component, y=value)) +
+  geom_bar(stat="identity") +
+  scale_x_discrete(limits=rev) +
+  xlab("Regulatory Pattern") +
+  ylab("Weight") +
+  coord_flip() +
+  theme_classic(base_size = 20)
+  #theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+```{r}
+m$fitted_g$Ulist$ED_tPCA %>%
+  corrplot(is.corr=F)
+
+m$fitted_g$Ulist$ED_tPCA %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  #mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+
+m$fitted_g$Ulist$ED_PCA_1 %>%
+  corrplot(is.corr=F)
+
+m$fitted_g$Ulist$ED_PCA_1 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  #mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+
+m$fitted_g$Ulist$ED_PCA_5 %>%
+  corrplot(is.corr=F)
+
+m$fitted_g$Ulist$ED_PCA_5 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  #mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+Outliers include Purkinje neurons and epicardial fat cells
+```{r}
+sample_summary %>%
+  filter(type=="Purkinje-neurons") %>%
+  ggplot(aes(x=individual, y=n_cells)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+
+sample_summary %>%
+  filter(type=="Epicardial-fat-cells") %>%
+  ggplot(aes(x=individual, y=n_cells)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
+```
+Epicardial fat cells look ok, Purkinje neurons probably because of an issue with the outlier
+
+## Variant Stats for QTLs
+Let's look at the distribution of MAFs for eQTLs stratified by specificity
+```{r}
+context_counts <- tibble(n=get_n_significant_conditions(m), qtl=names(get_n_significant_conditions(m))) %>%
+  filter(n > 0) %>%
+  separate(qtl, into=c("gene", "snp"), sep="--", remove=FALSE)
+
+head(context_counts)
+```
+
+Load genotype data for one of the cell types that has all individuals present
+```{r}
+vcf.file <- "/project2/gilad/jpopp/ebQTL/data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
+
+geno <- read.vcfR(vcf.file, verbose = FALSE)
+```
+
+```{r}
+all_snps <- paste(geno@fix[,1], geno@fix[,2], sep="_")
+qtl_snps <- all_snps %in% context_counts$snp
+
+geno_qtl <- geno[qtl_snps,]
+
+maf_qtl <- maf(geno_qtl) %>%
+  as_tibble(rownames="rsID")
+
+rsID_dict <- as_tibble(geno_qtl@fix[,1:2])
+
+maf_qtl <- maf_qtl %>%
+  add_column(snp=paste(rsID_dict$CHROM, rsID_dict$POS, sep="_"))
+```
+
+Now, is there any relationship between MAF and context-specificity?
+```{r}
+context_maf <- context_counts %>%
+  left_join(maf_qtl, by="snp")
+
+test <- context_maf %>%
+  mutate(context_bin=cut_width(n, width=4))
+
+ggplot(test, aes(x=context_bin, y=Frequency)) +
+  geom_boxplot() +
+  theme_classic() +
+  xlab("# Contexts")
+```
+
+So not a noticeable one! One more subtle way this could pop up, however, is if the allele frequency varies specifically in the context where those context-specific eQTLs are arising. So, let's look at some of the cell types with quite a few singletons
+
+```{r}
+singletons <- which(get_n_significant_conditions(m) == 1)
+colSums(m$result$lfsr[singletons,] <= 0.05)
+```
+
+Now, we can focus in on those singletons in hepatoblasts, visceral neurons, vascular endothelial cells and AFP-ALB positive cells. First, in hepatoblasts, look at some of the context-specific eQTLs
+```{r}
+hep_qtls_i <- which((m$result$lfsr[,"Hepatoblasts"] <= 0.05) & (get_n_significant_conditions(m) == 1))
+hep_qtls <- rownames(m$result$lfsr)[hep_qtls_i]
+
+hep_snps <- sapply(hep_qtls, function(s){str_split(s, "--")[[1]][2]})
+
+bg_qtls_i <- sample(which(get_n_significant_conditions(m)==24), 18)
+bg_qtls <- rownames(m$result$lfsr)[bg_qtls_i]
+
+bg_snps <- sapply(bg_qtls, function(s){str_split(s, "--")[[1]][2]})
+```
+
+
+```{r}
+hep.vcf <- "/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_cellid_confident/Hepatoblasts/genotypes_filtered.recode.vcf"
+
+hep_geno <- read.vcfR(hep.vcf, verbose = FALSE)
+all_snps <- paste(hep_geno@fix[,1], hep_geno@fix[,2], sep="_")
+keepers <- which(all_snps %in% hep_snps)
+
+hep_maf <- maf(hep_geno[keepers,])
+
+keepers_bg <- which(all_snps %in% bg_snps)
+
+bg_maf <- maf(hep_geno[keepers_bg,])
+```
+
+```{r}
+tibble("maf"=c(bg_maf[,4], hep_maf[,4]), "group"=rep(c("bg", "hep"), each=18)) %>%
+  ggplot(aes(x=group, y=maf)) +
+  geom_violin() + 
+  theme_classic()
+```
+
+
+#### Vascular Endothelial Cells
+```{r}
+vasc_qtls_i <- which((m$result$lfsr[,"Vascular-endothelial-cells"] <= 0.05) & (get_n_significant_conditions(m) == 1))
+vasc_qtls <- rownames(m$result$lfsr)[vasc_qtls_i]
+vasc_snps <- sapply(vasc_qtls, function(s){str_split(s, "--")[[1]][2]})
+
+bg_qtls_i <- sample(which(get_n_significant_conditions(m)==24), 11)
+bg_qtls <- rownames(m$result$lfsr)[bg_qtls_i]
+bg_snps <- sapply(bg_qtls, function(s){str_split(s, "--")[[1]][2]})
+```
+
+
+```{r}
+vasc.vcf <- "/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_cellid_confident/Vascular-endothelial-cells/genotypes_filtered.recode.vcf"
+vasc_geno <- read.vcfR(vasc.vcf, verbose = FALSE)
+
+all_snps <- paste(vasc_geno@fix[,1], vasc_geno@fix[,2], sep="_")
+keepers <- which(all_snps %in% vasc_snps)
+vasc_maf <- maf(vasc_geno[keepers,])
+
+keepers_bg <- which(all_snps %in% bg_snps)
+bg_maf <- maf(vasc_geno[keepers_bg,])
+```
+
+```{r}
+tibble("maf"=c(bg_maf[,4], vasc_maf[,4]), "group"=rep(c("bg", "vasc"), each=11)) %>%
+  ggplot(aes(x=group, y=maf)) +
+  geom_violin() + 
+  theme_classic()
+```
+

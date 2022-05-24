@@ -14,6 +14,9 @@ load_qtls <- function(s) {
   qtls
 }
 
+# Try an alternative where I load all columns
+#qtls <- vroom(qtl_files, id="path", col_select=c(SNP, gene, path))
+
 # compute standard errors, omitting tests where we can't obtain reasonable estimates
 qtls <- map_dfr(qtl_files, load_qtls) %>%
   mutate(se=if_else(`t-stat`==0, as.double(NA), beta/`t-stat`), .after='beta') %>%
