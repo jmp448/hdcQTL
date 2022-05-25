@@ -5,5 +5,6 @@ slurmy/.Rhistory
 .snakemake/*
 logs/*
 results/*
+figs/*
 *.ipynb_checkpoints*
 *nb-log*
