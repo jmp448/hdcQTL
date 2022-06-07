@@ -1,22 +1,55 @@
+import numpy as np
+import pandas as pd
+
 def get_prefix(path, c=1):
     return '/'.join(path.split('/')[:-c])
 
+def list_celltypes(wildcards):
+    pb_file = f'data/single_cell_objects/{wildcards.annotation}.{wildcards.aggregation}.tsv'
+    samples = list(pd.read_csv(pb_file, sep='\t', nrows=0).columns)[1:]
+    pb_clusters = list(np.unique([s.split("_")[1] for s in samples]))
+    return pb_clusters
+
+def list_eqtl_files(wildcards):
+    pb_file = f'data/single_cell_objects/{wildcards.annotation}.{wildcards.aggregation}.tsv'
+    samples = list(pd.read_csv(pb_file, sep='\t', nrows=0).columns)[1:]
+    pb_clusters = list(np.unique([s.split("_")[1] for s in samples]))
+    return [f"results/static/{wildcards.annotation}/{wildcards.aggregation}/{c}/eqtls.mtc.tsv"
+            for c in pb_clusters]
+
 rule pseudobulk_qc:
+    resources:
+        mem_mb=250000,
+        time="5:00"
+    input:
+        pseudobulk="data/single_cell_objects/{annotation}.{aggregation}.tsv",
+        sample_summary="data/static/{annotation}/{aggregation}/sample_summary.tsv",
+        celltypes="data/single_cell_objects/{annotation}.{aggregation}.tsv"
+    output:
+        sample_summary_manual="data/static/{annotation}/{aggregation}/sample_summary_manual.tsv"
+    params:
+        table_prefix = "data/static/{annotation}/{aggregation}",
+        fig_prefix = "figs/static/{annotation}/{aggregation}"
+    conda: "../slurmy/r-pseudobulk-scran.yml"
+    script:
+        "../code/mashr/{wildcards.aggregation}-qc.R"
+        
+rule pseudobulk_agg:
     resources:
         mem_mb=250000
     input:
         pseudobulk="data/single_cell_objects/{annotation}.{aggregation}.tsv",
-        sample_summary="data/static/{annotation}/{aggregation}/sample_summary.tsv",
-        celltype_summary="data/static/{annotation}/{aggregation}/samples_per_celltype.tsv"
+        sample_summary_manual="data/static/{annotation}/{aggregation}/sample_summary_manual.tsv",
+        celltypes="data/single_cell_objects/{annotation}.{aggregation}.tsv"
     output:
         tables=expand("data/static/{{annotation}}/{{aggregation}}/{{type}}/{out}.tsv", out=['expression', 'covariates', 'individuals']),
-        plots=expand("figs/static/{{annotation}}/{{aggregation}}/{{type}}/{out}.png", out=['scree', 'pcs'])
+        plots=expand("figs/static/{{annotation}}/{{aggregation}}/{{type}}/qc_manual.png")
     params:
-        table_prefix = lambda wildcards, output: get_prefix(output.tables[0], c=2),
-        fig_prefix = lambda wildcards, output: get_prefix(output.plots[0], c=2)
+        table_prefix = "data/static/{annotation}/{aggregation}",
+        fig_prefix = "figs/static/{annotation}/{aggregation}"
     conda: "../slurmy/r-pseudobulk-scran.yml"
     script:
-        "../code/mashr/{wildcards.aggregation}-qc.R"
+        "../code/mashr/{wildcards.aggregation}-agg.R"
 
 rule genotype_filter:
     input:
@@ -24,16 +57,20 @@ rule genotype_filter:
 	      inds="data/static/{annotation}/{aggregation}/{type}/individuals.tsv"
     output:
     	  "data/static/{annotation}/{aggregation}/{type}/genotypes_filtered.recode.vcf"
+    params:
+        prefix="data/static/{annotation}/{aggregation}/{type}/genotypes_filtered"
     shell:
-	      "code/mashr/genotype_filter.sh {input.genotypes} {wildcards.aggregation} {wildcards.annotation} {wildcards.type} {input.inds}"
+	      "code/mashr/genotype_filter.sh {input.genotypes} {input.inds} {params.prefix}"
 
 rule genotype_012:
     input:
 	      "data/static/{annotation}/{aggregation}/{type}/genotypes_filtered.recode.vcf"
     output:
     	  expand("data/static/{{annotation}}/{{aggregation}}/{{type}}/genotypes_filtered.{out}", out=['012', '012.indv', '012.pos'])
+    params:
+        prefix="data/static/{annotation}/{aggregation}/{type}/genotypes_filtered"
     shell:
-	      "code/mashr/genotype_012.sh {input} {wildcards.aggregation} {wildcards.annotation} {wildcards.type}"
+	      "code/mashr/genotype_012.sh {input} {params.prefix}"
 
 rule genotype_transpose:
     resources:
@@ -71,9 +108,9 @@ rule matrix_eqtl:
     output:
         eqtls="results/static/{annotation}/{aggregation}/{type}/eqtls.tsv",
         df="results/static/{annotation}/{aggregation}/{type}/df.tsv"
-    conda: "slurmy/r-matrixEQTL.yml"
+    conda: "../slurmy/r-matrixEQTL.yml"
     script:
-        "code/mashr/matrixEQTL.R"
+        "../code/mashr/matrixEQTL.R"
 
 rule mtc_static:
     resources:
@@ -85,19 +122,19 @@ rule mtc_static:
     output:
         all_tests="results/static/{annotation}/{aggregation}/{type}/eqtls.mtc.tsv",
         top_tests="results/static/{annotation}/{aggregation}/{type}/eqtls.tophits.tsv"
-    conda: "slurmy/r-mashr.yml"
+    conda: "../slurmy/r-mashr.yml"
     script:
-        "code/mashr/mtc.R"
+        "../code/mashr/mtc.R"
 
 rule mashr:
     resources:
         mem_mb=75000,
         time="03:00:00"
     input:
-        qtls=expand("results/static/{{annotation}}/{{aggregation}}/{{type}}/eqtls.mtc.tsv")
+        unpack(list_eqtl_files)
     output:
         trained="results/static/{annotation}/{aggregation}/mashr.trained.rds",
         tophits="results/static/{annotation}/{aggregation}/mashr.tophits.rds"
-    conda: "slurmy/r-mashr.yml"
+    conda: "../slurmy/r-mashr.yml"
     script:
-        "code/mashr/mashr.R"
+        "../code/mashr/mashr.R"

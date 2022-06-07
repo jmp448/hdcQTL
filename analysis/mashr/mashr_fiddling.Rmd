@@ -1,41 +1,88 @@
 ---
-title: "mashR Alternatives"
+title: "mashR Evaluation"
 output: html_notebook
 ---
-
-Goal: get more interesting patterns from mashR
 
 ```{r}
 library(tidyverse)
 library(mashr)
 library(vroom)
-library(flashr)
 ```
 
-Get QTL info
+## Overview of evaluation criteria
+To evaluate model performance, we will train our `mashR` models on a subset of the tests (odd chromosomes) and evaluate on even chromosomes. 
+
+## Germ layer-based covariance matrices
+
+## Expression-driven covariance matrices
+For expression-driven covariance matrices, I'll be decomposing the (normalized) pseudobulk expression data
+```{r, fig.width=2, fig.height=2}
+exp <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_confident/mashr/pseudobulk_per_celltype_hvg_normalized.tsv") %>%
+  column_to_rownames("gene")
+
+exp_svd <- svd(exp)
+
+plot(exp_svd$d**2 / sum(exp_svd$d**2))
+```
+
+For pattern visualization, it'll be convenient to color cell types by their germ layer of origin
 ```{r}
-load_qtls <- function(s) {
-  t <- str_split(s, "/")[[1]][12]
-  qtls <- vroom(s) %>%
-    add_column(type=t)
-  qtls
-}
+germ_layer <- read_csv("/project2/gilad/katie/ebQTL/FetalReferenceCellTypes_GermLayerAnnotations.csv", col_select = -c(Notes)) %>%
+  rename(celltype=`cell type`, layer=`Germ layer`) %>%
+  group_by(celltype) %>% add_count() %>%
+  mutate(layer=if_else(n > 1, "Ambiguous", layer)) %>%
+  select(celltype, layer) %>%
+  distinct() %>%
+  mutate(layer=factor(layer, levels=c("Ambiguous", "Ectoderm", "Neural crest", "Endoderm", "Mesoderm")))
 
-# compute standard errors, omitting tests where we can't obtain reasonable estimates
-celltypes <- c('Astrocytes', 'Visceral-neurons', 'Amacrine-cells',
-'Oligodendrocytes', 'Ganglion-cells', 'Smooth-muscle-cells', 
-'Limbic-system-neurons', 'Vascular-endothelial-cells', 
-'Photoreceptor-cells', 'CCL19-CCL21-positive-cells', 
-'CLC-IL5RA-positive-cells', 'Mesangial-cells', 'AFP-ALB-positive-cells', 
-'Bipolar-cells', 'Satellite-cells', 'ENS-neurons', 'ENS-glia', 
-'Granule-neurons', 'Hepatoblasts', 'Microglia', 'IGFBP1-DKK1-positive-cells', 
-'Purkinje-neurons', 'Epicardial-fat-cells', 'Cardiomyocytes')
+celltype_levels <- c("Ambiguous", "Ectoderm", "Neural crest", "Endoderm", "Mesoderm")
+celltype_colors <- c("#D5D5D5", "#0076BA", "#006C65", "#FEAE00", "#A62228")
+```
+What patterns is PC1 picking up on?
+```{r, height=4, width=1}
+pcs <- tibble("celltype"=colnames(exp)) %>%
+  left_join(germ_layer, by="celltype") %>%
+  mutate(PC1=exp_svd$v[,1], PC2=exp_svd$v[,2]) 
 
-qtl_files <- paste0("/project2/gilad/jpopp/ebQTL/results/mashr/aggregation/type/highpass_cellid_confident/eqtls/", 
-                    celltypes, "/eqtls.mtc.tsv")
+pcs %>%
+  ggplot(aes(x=celltype, y=PC1, fill=layer)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=celltype_colors) +
+  coord_flip() +
+  theme_classic()
 
-qtls <- map_dfr(qtl_files, load_qtls)
+pcs %>%
+  ggplot(aes(x=celltype, y=PC2, fill=layer)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=celltype_colors) +
+  coord_flip() +
+  theme_classic()
+```
+Save covariance matrices
+```{r}
+u1 <- exp_svd$d[1] * (exp_svd$v[,1] %*% t(exp_svd$v[,1]))
+u2 <- exp_svd$d[2] * (exp_svd$v[,2] %*% t(exp_svd$v[,2]))
+u3 <- exp_svd$d[3] * (exp_svd$v[,3] %*% t(exp_svd$v[,3]))
+u4 <- exp_svd$d[4] * (exp_svd$v[,4] %*% t(exp_svd$v[,4]))
+u5 <- exp_svd$d[5] * (exp_svd$v[,5] %*% t(exp_svd$v[,5]))
+ut <- u1 + u2 + u3 + u4 + u5
 
+U.pca <- list(
+  "PCA_1"= u1 / max(diag(u1)),
+  "PCA_2"= u2 / max(diag(u2)), 
+  "PCA_3"= u3 / max(diag(u3)),
+  "PCA_4"= u4 / max(diag(u4)),
+  "PCA_5"= u5 / max(diag(u5)),
+  "tPCA" = ut / max(diag(ut))
+)
+
+saveRDS(U.pca, "/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_confident/mashr/expression.U.pca.rds")
+```
+
+## QTL-driven covariance matrices
+
+## Model comparison
+```{r}
 # subset to snps that were kept for all analyses
 qtls <- qtls %>%
   mutate(se=if_else(`t-stat`==0, as.double(NA), beta/`t-stat`), .after='beta') %>%

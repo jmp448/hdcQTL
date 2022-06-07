@@ -8,12 +8,10 @@
 module load vcftools
 
 genotypes="$1"
-aggregation="$2"
-annotation="$3"
-type="$4"
-inds="$5"
+inds="$2"
+prefix="$3"
 
-vcftools --gzvcf $genotypes --out data/static/$aggregation/type/$annotation/$type/genotypes_filtered \
+vcftools --gzvcf $genotypes --out $prefix \
                         --max-missing 1 --keep $inds --maf 0.1 --thin 1 \
                         --chr chr1 --chr chr2 --chr chr3 --chr chr4 --chr chr5 --chr chr6 --chr chr7 --chr chr8 \
                         --chr chr9 --chr chr10 --chr chr11 --chr chr12 --chr chr13 --chr chr13 --chr chr14 --chr chr15 \

@@ -3,26 +3,31 @@ library(mashr)
 library(vroom)
 set.seed(1234)
 
-qtl_files <- snakemake@input[['qtls']]
+qtl_files <- snakemake@input
 trained_model_loc <- snakemake@output[['trained']]
 tophit_fitted_loc <- snakemake@output[['tophits']]
 
-load_qtls <- function(s) {
-  t <- str_split(s, "/")[[1]][7]
-  qtls <- vroom(s) %>%
-    add_column(type=t)
-  qtls
+print(qtl_files)
+
+pull_type <- function(s) {
+  str_split(s, "/")[[1]][5]
 }
 
-# Try an alternative where I load all columns
-#qtls <- vroom(qtl_files, id="path", col_select=c(SNP, gene, path))
-
 # compute standard errors, omitting tests where we can't obtain reasonable estimates
-qtls <- map_dfr(qtl_files, load_qtls) %>%
-  mutate(se=if_else(`t-stat`==0, as.double(NA), beta/`t-stat`), .after='beta') %>%
-  mutate(se=if_else(se==0, as.double(NA), se)) %>%
+qtls <- vroom(qtl_files, id="path", col_select=c(SNP, gene, beta, `t-stat`, df, path)) %>%
+  mutate(type=sapply(path, pull_type), .keep="unused") %>%
+  mutate(se=if_else(as.logical((beta==0) * (`t-stat`==0)), rep(NA_real_, nrow(.)), beta/`t-stat`), .after='beta') %>%
   drop_na() %>%
   unite(gv, c(gene, SNP), sep="--", remove=FALSE)
+
+print(table(qtl_files$type))
+
+# 
+# qtls <- map_dfr(qtl_files, load_qtls) %>%
+#   mutate(se=if_else(`t-stat`==0, as.double(NA), beta/`t-stat`), .after='beta') %>%
+#   mutate(se=if_else(se==0, as.double(NA), se)) %>%
+#   drop_na() %>%
+#   unite(gv, c(gene, SNP), sep="--", remove=FALSE)
 
 # subset to snps that were kept for all analyses
 keepers <- qtls %>%

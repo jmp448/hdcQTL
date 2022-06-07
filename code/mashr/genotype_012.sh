@@ -5,8 +5,6 @@
 module load vcftools
 
 genotypes="$1"
-aggregation="$2"
-annotation="$3"
-type="$4"
+prefix="$2"
 
-vcftools --gzvcf $genotypes --out data/static/$aggregation/type/$annotation/$type/genotypes_filtered --012
+vcftools --gzvcf $genotypes --out $prefix --012

@@ -1,6 +1,7 @@
 ### 
-# Perform some EDA on pseudobulk samples to identify any outliers
+# Prep for Matrix eQTL by measuring expression covariates, etc.
 # 
+# Annotation prefix allows for multiple approaches to cell type annotation to be efficiently used in the workflow (ie multiple resolution clusterings)
 # Relies on having previously done aggregation in a notebook like `analysis/highpass/aggregation_*`
 #
 ###
@@ -15,9 +16,8 @@ source("/project2/gilad/jpopp/sc-dynamic-eqtl/code/cell_line_pca.R")
 
 # Read in the input files from Snakefile
 pseudobulk_loc <- snakemake@input[["pseudobulk"]]
-sample_summary_loc <- as.character(snakemake@input[["sample_summary"]])
+sample_summary_loc <- as.character(snakemake@input[["sample_summary_manual"]])
 celltypes_loc <- as.character(snakemake@input[["celltypes"]])
-sample_summary_manual_loc <- as.character(snakemake@output[["sample_summary_manual"]])
 table_prefix <- snakemake@params[['table_prefix']]
 plot_prefix <- snakemake@params[['fig_prefix']]
 
@@ -39,15 +39,10 @@ type.ind <- colnames(counts.type)[-c(1)]
 samples_subset <- read_tsv(sample_summary_loc) %>%
   filter(!dropped)
 
-if (!file.exists(sample_summary_manual_loc)) {
-  file.copy(sample_summary_loc, sample_summary_manual_loc)
-}
-
 for (d in cell.types) {
   dir.create(paste0(table_prefix, "/", d), recursive=T, showWarnings=FALSE)
   dir.create(paste0(plot_prefix, "/", d), recursive=T, showWarnings=FALSE)
   
-  # get expression
   expression <- counts.type %>% 
     select(c(gene, ends_with(paste0("_", d)))) %>% 
     rename_with(function(x){if_else(x=="gene", true=x, false=paste0("NA", str_sub(x, 1, 5)))})
@@ -67,13 +62,14 @@ for (d in cell.types) {
   expression.mat <- t(apply(expression.mat, 1, invnorm_transform))
   rownames(expression.mat) <- gene_keepers
   colnames(expression.mat) <- colnames(expression)[-c(1)]
-  expression <- as_tibble(expression.mat, rownames="gene")
+  expression <- as_tibble(expression.mat, rownames="gene") %>%
+    write_tsv(paste0(table_prefix, "/", d, "/expression.tsv"))
   
   # expression PCs - produces a scree plot and a PC biplot, and saves the covariates
   pcomp <- regular.pca(expression)
   
   # viz PC biplot, scree, and num cells for the cell type
-  png(file=paste0(plot_prefix, "/", d, "/qc.png"), width=480*3, height=480)
+  png(file=paste0(plot_prefix, "/", d, "/qc_manual.png"), width=480*3, height=480)
   par(mfrow=c(1,3))
   plot(pcomp$d ^ 2 / sum(pcomp$d ^ 2), main=d, xlab="PC", ylab="Variance Explained")
   plot(pcomp$u$PC1, pcomp$u$PC2, main=d, xlab="PC1", ylab="PC2")
@@ -83,5 +79,11 @@ for (d in cell.types) {
   
   covariates <- pcomp$u[,1:5] %>% 
     column_to_rownames("sample") %>% t %>% as_tibble(rownames="covariate") %>%
-    write_tsv(paste0(table_prefix, "/", d, "/all_pcs.tsv"))
+    write_tsv(paste0(table_prefix, "/", d, "/covariates.tsv"))
+  
+  # NA prepended to sample names in accordance with genotype data
+  individuals <- samples_subset %>%
+    filter(type==!!d) %>%
+    mutate(individual=paste0("NA", individual), .keep="used") %>%
+    write_tsv(paste0(table_prefix, "/", d, "/individuals.tsv"), col_names=FALSE)
 }
