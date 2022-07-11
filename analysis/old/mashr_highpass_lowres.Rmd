@@ -1,0 +1,303 @@
+---
+title: "Static and Context-Specific eQTL Calling with mashR"
+output: html_notebook
+---
+
+
+```{r}
+library(mashr)
+library(tidyverse)
+```
+
+```{r}
+type_levels <- c("PluripotentUndifferentiated", "endoderm", "MesodermEndothelialHematopoetic", "EarlyEctoderm", "neuralTube", "NeuralCrest", "PostMitoticNeurons", "developingEye", "DevelopingSensoryGanglia")
+type_colors <- c('#F2E4A7', '#FF9300', '#C2220D', '#198400', '#00629E', '#6C159A', '#00A1FF', '#800040', '#1a0034')
+```
+
+## Quick View
+How many cells do we have per cell type and per individual?
+```{r, fig.width=6.5, fig.height=10}
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_030222_lowres/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type, levels=type_levels))
+
+sample_summary %>%
+  arrange(n_cells) %>%
+  ggplot(aes(x=individual, y=n_cells)) +
+  geom_bar(stat="identity") +
+  facet_grid(rows=vars(type), scales="free_y") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+How many UMIs? (This tells the same story, nUMI and nCells very highly correlated)
+```{r, fig.width=6.5, fig.height=10}
+sample_summary %>%
+  arrange(n_umi) %>%
+  ggplot(aes(x=individual, y=n_umi)) +
+  geom_bar(stat="identity") +
+  facet_grid(rows=vars(type), scales="free_y") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+For each cell type, how many individuals have at least 5 cells? (This is the cutoff for having a pseudobulk sample)
+```{r, fig.width=12, fig.height=6}
+ct_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/pseudobulk/type/highpass_030222_lowres/samples_per_celltype.tsv") %>%
+  mutate(type=factor(type, levels=type_levels))
+
+ct_summary  %>%
+  ggplot(aes(x=type, y=n, fill=type)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=type_colors) +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+## MashR Results
+```{r}
+m <- readRDS("/project2/gilad/jpopp/ebQTL/results/mashr/pseudobulk/type/highpass_030222_lowres/eqtls/mashr.tophits.rds")
+```
+
+```{r}
+get_pairwise_sharing(m) %>%
+  corrplot(is.corr=F, order='hclust', tl.pos='lt')
+```
+
+How many eQTLs do we find?
+```{r}
+tibble(n_contexts=get_n_significant_conditions(m)) %>%
+  filter(n_contexts >= 1) %>%
+  dplyr::count(n_contexts, name="n_eqtl") %>%
+  mutate(n_contexts=factor(n_contexts, levels=seq(1, 9))) %>%
+  ggplot(aes(x=n_contexts, y=n_eqtl)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15)
+```
+
+Now, of the eQTLs that are specific to one context, which context is it?
+```{r}
+m$result$lfsr %>%
+  as_tibble(rownames="gv") %>%
+  pivot_longer(-gv, names_to="type", values_to="lfsr") %>%
+  filter(lfsr<=0.05) %>%
+  group_by(gv) %>%
+  select(-lfsr) %>%
+  nest() %>%
+  mutate(n_contexts=sapply(data, nrow)) %>%
+  filter(n_contexts==1) %>%
+  unnest(data) %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  group_by(type) %>%
+  dplyr::count() %>%
+  ggplot(aes(x=type, y=n, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic() +
+  ylab("# Singleton eQTLs") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+  scale_fill_manual(values=type_colors)
+```
+
+### What are the strongest patterns?
+```{r, fig.width=6, fig.height=8}
+as_tibble(get_estimated_pi(m), rownames="component") %>%
+  mutate(component=factor(component, levels=names(get_estimated_pi(m)))) %>%
+  ggplot(aes(x=component, y=value)) +
+  geom_bar(stat="identity") +
+  scale_x_discrete(limits=rev) +
+  xlab("Regulatory Pattern") +
+  ylab("Weight") +
+  coord_flip() +
+  theme_classic(base_size = 20)
+  #theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+Show boilerplate covariance matrices
+```{r fig.width=6, fig.height=3}
+tibble(type=factor(type_levels, levels=type_levels), value=1) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=type_colors) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+
+tibble(type=factor(type_levels, levels=type_levels), value=c(0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 1)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=type_colors) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+
+Show more interesting covariance matrices
+```{r}
+m$fitted_g$Ulist$ED_tPCA %>%
+  corrplot(is.corr=F)
+
+m$fitted_g$Ulist$ED_tPCA %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=type_colors) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+```{r}
+m$fitted_g$Ulist$ED_PCA_5 %>%
+  corrplot(is.corr=F)
+
+m$fitted_g$Ulist$ED_PCA_5 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=type_colors) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+Find any significant eQTLs whose effects are best explained by those signals, starting with component 1 (which is highest in IPSC, lower elsewhere)
+```{r}
+tests <- rownames(get_lfsr(m))
+sighits <- get_significant_results(m)
+ed1 <- as_tibble(m$posterior_weights) %>%
+  rowid_to_column() %>%
+  filter(rowid %in% sighits) %>%
+  pivot_longer(-rowid, names_to="component", values_to="weight") %>%
+  group_by(rowid) %>%
+  slice_max(weight) %>%
+  filter(component=="ED_tPCA.29") %>%
+  pull(rowid)
+mash_plot_meta(m, ed1[1], colors=meta.colors(box=type_colors))
+```
+
+## What's going wrong?
+There's clearly something off about developing eye, likely having to do with the crazy discrepancy in the number of cells per donor. Let's take a look at the eQTL summary statistics from that cell type. Do they look similar to another cell type (let's say, post mitotic neurons)
+```{r}
+eye_qtl <- vroom("/project2/gilad/jpopp/ebQTL/results/mashr/pseudobulk/type/highpass_030222_lowres/eqtls/developingEye/eqtls.mtc.tsv") %>%
+  unite(gv, SNP, gene, sep="--") %>%
+  mutate(type="eye")
+
+neur_qtl <- vroom("/project2/gilad/jpopp/ebQTL/results/mashr/pseudobulk/type/highpass_030222_lowres/eqtls/PostMitoticNeurons/eqtls.mtc.tsv") %>%
+  unite(gv, SNP, gene, sep="--") %>%
+  mutate(type="neuron")
+
+qtl_combined <- bind_rows(eye_qtl, neur_qtl)
+```
+
+```{r}
+eye_qtl_tophits <- vroom("/project2/gilad/jpopp/ebQTL/results/mashr/pseudobulk/type/highpass_030222_lowres/eqtls/developingEye/eqtls.tophits.tsv") %>%
+  unite(gv, SNP, gene, sep="--") %>%
+  mutate(type="eye")
+
+neur_qtl_tophits <- vroom("/project2/gilad/jpopp/ebQTL/results/mashr/pseudobulk/type/highpass_030222_lowres/eqtls/PostMitoticNeurons/eqtls.tophits.tsv") %>%
+  unite(gv, SNP, gene, sep="--") %>%
+  mutate(type="neuron")
+
+tophits_combined <- bind_rows(eye_qtl_tophits, neur_qtl_tophits)
+```
+
+
+First, a broad look at the distribution of effect sizes and t-statistics for these data
+
+```{r}
+ggplot(qtl_combined, aes(x=beta)) +
+  geom_histogram(nbins=30) +
+  facet_grid(rows=vars(type))
+```
+
+```{r}
+ggplot(qtl_combined, aes(x=`t-stat`)) +
+  geom_histogram(nbins=30) +
+  facet_grid(rows=vars(type))
+```
+
+```{r}
+ggplot(qtl_combined, aes(x=`p-value`)) +
+  geom_histogram(nbins=100) +
+  facet_grid(rows=vars(type))
+```
+
+How many significant hits are there in either cell type?
+```{r}
+tophits_combined %>%
+  filter(q <= 0.05) %>%
+  dplyr::count(type)
+```
+
+How much agreement is there between the effect size measurements in the two cell types?
+```{r}
+double.tested <- qtl_combined %>%
+  dplyr::count(gv) %>%
+  filter(n==2) %>%
+  pull(gv)
+```
+
+```{r}
+p.comp <- qtl_combined %>%
+  filter(gv %in% double.tested) %>%
+  mutate(logp=-log10(`p-value`)) %>%
+  pivot_wider(id_cols=gv, names_from=type, values_from=logp) %>%
+  sample_frac(0.1)
+ggplot(p.comp, aes(x=neuron, y=eye)) +
+  geom_point()
+```
+How does this compare to another pair of contexts?
+```{r}
+endo_qtl <- vroom("/project2/gilad/jpopp/ebQTL/results/mashr/pseudobulk/type/highpass_030222_lowres/eqtls/endoderm/eqtls.mtc.tsv") %>%
+  unite(gv, SNP, gene, sep="--") %>%
+  mutate(type="endo")
+
+meso_qtl <- vroom("/project2/gilad/jpopp/ebQTL/results/mashr/pseudobulk/type/highpass_030222_lowres/eqtls/MesodermEndothelialHematopoetic/eqtls.mtc.tsv") %>%
+  unite(gv, SNP, gene, sep="--") %>%
+  mutate(type="meso")
+
+mesendo_combined <- bind_rows(endo_qtl, meso_qtl)
+```
+```{r}
+double.tested2 <- mesendo_combined %>%
+  dplyr::count(gv) %>%
+  filter(n==2) %>%
+  pull(gv)
+
+mesendo.comp <- mesendo_combined %>%
+  filter(gv %in% double.tested2) %>%
+  mutate(logp=-log10(`p-value`)) %>%
+  pivot_wider(id_cols=gv, names_from=type, values_from=logp) %>%
+  sample_frac(0.1)
+ggplot(mesendo.comp, aes(x=meso, y=endo)) +
+  geom_point()
+```
+
+This is greater agreement than in the others, but there isn't a *huge* difference here, so I think `mashr` might have something to do with the problem.
+
+How would our data-driven covariance matrices differ if we didn't just use the top hits per gene, and instead used a random hit per gene? First, for each cell type how many options would we have if we used a Bonferroni cutoff of 0.25
+```{r}
+opts <- eye_qtl %>%
+  filter(bonf.p <= 0.25) %>%
+  separate(gv, into=c("snp", "gene"), sep="--") %>%
+  pull(gene) %>%
+  table() %>% table()
+
+opts
+sum(opts)
+```
+
+This actually may be fine, we don't need all genes to be represented for all of our data-driven covariance matrices.
+```{r}
+
+```
+
+
+

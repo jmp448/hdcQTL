@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=4:0:0
+#SBATCH --time=7:0:0
 #SBATCH --partition=gpu2
 #SBATCH --gres=gpu:2
 #SBATCH --job-name=jlabg

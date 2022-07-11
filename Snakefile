@@ -1,7 +1,8 @@
 import os
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
-include: "rules/qtl_static.smk"
+include: "rules/mashr.smk"
+include: "rules/tensorqtl.smk"
 
 HTTP = HTTPRemoteProvider()
 

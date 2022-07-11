@@ -8,3 +8,4 @@ results/*
 figs/*
 *.ipynb_checkpoints*
 *nb-log*
+temp/*
