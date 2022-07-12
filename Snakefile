@@ -16,7 +16,6 @@ rule process_gtf:
     script:
         "code/mashr/gene_locs.R"
 
-        
 rule make_conda: 
     input:
         "test.tmp"
