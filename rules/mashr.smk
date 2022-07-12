@@ -25,29 +25,29 @@ rule pseudobulk_qc:
         pseudobulk="data/single_cell_objects/{annotation}.{aggregation}.tsv",
         sample_summary="data/static/{annotation}/{aggregation}/sample_summary.tsv"
     output:
-        sample_summary_manual="data/static/{annotation}/{aggregation}/sample_summary_manual.tsv"
+        sample_summary_manual="data/static/{annotation}/{aggregation}/{decomp}/sample_summary_manual.tsv"
     params:
-        table_prefix = "data/static/{annotation}/{aggregation}",
-        fig_prefix = "figs/static/{annotation}/{aggregation}"
+        table_prefix = "data/static/{annotation}/{aggregation}/{decomp}",
+        fig_prefix = "figs/static/{annotation}/{aggregation}/{decomp}"
     conda: "../slurmy/r-pseudobulk-scran.yml"
     script:
-        "../code/mashr/{wildcards.aggregation}-qc.R"
+        "../code/mashr/{wildcards.aggregation}-{wildcards.decomp}-qc.R"
         
 rule pseudobulk_agg:
     resources:
         mem_mb=250000
     input:
         pseudobulk="data/single_cell_objects/{annotation}.{aggregation}.tsv",
-        sample_summary_manual="data/static/{annotation}/{aggregation}/sample_summary_manual.tsv",
+        sample_summary_manual="data/static/{annotation}/{aggregation}/{decomp}/sample_summary_manual.tsv",
         celltypes="data/single_cell_objects/{annotation}.{aggregation}.tsv"
     output:
-        all_expression="data/static/{annotation}/{aggregation}/pseudobulk_all.tsv"
+        all_expression="data/static/{annotation}/{aggregation}/{decomp}/pseudobulk_all.tsv"
     params:
-        table_prefix = "data/static/{annotation}/{aggregation}",
-        fig_prefix = "figs/static/{annotation}/{aggregation}"
+        table_prefix = "data/static/{annotation}/{aggregation}/{decomp}",
+        fig_prefix = "figs/static/{annotation}/{aggregation}/{decomp}"
     conda: "../slurmy/r-pseudobulk-scran.yml"
     script:
-        "../code/mashr/{wildcards.aggregation}-agg.R"
+        "../code/mashr/{wildcards.aggregation}-{wildcards.decomp}-agg.R"
 
 rule genotype_filter:
     input:
@@ -108,7 +108,7 @@ rule matrix_eqtl:
         df="results/static/{annotation}/{aggregation}/{type}/df.tsv"
     conda: "../slurmy/r-matrixEQTL.yml"
     script:
-        "../code/mashr/matrixEQTL.R"
+        "../code/mashr/matrixeqtl_nominal.R"
 
 rule mtc_static:
     resources:
@@ -122,7 +122,7 @@ rule mtc_static:
         top_tests="results/static/{annotation}/{aggregation}/{type}/eqtls.tophits.tsv"
     conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/mashr/mtc.R"
+        "../code/mashr/matrixeqtl_mtc.R"
 
 rule mashr:
     resources:
