@@ -13,16 +13,16 @@ cell.types <- read_tsv(celltypes_loc, n_max=0, col_select=-c(1)) %>%
 ```
 
 ```{r}
-knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/highpass_cellid_all/pseudobulk-scran/", cell.types, "/qc.png"))
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/highpass_cellid_all/pseudobulk-scran/fastgxc/", cell.types, "/qc.png"))
 ```
 And check the shared pseudobulk profiles as well
 ```{r}
-knitr::include_graphics("/project2/gilad/jpopp/ebQTL/figs/static/highpass_cellid_all/pseudobulk-scran/Shared/qc.png")
+knitr::include_graphics("/project2/gilad/jpopp/ebQTL/figs/static/highpass_cellid_all/pseudobulk-scran/fastgxc/Shared/qc.png")
 ```
 
 There are a few of these that are worth following up on.
 ```{r}
-pcs_prefix <- "/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_all/pseudobulk-scran/"
+pcs_prefix <- "/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_all/pseudobulk-scran/fastgxc/"
 ```
 
 

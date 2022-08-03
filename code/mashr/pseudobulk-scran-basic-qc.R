@@ -36,7 +36,7 @@ pseudobulk <- read_tsv(pseudobulk_loc) %>%
   arrange(gene)
 type.ind <- colnames(pseudobulk)[-c(1)]
 
-# Drop low-cell num samples
+# Identify low-quality samples
 samples_subset <- read_tsv(sample_summary_loc) %>%
   filter(!dropped)
 
@@ -45,36 +45,13 @@ if (!file.exists(sample_summary_manual_loc)) {
   file.copy(sample_summary_loc, sample_summary_manual_loc)
 }
 
-# Decompose expression into shared and cell type specific components
-pseudobulk.decomp <- pseudobulk %>%
-  column_to_rownames("gene") %>% t %>%
-  as_tibble(rownames="sample") %>%
-  pivot_longer(cols=!sample, names_to="gene", values_to="expression") %>%
-  mutate(ind=str_sub(sample, 1, 5)) %>%
-  group_by(ind, gene) %>%
-  mutate(shared=mean(expression)) %>%
-  mutate(expression = expression - shared) %>%
-  ungroup
-
-pseudobulk.shared <- pseudobulk.decomp %>%
-  select(ind, gene, shared) %>%
-  distinct %>%
-  mutate(ind=paste0(ind, "_Shared")) %>%
-  rename(sample=ind, expression=shared)
-
-pseudobulk.all <- pseudobulk.decomp %>%
-  select(sample, gene, expression) %>%
-  bind_rows(pseudobulk.shared) %>%
-  arrange(sample) %>%
-  pivot_wider(names_from=sample, values_from=expression)
-
 # Prep for QTL calling
 for (d in c(cell.types)) {
   dir.create(paste0(table_prefix, "/", d), recursive=T, showWarnings=FALSE)
   dir.create(paste0(plot_prefix, "/", d), recursive=T, showWarnings=FALSE)
   
   # get expression
-  expression <- pseudobulk.all %>% 
+  expression <- pseudobulk %>% 
     select(c(gene, ends_with(paste0("_", d)))) %>% 
     rename_with(function(x){if_else(x=="gene", true=x, false=paste0("NA", str_sub(x, 1, 5)))})
   expression.mat <- expression %>%
@@ -103,10 +80,8 @@ for (d in c(cell.types)) {
   par(mfrow=c(1,3))
   plot(pcomp$d ^ 2 / sum(pcomp$d ^ 2), main=d, xlab="PC", ylab="Variance Explained")
   plot(pcomp$u$PC1, pcomp$u$PC2, main=d, xlab="PC1", ylab="PC2")
-  if (d != "Shared") {
-    barplot(filter(samples_subset, type==d)$n_cells ~ as.factor(filter(samples_subset, type==d)$individual), 
-            las=2, xlab="Individual", ylab="Number of Cells")
-  }
+  barplot(filter(samples_subset, type==d)$n_cells ~ as.factor(filter(samples_subset, type==d)$individual), 
+          las=2, xlab="Individual", ylab="Number of Cells")
   dev.off()
   
   covariates <- pcomp$u[,1:5] %>% 

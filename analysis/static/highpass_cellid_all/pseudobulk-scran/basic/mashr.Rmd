@@ -14,7 +14,7 @@ library(rmeta)
 ## Quality Control
 How many cells do we have per cell type and per individual?
 ```{r, fig.width=6.5, fig.height=10}
-sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_all/pseudobulk-scran/sample_summary_manual.tsv") %>%
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_all/pseudobulk-scran/basic/sample_summary_manual.tsv") %>%
   mutate(individual=factor(individual), type=factor(type))
 
 sample_summary %>%
@@ -24,24 +24,49 @@ sample_summary %>%
   facet_grid(rows=vars(type), scales="free_y") +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 ```
-
-For each cell type, how many individuals have at least 5 cells? (This is the cutoff for having a pseudobulk sample)
+How many cell types per individual?
+```{r}
+sample_summary %>%
+  filter(!dropped) %>%
+  dplyr::count(individual) %>%
+  arrange(n) %>%
+  ggplot(aes(x=individual, y=n)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+For each cell type, how many individuals are included? (Must have at least 5 cells)
 ```{r, fig.width=12, fig.height=6}
-ct_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_all/pseudobulk-scran/samples_per_celltype.tsv") %>%
-  mutate(type=factor(type))
-
-ct_summary  %>%
+sample_summary  %>%
+  filter(!dropped) %>%
+  count(type) %>%
   ggplot(aes(x=type, y=n, fill=type)) +
   geom_bar(stat="identity") +
   ylab("n samples") +
   theme_classic(base_size=15) +
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=10, linetype="dashed")
 ```
+
+
+
+## Evaluating eQTL detection rates with and without mashR
+How many eQTLs do we find with and without mashR?
+
+First, without mashR.
+```{r}
+cell.types <- sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  count(type) %>%
+  filter(n >= 25) %>%
+  pull(type)
+```
+
 
 
 ## Understanding Data-Driven Regulatory Patterns
 ```{r}
-m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static/highpass_cellid_all/pseudobulk-scran/mashr.tophits.rds")
+m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static/highpass_cellid_all/pseudobulk-scran/fastgxc/mashr.tophits.rds")
 ```
 
 ```{r}
@@ -116,7 +141,14 @@ m$result$lfsr %>%
   ylab("# Singleton eQTLs") +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 ```
-There's a ton for erythroblasts - needs follow-up. Maybe this is because those are generally less mature, 
+There's a ton for erythroblasts - needs follow-up. Maybe this is because those are not really erythroblasts but they're from the early ectoderm cluster where we have tons of cells.
+
+Do we get more eQTLs from the contexts where we have more individuals?
+```{r}
+
+```
+
+
 
 ### What are the strongest patterns?
 ```{r, fig.width=6, fig.height=8}
@@ -249,7 +281,7 @@ Next, we want to see how many eQTL effects are shared across all of our contexts
 
 We trained a (univariate) `ash` model on the same set of tests used for our `mash` analysis.
 ```{r}
-ash_tophits <- readRDS("/project2/gilad/jpopp/ebQTL/results/static/highpass_cellid_all/pseudobulk-scran/ashr.tophits.rds")
+ash_tophits <- readRDS("/project2/gilad/jpopp/ebQTL/results/static/highpass_cellid_all/pseudobulk-scran/fastgxc/ashr.tophits.rds")
 sum(ash_tophits$result$lfsr <= 0.05)
 ```
 
@@ -261,8 +293,6 @@ as_tibble(ash_tophits$result) %>%
   geom_histogram(bins=100) +
   theme_classic()
 ```
-
-Isn't this unusual behavior for ash? Maybe I'm using the wrong visualization. 
 
 ## Comparing shared and specific regulatory effects
 How many of our context-specific regulatory effects overlap with shared effects?

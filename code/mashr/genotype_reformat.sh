@@ -8,29 +8,25 @@
 genotypes="$1"
 individuals="$2"
 snp_locs="$3"
-agg=`echo $snp_locs | cut -d/ -f3`
-annot=`echo $snp_locs | cut -d/ -f5`
-type=`echo $snp_locs | cut -d/ -f6`
-
-
-snp_locs_out="$4"
-genotypes_out="$5"
+temploc="$4"
+snp_locs_out="$5"
+genotypes_out="$6"
 
 ### add snp ids (just positions - some variants lack rsID) to snp locs file
-sed 's/\t/_/g' $snp_locs > snpid.$type.$annot.$agg.tmp
-paste snpid.$type.$annot.$agg.tmp $snp_locs > $snp_locs_out
+sed 's/\t/_/g' $snp_locs > $temploc.snpid.tmp
+paste $temploc.snpid.tmp $snp_locs > $snp_locs_out
 
 ### add snp ids and individual names to genotype file
 # convert individual names to header
-bash code/mashr/genotype_transpose.sh $individuals genotypes.$type.$annot.$agg.tmp 
+bash code/mashr/genotype_transpose.sh $individuals $temploc.genotypes.tmp 
 
 # add genotype values below header
-tail -n +2 $genotypes >> genotypes.$type.$annot.$agg.tmp 
+tail -n +2 $genotypes >> $temploc.genotypes.tmp 
 
 # add snp ids to genotypes file
-echo snp_id > snpid.header.$type.$annot.$agg.tmp
-cat snpid.$type.$annot.$agg.tmp >> snpid.header.$type.$annot.$agg.tmp
-paste snpid.header.$type.$annot.$agg.tmp genotypes.$type.$annot.$agg.tmp > $genotypes_out
+echo snp_id > $temploc.snpid.header.tmp
+cat $temploc.snpid.tmp >> $temploc.snpid.header.tmp
+paste $temploc.snpid.header.tmp $temploc.genotypes.tmp > $genotypes_out
 
-rm *.$type.$annot.$agg.tmp
+rm $temploc.*
 

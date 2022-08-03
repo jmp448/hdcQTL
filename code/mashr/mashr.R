@@ -3,11 +3,11 @@ library(mashr)
 library(vroom)
 set.seed(1234)
 
-cell.types <- read_tsv("data/single_cell_objects/highpass_cellid_confident.pseudobulk-scran.tsv", n_max=0, col_select=-c(gene)) %>%
-  colnames %>%
-  sapply(function(s){str_sub(s, start=7)}) %>%
-  unique()
-qtl_files <- paste0("results/static/highpass_cellid_confident/pseudobulk-scran/", cell.types, "/eqtls.mtc.tsv")
+# cell.types <- read_tsv("data/single_cell_objects/highpass_cellid_all.pseudobulk-scran.tsv", n_max=0, col_select=-c(gene)) %>%
+#   colnames %>%
+#   sapply(function(s){str_sub(s, start=7)}) %>%
+#   unique()
+# qtl_files <- paste0("results/static/highpass_cellid_all/pseudobulk-scran/basic/", cell.types, "/matrixeqtl.cis_qtl_pairs.all.mtc.tsv")
 
 qtl_files <- snakemake@input
 trained_model_loc <- snakemake@output[['trained']]
@@ -15,9 +15,10 @@ tophit_fitted_loc <- snakemake@output[['tophits']]
 random_hits_loc <- snakemake@output[['random']]
 top_hits_loc <- snakemake@output[['top']]
 mashr_input_data_loc <- snakemake@output[['datasets']]
+qtl_master_loc <- snakemake@output[['all_qtls']]
 
 pull_type <- function(s) {
-  str_split(s, "/")[[1]][5]
+  str_split(s, "/")[[1]][6]
 }
 
 # compute standard errors, omitting tests where we can't obtain reasonable estimates
@@ -26,6 +27,8 @@ qtls <- vroom(qtl_files, id="path", col_select=c(SNP, gene, beta, `t-stat`, df, 
   mutate(se=if_else(as.logical((beta==0) * (`t-stat`==0)), rep(NA_real_, nrow(.)), beta/`t-stat`), .after='beta') %>%
   drop_na() %>%
   unite(gv, c(gene, SNP), sep="--", remove=FALSE)
+
+saveRDS(qtls, qtl_master_loc)
 
 # we'll use this later, mapping each cell type to the degrees of freedom
 df.type <- qtls %>%
