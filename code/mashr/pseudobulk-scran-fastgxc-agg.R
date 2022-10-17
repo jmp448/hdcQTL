@@ -11,7 +11,6 @@ library(Matrix)
 library(Matrix.utils)
 library(matrixStats)
 set.seed(2021)
-source("/project2/gilad/jpopp/sc-dynamic-eqtl/code/cell_line_pca.R")
 #use_condaenv("/project2/gilad/jpopp/ebQTL/.snakemake/conda/980130bc9d8d3f8069c208a84393fb39")
 
 # Read in the input files from Snakefile
@@ -31,6 +30,15 @@ cell.types <- read_tsv(celltypes_loc, n_max=0, col_select=-c(1)) %>%
 # Normalize
 invnorm_transform <- function(x) {
   qqnorm(x, plot.it=F)$x
+}
+
+scale_tidy <- function(x, scale=TRUE) {
+  # a version of the scale function that doesn't expect a matrix
+  if (scale==TRUE) {
+    (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)
+  } else {
+    (x - mean(x, na.rm=TRUE))
+  }
 }
 
 # Read in pseudobulk data
@@ -57,11 +65,11 @@ if (snakemake@wildcards[['decomp']] == "fastgxc") {
   pseudobulk <- ungroup(pseudobulk)
 } else if (snakemake@wildcards[['decomp']] == "fastgxc_context_centered") {
   pseudobulk <- pseudobulk %>%
-    mutate(expression=scale(expression, scale=FALSE)) %>%
+    mutate(expression=scale_tidy(expression, scale=FALSE)) %>%
     ungroup
 } else if (snakemake@wildcards[['decomp']] == "fastgxc_context_standardized") {
   pseudobulk <- pseudobulk %>%
-    mutate(expression=scale(expression, scale=FALSE)) %>%
+    mutate(expression=scale_tidy(expression, scale=TRUE)) %>%
     ungroup
 } else {
   stop("invalid decomp wildcard")

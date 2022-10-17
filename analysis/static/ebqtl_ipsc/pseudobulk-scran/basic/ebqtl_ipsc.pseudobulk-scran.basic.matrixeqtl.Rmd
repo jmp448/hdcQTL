@@ -1,0 +1,397 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+library(qvalue)
+```
+
+## QTL results
+
+```{r, warning=FALSE, message=FALSE}
+tophits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/ebqtl_ipsc/pseudobulk-scran/basic/IPSC/matrixeqtl.cis_qtl_pairs.tophits.tsv")
+```
+
+How many eQTLs? In their work, they found 235. In our reanalysis, we found 136. 
+```{r}
+sum(tophits$q <= 0.1)
+```
+
+```{r}
+tibble("approach"=factor(c("original_vQTL", "reanalysis_vQTL", "ebQTL"),
+                         levels=c("original_vQTL", "reanalysis_vQTL", "ebQTL")),
+       "n_qtl"=c(235, 136, 49)) %>%
+  ggplot(aes(x=approach, y=n_qtl)) +
+  geom_bar(stat="identity")
+```
+
+The difference between this figure and the 136 eQTLs stems from some difference in the dataset. 
+- We may have incorporated partially differentiated cells
+- Our cell and/or gene filtering criteria may differ
+
+This is even starker when you realize that we performed nearly twice as many tests (1965203 vs 990328)
+
+
+## Replication
+How does replication of the eQTLs we detected in the EB IPSCs look in their dataset? 
+```{r}
+vqtl_all <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/vqtl_ipsc/pseudobulk-scran/basic/IPSC/matrixeqtl.cis_qtl_pairs.all.tsv") %>%
+  unite(gv, gene, SNP, sep="--", remove=F)
+
+ebqtl_hits <- tophits %>%
+  filter(q <= 0.1) %>%
+  unite(gv, gene, SNP, sep="--", remove=F) %>%
+  pull(gv)
+
+vqtl_ebhits <- filter(vqtl_all, gv %in% ebqtl_hits) #note that only 23 of the 49 were tested here!!
+hist(vqtl_ebhits$`p-value`)
+```
+
+We can't properly estimate the q-value just because there are so few hits, but clearly the replication rate is very high for our ebQTL-discovered eQTLs in the variance QTL dataset
+
+Next, need to check the reverse replication, do the vQTL paper's eQTLs replicate in our data?
+```{r}
+vqtl_hits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/vqtl_ipsc/pseudobulk-scran/basic/IPSC/matrixeqtl.cis_qtl_pairs.tophits.tsv") %>%
+  filter(q <= 0.1) %>%
+  unite(gv, gene, SNP, sep="--", remove=F) %>%
+  pull(gv)
+
+ebqtl_all <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/ebqtl_ipsc/pseudobulk-scran/basic/IPSC/matrixeqtl.cis_qtl_pairs.all.tsv") %>%
+  unite(gv, gene, SNP, sep="--", remove=F)
+
+ebqtl_vhits <- filter(ebqtl_all, gv %in% vqtl_hits) #note that only 23 of the 49 were tested here!!
+hist(qvalue(ebqtl_vhits$`p-value`))
+```
+Once again, *very* high replication rate, suggesting we are on the right path but underpowered. 
+
+What happens if we just change the filtering criteria?
+```{r}
+ebqtl_strict_all <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/ebqtl_ipscfilt/pseudobulk-scran/basic_redo/IPSC/7pcs/matrixeqtl.cis_qtl_pairs.all.tsv") %>%
+  unite(gv, gene, SNP, sep="--", remove=F)
+
+ebqtl_strict_hits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/ebqtl_ipscfilt/pseudobulk-scran/basic_redo/IPSC/7pcs/matrixeqtl.cis_qtl_pairs.tophits.tsv")
+
+sum(ebqtl_strict_hits$q <= 0.1)
+```
+Also now going to consider TMM normalization
+```{r}
+ebqtl_tmm_all <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/ebqtl_ipsc/pseudobulk-tmm/basic_redo/IPSC/7pcs/matrixeqtl.cis_qtl_pairs.all.tsv") %>%
+  unite(gv, gene, SNP, sep="--", remove=F)
+ebqtl_tmm_hits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/ebqtl_ipsc/pseudobulk-tmm/basic_redo/IPSC/7pcs/matrixeqtl.cis_qtl_pairs.tophits.tsv")
+
+sum(ebqtl_tmm_hits$q <= 0.1)
+```
+
+
+## Understanding the discrepancy between our re-analysis of vQTL data and EB-IPSC analysis
+First, does running more tests make a huge difference? 
+1. Subset to the intersection of tests run in both analyses
+2. Perform MTC again
+3. Compare the number of hits
+```{r}
+overlap_tests <- intersect(ebqtl_strict_all$gv, vqtl_all$gv)
+overlap_tests <- intersect(overlap_tests, ebqtl_all$gv)
+overlap_tests <- intersect(overlap_tests, ebqtl_tmm_all$gv)
+vqtl_overlap <- filter(vqtl_all, gv %in% overlap_tests)  # 952623 of 990328
+ebqtl_overlap <- filter(ebqtl_all, gv %in% overlap_tests) # 915000 of 1965203
+ebqtl_strict_overlap <- filter(ebqtl_strict_all, gv %in% overlap_tests) # 920454 of 1768879
+ebqtl_tmm_overlap <- filter(ebqtl_tmm_all, gv %in% overlap_tests)
+
+vqtl_overlap <- vqtl_overlap %>%
+  group_by(gene) %>% add_count() %>%
+  mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
+  select(-n)
+
+ebqtl_overlap <- ebqtl_overlap %>%
+  group_by(gene) %>% add_count() %>%
+  mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
+  select(-n)
+
+ebqtl_strict_overlap <- ebqtl_strict_overlap %>%
+  group_by(gene) %>% add_count() %>%
+  mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
+  select(-n)
+
+ebqtl_tmm_overlap <- ebqtl_tmm_overlap %>%
+  group_by(gene) %>% add_count() %>%
+  mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
+  select(-n)
+
+vqtl_overlap_tophits <- vqtl_overlap %>%
+  group_by(gene) %>%
+  arrange(bonf.p) %>%
+  filter(!duplicated(gene))
+vqtl_overlap_tophits$q <- qvalue(vqtl_overlap_tophits$bonf.p)$qvalues
+
+ebqtl_overlap_tophits <- ebqtl_overlap %>%
+  group_by(gene) %>%
+  arrange(bonf.p) %>%
+  filter(!duplicated(gene))
+ebqtl_overlap_tophits$q <- qvalue(ebqtl_overlap_tophits$bonf.p)$qvalues
+
+ebqtl_strict_overlap_tophits <- ebqtl_strict_overlap %>%
+  group_by(gene) %>%
+  arrange(bonf.p) %>%
+  filter(!duplicated(gene))
+ebqtl_strict_overlap_tophits$q <- qvalue(ebqtl_strict_overlap_tophits$bonf.p)$qvalues
+
+ebqtl_tmm_overlap_tophits <- ebqtl_tmm_overlap %>%
+  group_by(gene) %>%
+  arrange(bonf.p) %>%
+  filter(!duplicated(gene))
+ebqtl_tmm_overlap_tophits$q <- qvalue(ebqtl_tmm_overlap_tophits$bonf.p)$qvalues
+```
+
+```{r}
+tibble("approach"=factor(c("original_vQTL", "reanalysis_vQTL", "ebQTL", "ebQTL_strict", "ebQTL_tmm"),
+                         levels=c("original_vQTL", "reanalysis_vQTL", "ebQTL", "ebQTL_strict", "ebQTL_tmm")),
+       "n_qtl"=c(235, sum(vqtl_overlap_tophits$q <= 0.1), 
+                 sum(ebqtl_overlap_tophits$q <= 0.1), sum(ebqtl_strict_overlap_tophits$q <= 0.1),
+                 sum(ebqtl_tmm_overlap_tophits$q <= 0.1))) %>%
+  ggplot(aes(x=approach, y=n_qtl)) +
+  geom_bar(stat="identity")
+```
+
+So this is not likely to just be a matter of how FDR control was performed across genes, there's something different about the individual tests
+
+How do our effect sizes and standard errors match between the two analyses?
+```{r}
+vqtl_stats <- vqtl_overlap_tophits %>%
+  filter(q <= 0.1) %>%
+  ungroup() %>%
+  mutate(se=beta/`t-stat`) %>%
+  select(gv, beta, se) %>%
+  rename(beta_vqtl=beta, se_vqtl=se)
+combined_stats <- ebqtl_tmm_overlap %>%
+  ungroup() %>%
+  mutate(se=beta/`t-stat`) %>%
+  select(gv, beta, se) %>%
+  rename(beta_ebqtl=beta, se_ebqtl=se) %>%
+  right_join(vqtl_stats, by="gv")
+
+ggplot(combined_stats, aes(x=beta_vqtl, y=beta_ebqtl)) +
+  geom_point() +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
+  theme_classic(base_size=15) +
+  ylab("beta_ebqtl") + xlab("beta_vqtl") + ggtitle("effect size comparison")
+cor(combined_stats$beta_ebqtl, combined_stats$beta_vqtl)
+```
+
+```{r}
+ggplot(combined_stats, aes(x=se_vqtl, y=se_ebqtl)) +
+  geom_point() +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
+  theme_classic(base_size=15) +
+  ylab("se_ebqtl") + xlab("se_vqtl") + ggtitle("std error comparison")
+cor(combined_stats$beta_ebqtl, combined_stats$beta_vqtl)
+```
+
+```{r}
+ggplot(combined_stats, aes(x=beta_vqtl/se_vqtl, y=beta_ebqtl/se_ebqtl)) +
+  geom_point() +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
+  theme_classic(base_size=15) +
+  ylab("t_ebqtl") + xlab("t_vqtl") + ggtitle("t-statistic comparison")
+```
+
+## Trying to find upstream causes
+Does gene expression generally agree across the two datasets?
+```{r}
+sarkar_exp <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/vqtl_ipsc.pseudobulk-scran.tsv") %>%
+  pivot_longer(!gene, names_to="sample", values_to="sarkar_exp")
+eb_exp <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/ebqtl_ipsc.pseudobulk-scran.tsv") %>%
+  pivot_longer(!gene, names_to="sample", values_to="eb_exp")
+
+all_exp <- inner_join(sarkar_exp, eb_exp, by=c("gene", "sample"))
+
+ipsc_markers <- c("POU5F1", "NANOG", "GAL", "UTF1", "GDF3", "FGF4",
+ "LIN28A", "TFCP2L1", "DNMT3B", "NODAL", "TDGF1", "TRF1",
+ "GDF3", "DPPA3", "DPPA5")
+
+all_exp <- all_exp %>%
+  mutate(marker=gene %in% ipsc_markers) %>%
+  arrange(marker)
+```
+```{r fig.width=10, fig.height=10}
+ggplot(all_exp, aes(x=sarkar_exp, y=eb_exp, color=marker)) +
+  scale_color_manual(values=c("black", "red")) +
+  facet_wrap(~sample) +
+  geom_point(size=1) +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red")
+```
+
+Yikes, is this trend more dramatic for lower ncell samples?
+```{r}
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))
+
+size_ordered <- sample_summary %>%
+  arrange(desc(n_cells)) %>%
+  pull(individual) %>%
+  as.character
+
+all_exp <- all_exp %>%
+  mutate(individual=factor(str_sub(sample, 1, 5), levels=size_ordered))
+```
+
+```{r fig.width=10, fig.height=10}
+ggplot(all_exp, aes(x=sarkar_exp, y=eb_exp, color=marker)) +
+  scale_color_manual(values=c("black", "red")) +
+  facet_wrap(~individual) +
+  geom_point(size=1) +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red")
+```
+
+Does this hold up after quantile normalization?
+```{r}
+invnorm_transform <- function(x) {
+  qqnorm(x, plot.it=F)$x
+}
+
+sarkar_exp_norm <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/vqtl_ipsc.pseudobulk-scran.tsv") %>%
+  mutate(across(!gene, invnorm_transform)) %>%
+  pivot_longer(!gene, names_to="sample", values_to="sarkar_exp")
+
+eb_exp_norm <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/ebqtl_ipsc.pseudobulk-scran.tsv") %>%
+  mutate(across(!gene, invnorm_transform)) %>%
+  pivot_longer(!gene, names_to="sample", values_to="eb_exp")
+
+all_exp_norm <- inner_join(sarkar_exp_norm, eb_exp_norm, by=c("gene", "sample")) %>%
+  mutate(marker=gene %in% ipsc_markers) %>%
+  arrange(marker) %>%
+  mutate(individual=factor(str_sub(sample, 1, 5), levels=size_ordered))
+```
+```{r fig.width=10, fig.height=10}
+ggplot(all_exp_norm, aes(x=sarkar_exp, y=eb_exp, color=marker)) +
+  scale_color_manual(values=c("black", "red")) +
+  facet_wrap(~individual) +
+  geom_point(size=1) +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red")
+```
+
+How does this look if we're extremely conservative with our gene filter?
+```{r}
+eb_gene_vars <- rowVars(eb_exp.mat) > 0
+eb_gene_highexp <- rowMedians(eb_exp.mat) > 0.25
+eb_gene_keepers_strict <- rownames(eb_exp.mat)[eb_gene_vars & eb_gene_highexp]
+eb_exp.mat_strict <- eb_exp.mat[eb_gene_keepers_strict,]
+
+eb_exp.mat_strict.t1 <- apply(eb_exp.mat_strict, 2, invnorm_transform)
+rownames(eb_exp.mat_strict.t1) <- eb_gene_keepers_strict
+
+eb_exp_t1_strict <- as_tibble(eb_exp.mat_strict.t1, rownames="gene") %>%
+  pivot_longer(!gene, names_to="sample", values_to="eb_exp")
+
+all_exp_t1_strict <- inner_join(sarkar_exp_t1, eb_exp_t1_strict, by=c("gene", "sample"))
+```
+
+```{r fig.width=10, fig.height=10}
+ggplot(all_exp_t1_strict, aes(x=sarkar_exp, y=eb_exp)) +
+  facet_wrap(~sample) +
+  geom_point() +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red")
+```
+
+## Comparison with stricter filtering in place
+```{r}
+vqtl_stats <- vqtl_overlap_tophits %>%
+  filter(q <= 0.1) %>%
+  ungroup() %>%
+  mutate(se=beta/`t-stat`) %>%
+  select(gv, beta, se, `t-stat`) %>%
+  rename(beta_vqtl=beta, se_vqtl=se, t_vqtl=`t-stat`)
+combined_stats_strict <- ebqtl_strict_overlap %>%
+  ungroup() %>%
+  mutate(se=beta/`t-stat`) %>%
+  select(gv, beta, se, `t-stat`) %>%
+  rename(beta_ebqtl=beta, se_ebqtl=se, t_ebqtl=`t-stat`) %>%
+  right_join(vqtl_stats, by="gv")
+
+ggplot(combined_stats_strict, aes(x=beta_vqtl, y=beta_ebqtl)) +
+  geom_point() +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
+  theme_classic(base_size=15) +
+  ylab("beta_ebqtl") + xlab("beta_vqtl") + ggtitle("effect size comparison")
+cor(combined_stats$beta_ebqtl, combined_stats$beta_vqtl)
+
+ggplot(combined_stats_strict, aes(x=se_vqtl, y=se_ebqtl)) +
+  geom_point() +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
+  theme_classic(base_size=15) +
+  ylab("se_ebqtl") + xlab("se_vqtl") + ggtitle("std error comparison")
+cor(combined_stats$beta_ebqtl, combined_stats$beta_vqtl)
+
+ggplot(combined_stats_strict, aes(x=t_vqtl, y=t_ebqtl)) +
+  geom_point() +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red") +
+  theme_classic(base_size=15) +
+  ylab("t_ebqtl") + xlab("t_vqtl") + ggtitle("t-statistic comparison")
+```
+
+## Check what happens with strict cell filtering
+```{r}
+sample_summary_ebqtlfilt <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipscfilt/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type), study="EB")
+sample_summary_vqtl <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/vqtl_ipsc/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type), study="Sarkar")
+
+sample_summary_all_filt <- bind_rows(sample_summary_ebqtlfilt, sample_summary_vqtl)
+```
+```{r}
+ggplot(sample_summary_all_filt, aes(x=individual, y=n_cells, fill=study)) +
+  geom_bar(stat="identity", position="dodge") +
+  coord_flip() +
+  theme_classic(base_size=20)
+```
+```{r}
+sarkar_exp <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/vqtl_ipsc.pseudobulk-scran.tsv") %>%
+  pivot_longer(!gene, names_to="sample", values_to="sarkar_exp")
+eb_exp_filt <- read_tsv("/project2/gilad/jpopp/ebQTL/data/single_cell_objects/ebqtl_ipscfilt.pseudobulk-scran.tsv") %>%
+  pivot_longer(!gene, names_to="sample", values_to="eb_exp")
+
+all_exp_filt <- inner_join(sarkar_exp, eb_exp_filt, by=c("gene", "sample"))
+
+ipsc_markers <- c("POU5F1", "NANOG", "GAL", "UTF1", "GDF3", "FGF4",
+ "LIN28A", "TFCP2L1", "DNMT3B", "NODAL", "TDGF1", "TRF1",
+ "GDF3", "DPPA3", "DPPA5")
+
+all_exp_filt <- all_exp_filt %>%
+  mutate(marker=gene %in% ipsc_markers) %>%
+  mutate(individual=str_sub(sample, 1, 5)) %>%
+  arrange(marker)
+```
+
+```{r fig.width=10, fig.height=10}
+ggplot(all_exp_filt, aes(x=sarkar_exp, y=eb_exp, color=marker)) +
+  scale_color_manual(values=c("black", "red")) +
+  facet_wrap(~individual) +
+  geom_point(size=1) +
+  geom_abline(slope=1, intercept=0, linetype="dashed", color="red")
+```
+
+## Comparing sample summaries between studies
+How does the number of cells per sample compare between the two studies?
+```{r}
+sample_summary_ebqtl <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type), study="EB")
+sample_summary_vqtl <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/vqtl_ipsc/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type), study="Sarkar")
+
+sample_summary_all <- bind_rows(sample_summary_ebqtl, sample_summary_vqtl)
+```
+
+```{r}
+ggplot(sample_summary_all, aes(x=individual, y=n_cells, fill=study)) +
+  geom_bar(stat="identity", position="dodge") +
+  coord_flip() +
+  theme_classic(base_size=20)
+```
+
+
+How does the distribution of library sizes per sample compare?
+```{r}
+
+```
+
+

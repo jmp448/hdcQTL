@@ -18,9 +18,13 @@ First, load the combined QTL outputs from both analyses.
 basic_qtls <- readRDS("/project2/gilad/jpopp/ebQTL/temp/highpass_cellid_all.pseudobulk-scran.basic.qtls_combined.rds")
 
 fastgxc_qtls <- readRDS("/project2/gilad/jpopp/ebQTL/temp/highpass_cellid_all.pseudobulk-scran.fastgxc.qtls_combined.rds")
+
+fastgxc_centered_qtls <- readRDS("/project2/gilad/jpopp/ebQTL/temp/highpass_cellid_all.pseudobulk-scran.fastgxc_context_centered.qtls_combined.rds")
+
+fastgxc_standardized_qtls <- readRDS("/project2/gilad/jpopp/ebQTL/temp/highpass_cellid_all.pseudobulk-scran.fastgxc_context_standardized.qtls_combined.rds")
 ```
 
-Compare the effect size estimates from the two approaches
+Compare the effect size estimates from the first two approaches
 ```{r fig.width=15, fig.height=15}
 basic_bhats <- select(basic_qtls, c(gv, beta, type)) %>%
   rename(basic_beta=beta)
@@ -83,27 +87,5 @@ sample_overlap <- basic_inds %>%
 
 test3 <- as.matrix(test2)
 corrplot(test3, is.corr=F, tl.pos='l')
-```
-
-
-```{r}
-cell.types <- unique(basic_sample_summary$type)
-inds <- unique(as.character(basic_sample_summary$individual))
-
-sample.overlap.matrix <- matrix(0, nrow=length(cell.types), ncol=length(cell.types), dimnames=list(cell.types, cell.types))
-
-for (i in seq(length(cell.types))) {
-  for (j in seq(length(cell.types))) {
-    for (k in inds) {
-      in_basic = filter(basic_sample_summary, ind_type==paste0(k, "_", cell.types[i]))$dropped
-      in_fastgxc = filter(fastgxc_sample_summary, ind_type==paste0(k, "_", cell.types[i]))$dropped
-      if (in_basic & in_fastgxc) {
-        sample.overlap.matrix[i, j] = sample.overlap.matrix[i, j] + 1
-      }
-    }
-  }
-}
-
-corrplot(sample.overlap.matrix, is.corr=F, pch.cex=0.1, tl.pos='l')
 ```
 

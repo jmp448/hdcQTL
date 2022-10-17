@@ -81,14 +81,18 @@ top.hits <- qtls %>%
   pull(gv)
 write_tsv(tibble(top.hits), top_hits_loc, col_names=F)
 
-# identify a random subset of 250K tests
+# identify a random subset of 250K tests for model fitting
 random.hits = sample(qtls$gv, min(250000, length(unique(qtls$gv))))
 write_tsv(tibble(random.hits), random_hits_loc, col_names=F)
 
-# estimate null correlation
-data.temp = mash_set_data(beta.hat[random.hits,],
-                          se.hat[random.hits,])
-Vhat = estimate_null_correlation_simple(data.temp)
+# identify an even smaller subset of 25K tests for estimating correlation
+corr.subset = sample(random.hits, 25000)
+
+# estimate residual correlation
+data.temp = mash_set_data(beta.hat[corr.subset,], se.hat[corr.subset,])
+U.c = cov_canonical(data.temp)
+V.em.full = mash_estimate_corr_em(data.temp, U.c, details = TRUE)
+Vhat = V.em.full$V
 
 # restore after df bug fix
 # data.random = mash_set_data(beta.hat[random.hits,], se.hat[random.hits,], V=Vhat, df=df.hat[random.hits,])
@@ -97,14 +101,14 @@ Vhat = estimate_null_correlation_simple(data.temp)
 data.random = mash_set_data(beta.hat[random.hits,], se.hat[random.hits,], V=Vhat)
 data.strong = mash_set_data(beta.hat[top.hits,], se.hat[top.hits,], V=Vhat)
 
-save(data.temp, Vhat, data.random, data.strong, file=mashr_input_data_loc)
+save(data.temp, data.random, data.strong, Vhat, V.em.full, file=mashr_input_data_loc)
 
 # get data-driven covariances
 U.pca = cov_pca(data.strong, 5)
 U.ed = cov_ed(data.strong, U.pca)
 
 # fit mash model
-U.c = cov_canonical(data.random)
+U.c = cov_canonical(data.random, cov_methods = c("identity", "singletons", "equal_effects"))
 m = mash(data.random, Ulist = c(U.ed,U.c), outputlevel = 1)
 saveRDS(m, trained_model_loc)
 

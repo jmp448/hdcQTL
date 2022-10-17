@@ -1,4 +1,4 @@
-name: tensor-qtl
+clearname: tensor-qtl
 channels:
   - conda-forge
 dependencies:

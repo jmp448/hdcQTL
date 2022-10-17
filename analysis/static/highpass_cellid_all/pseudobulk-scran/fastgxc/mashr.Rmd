@@ -13,7 +13,7 @@ library(rmeta)
 
 ## Quality Control
 How many cells do we have per cell type and per individual?
-```{r, fig.width=6.5, fig.height=10}
+```{r, fig.width=6.5, fig.height=20}
 sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_all/pseudobulk-scran/fastgxc/sample_summary_manual.tsv") %>%
   mutate(individual=factor(individual), type=factor(type))
 
@@ -21,7 +21,7 @@ sample_summary %>%
   arrange(n_cells) %>%
   ggplot(aes(x=individual, y=n_cells)) +
   geom_bar(stat="identity") +
-  facet_grid(rows=vars(type), scales="free_y") +
+  facet_wrap(vars(type), scales="free_y") +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 ```
 How many cell types per individual?
@@ -48,13 +48,89 @@ ct_summary  %>%
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle = 45, hjust=1))
 ```
+## Evaluating eQTL detection rates with and without mashR
+How many eQTLs do we find with and without mashR?
 
+### eQTL detection without mashR
+```{r}
+cell.types <- sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  count(type) %>%
+  filter(n > 25) %>%
+  pull(type)
+```
 
-## Understanding Data-Driven Regulatory Patterns
+```{r}
+pull_type <- function(s) {
+  str_split(s, "/")[[1]][11]
+}
+
+prefix <- "/project2/gilad/jpopp/ebQTL/results/static/highpass_cellid_all/pseudobulk-scran/fastgxc/"
+all_qtls <- vroom(paste0(prefix, cell.types, "/matrixeqtl.cis_qtl_pairs.tophits.tsv"), id="path", col_select=c(SNP, gene, bonf.p, q, path)) %>%
+  mutate(type=sapply(path, pull_type), .keep="unused")
+```
+
+```{r}
+qtls_per_type <- all_qtls %>%
+  unite(gv, SNP, gene, sep="--") %>%
+  select(gv, q, type) %>%
+  group_by(type) %>%
+  mutate(hit=(q <= 0.05)) %>% 
+  summarize(n=sum(hit))
+
+ggplot(qtls_per_type, aes(x=type, y=n)) +
+  geom_segment( aes(x=type, xend=type, y=0, yend=n), color="skyblue") +
+  geom_point( color="blue", size=8, alpha=0.6) +
+  theme_light(base_size=25) +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type")
+```
+
+What's driving the difference in detection rates?
+```{r}
+sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  count(type) %>% rename(n_inds=n) %>%
+  inner_join(qtls_per_type, by="type") %>%
+  rename(n_qtl=n) %>%
+  ggplot(aes(x=n_inds, y=n_qtl)) +
+  geom_point(size=4) +
+  theme_classic(base_size=20) +
+  theme(legend.position = "none")
+```
+
+### eQTL detection with mashR
 ```{r}
 m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static/highpass_cellid_all/pseudobulk-scran/fastgxc/mashr.tophits.rds")
 ```
 
+```{r}
+n_qtl <- colSums(m$result$lfsr <= 0.05)
+
+qtls_per_type_mashr <- tibble(type=names(n_qtl), n_eqtl=n_qtl)  %>% 
+  arrange(n_qtl)
+
+ggplot(qtls_per_type_mashr, aes(x=type, y=n_eqtl)) +
+  geom_segment( aes(x=type, xend=type, y=0, yend=n_eqtl), color="skyblue") +
+  geom_point( color="blue", size=8, alpha=0.6) +
+  theme_light(base_size=25) +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type")
+```
+
+## Understanding Data-Driven Regulatory Patterns
 ```{r}
 get_pairwise_sharing(m) %>%
   corrplot(is.corr=F, order='hclust', tl.pos='lt')
@@ -170,14 +246,14 @@ The main component that mashr uses draws a clean split down germ layer lines
 m$fitted_g$Ulist$ED_tPCA %>%
   corrplot(is.corr=F)
 
-pc1 <- m$fitted_g$Ulist$ED_tPCA %>%
+pcs <- m$fitted_g$Ulist$ED_tPCA %>%
   princomp %>%
   .$loadings %>%
   .[,1] %>%
   as_tibble(rownames="celltype") %>%
   left_join(germ_layer, by="celltype")
  
-pc1 %>%
+pcs %>%
   ggplot(aes(x=celltype, y=value, fill=layer)) +
   geom_bar(stat="identity") +
   scale_fill_manual(values=germlayer_colors) +
@@ -186,7 +262,10 @@ pc1 %>%
 ```
 
 ```{r}
-pc1 <- m$fitted_g$Ulist$ED_tPCA %>%
+m$fitted_g$Ulist$ED_PCA_1 %>%
+  corrplot(is.corr=F, tl.pos='l')
+
+pc1 <- m$fitted_g$Ulist$ED_PCA_1 %>%
   princomp %>%
   .$loadings %>%
   .[,1] %>%
@@ -200,10 +279,13 @@ pc1 %>%
   coord_flip() +
   theme_classic()
 
-pc2 <- m$fitted_g$Ulist$ED_tPCA %>%
+m$fitted_g$Ulist$ED_PCA_2 %>%
+  corrplot(is.corr=F, tl.pos='l')
+
+pc2 <- m$fitted_g$Ulist$ED_PCA_2 %>%
   princomp %>%
   .$loadings %>%
-  .[,2] %>%
+  .[,1] %>%
   as_tibble(rownames="celltype") %>%
   left_join(germ_layer, by="celltype")
  
@@ -215,23 +297,6 @@ pc2 %>%
   theme_classic()
 ```
 
-
-```{r}
-m$fitted_g$Ulist$ED_PCA_1 %>%
-  corrplot(is.corr=F)
-
-m$fitted_g$Ulist$ED_PCA_1 %>%
-  princomp %>%
-  .$loadings %>%
-  .[,1] %>%
-  as_tibble(rownames="type") %>%
-  #mutate(type=factor(type, levels=type_levels)) %>%
-  ggplot(aes(x=type, y=value, fill=type)) +
-  geom_bar(stat="identity") +
-  theme_classic(base_size=15) +
-  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
-  xlab("Cell Type") + ylab("Weight")
-```
 
 ## Examining Context-Specific eQTLs
 Find any significant eQTLs whose effects are best explained by those signals, starting with component 1 (which is highest in IPSC, lower elsewhere)

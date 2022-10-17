@@ -2,62 +2,56 @@
 title: "Pseudobulk QC"
 output: html_notebook
 ---
-
-```{r}
-celltypes_loc <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/highpass_cellid_all.pseudobulk-scran.tsv"
-
-cell.types <- read_tsv(celltypes_loc, n_max=0, col_select=-c(1)) %>%
-  colnames() %>%
-  sapply(function(s){str_split(s, "_")[[1]][2]}) %>% 
-  unique()
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
 ```
 
+## Overview of Pseudobulk Data
+First, which cell types are included in this analysis (after filtering out samples with too few cells)?
+```{r, warning=FALSE, message=FALSE}
+sample_summary <- read_tsv("data/static/highpass_cellid_all/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))
+
+cell.types <- sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  count(type) %>%
+  filter(n > 25) %>%
+  pull(type)
+
+cell.types
+```
+
+How many samples do we have per cell type?
+```{r}
+sample_summary  %>%
+  filter(!dropped) %>%
+  filter(type %in% cell.types) %>%
+  count(type) %>%
+  ggplot(aes(x=type, y=n, fill=type)) +
+  geom_bar(stat="identity") +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=25, linetype="dashed")
+```
+
+How many cell types do we have per individual?
+```{r}
+sample_summary %>%
+  filter(!dropped) %>%
+  filter(type %in% cell.types) %>%
+  count(individual) %>%
+  arrange(n) %>%
+  ggplot(aes(x=individual, y=n)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+## Per-sample quality control
 ```{r}
 knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/highpass_cellid_all/pseudobulk-scran/fastgxc/", cell.types, "/qc.png"))
 ```
-And check the shared pseudobulk profiles as well
-```{r}
-knitr::include_graphics("/project2/gilad/jpopp/ebQTL/figs/static/highpass_cellid_all/pseudobulk-scran/fastgxc/Shared/qc.png")
-```
-
-There are a few of these that are worth following up on.
-```{r}
-pcs_prefix <- "/project2/gilad/jpopp/ebQTL/data/static/highpass_cellid_all/pseudobulk-scran/fastgxc/"
-```
 
 
-#### Bipolar cells
-It looks like there's a bit of an outlier with a much higher PC2 value, is that due to number of cells (19204)?
-```{r}
-read_tsv(paste0(pcs_prefix, "Bipolar-cells/all_pcs.tsv")) %>%
-  column_to_rownames("covariate") %>% as.data.frame() %>% t() %>%
-  as_tibble(rownames="individual") %>% arrange(desc(PC2))
-```
-Yes, I'm going to remove that sample
 
-#### Granule neurons
-Same as before, who's the outlier at PC2?
-```{r}
-read_tsv(paste0(pcs_prefix, "Granule-neurons/all_pcs.tsv")) %>%
-  column_to_rownames("covariate") %>% as.data.frame() %>% t() %>%
-  as_tibble(rownames="individual") %>% arrange(desc(PC2))
-```
-This one is just a random sample looks like, I'll leave it as is. 
-
-#### Hepatoblasts
-Once again, PC2 seems to show an outlier
-```{r}
-read_tsv(paste0(pcs_prefix, "Hepatoblasts/all_pcs.tsv")) %>%
-  column_to_rownames("covariate") %>% as.data.frame() %>% t() %>%
-  as_tibble(rownames="individual") %>% arrange(PC2)
-```
-This one doesn't have a different number of cells, but it's way off from the others for PC2, so I'm going to remove it (19108).
-
-
-#### Metanephric cells
-```{r}
-read_tsv(paste0(pcs_prefix, "Metanephric-cells/all_pcs.tsv")) %>%
-  column_to_rownames("covariate") %>% as.data.frame() %>% t() %>%
-  as_tibble(rownames="individual") %>% arrange(PC2)
-```
-Doesn't line up with the number of cells again, but still going to remove it to be safe (18907).

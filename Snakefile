@@ -21,7 +21,7 @@ rule make_conda:
         "test.tmp"
     output:
         "test.tmp2"
-    conda: "slurmy/tensorqtl.yml"
+    conda: "slurmy/r-pseudobulk.yml"
     shell:
         "echo booyah > {output}"
 

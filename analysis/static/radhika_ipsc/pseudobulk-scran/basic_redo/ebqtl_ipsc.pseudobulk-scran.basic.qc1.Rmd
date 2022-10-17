@@ -1,0 +1,225 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+library(gplots)
+```
+
+## Overview of Pseudobulk Data
+First, which cell types are included in this analysis (after filtering out samples with too few cells)?
+```{r, warning=FALSE, message=FALSE}
+options(readr.show_progress = FALSE)
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))
+
+cell.types <- sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  count(type) %>%
+  filter(n > 25) %>%
+  pull(type)
+
+cell.types
+```
+
+How many samples do we have per cell type?
+```{r}
+sample_summary  %>%
+  filter(!dropped) %>%
+  count(type) %>%
+  ggplot(aes(x=type, y=n, fill=type)) +
+  geom_bar(stat="identity") +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=25, linetype="dashed")
+```
+
+How many cell types do we have per individual?
+```{r}
+sample_summary %>%
+  filter(!dropped) %>%
+  filter(type %in% cell.types) %>%
+  count(individual) %>%
+  arrange(n) %>%
+  ggplot(aes(x=individual, y=n)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+## Per-sample quality control
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/ebqtl_ipscfilt/pseudobulk-scran/basic_redo/", cell.types, "/qc.png"))
+```
+
+How does this compare to with strict thresholding?
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/ebqtl_ipsc/pseudobulk-scran/basic_strict/", cell.types, "/qc.png"))
+```
+And how do these compare to the variance QTL expression PCs?
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/vqtl_ipsc/pseudobulk-scran/basic/", cell.types, "/qc.png"))
+```
+
+Is PC1 picking up on library size?
+```{r}
+eb_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/basic_redo/IPSC/all_pcs.tsv")
+eb_strict_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/basic_strict/IPSC/all_pcs.tsv")
+```
+More rigorous analysis of the drivers of expression variation
+```{r}
+sample_summary <- read_csv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/sample_summary_filtered.tsv")
+pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipscfilt/pseudobulk-scran/basic_redo/IPSC/all_pcs.tsv")
+```
+```{r}
+covariates <- sample_summary %>%
+  filter(!dropped) %>%
+  select(individual, total_counts, n_cells_filtered, pluripotency_score) %>%
+  mutate(individual=as.character(individual))
+
+pcs_t <- pcs %>%
+  column_to_rownames("covariate") %>%
+  t %>% as_tibble(rownames="individual") %>%
+  mutate(individual=str_replace(individual, "NA", ""))
+
+covariate_analysis <- left_join(pcs_t, covariates, by="individual")
+
+covs <- c("total_counts", "n_cells_filtered", "pluripotency_score")
+
+expression_drivers <- matrix(nrow=10, ncol=length(covs))
+rownames(expression_drivers) <- paste0("PC", seq(1, 10))
+colnames(expression_drivers) <- covs
+
+for (p in seq(1, 10)) {
+  for (c in seq(length(covs))) {
+    expression_drivers[p, c] <- summary(lm(paste0("PC", p, "~", covs[c]), data=covariate_analysis))$adj.r.squared
+  }
+}
+
+as_tibble(expression_drivers, rownames="PC") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1, 10)))) %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+```
+How does this distribution look of PC1 wrt number of cells?
+```{r}
+ggplot(covariate_analysis, aes(x=n_cells_filtered, y=PC1)) +
+  geom_point()
+```
+
+```{r}
+view_dist <- covariate_analysis %>%
+  filter(PC1 > 0)
+ggplot(view_dist, aes(x=individual, y=n_cells_filtered)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle=90, hjust=1))
+```
+
+Look at what happens if I use TMM normalization
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/ebqtl_ipsc/pseudobulk-tmm/basic_redo/", cell.types, "/qc.png"))
+```
+```{r}
+sample_summary <- read_csv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-tmm/sample_summary_filtered.tsv")
+pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-tmm/basic_redo/IPSC/all_pcs.tsv")
+
+covariates <- sample_summary %>%
+  filter(!dropped) %>%
+  select(individual, total_counts, n_cells_filtered, pluripotency_score) %>%
+  mutate(individual=as.character(individual))
+
+pcs_t <- pcs %>%
+  column_to_rownames("covariate") %>%
+  t %>% as_tibble(rownames="individual") %>%
+  mutate(individual=str_replace(individual, "NA", ""))
+
+covariate_analysis <- left_join(pcs_t, covariates, by="individual")
+
+covs <- c("total_counts", "n_cells_filtered", "pluripotency_score")
+
+expression_drivers <- matrix(nrow=10, ncol=length(covs))
+rownames(expression_drivers) <- paste0("PC", seq(1, 10))
+colnames(expression_drivers) <- covs
+
+for (p in seq(1, 10)) {
+  for (c in seq(length(covs))) {
+    expression_drivers[p, c] <- summary(lm(paste0("PC", p, "~", covs[c]), data=covariate_analysis))$adj.r.squared
+  }
+}
+
+as_tibble(expression_drivers, rownames="PC") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1, 10)))) %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+
+ggplot(covariate_analysis, aes(x=n_cells_filtered, y=PC1)) +
+  geom_point()
+```
+
+
+```{r}
+eb_pcs_transform <- eb_pcs %>%
+  column_to_rownames("covariate") %>%
+  t %>% as_tibble(rownames="individual")
+
+eb_pcs_strict_transform <- eb_strict_pcs  %>%
+  column_to_rownames("covariate") %>%
+  t %>% as_tibble(rownames="individual")
+
+sample_summary %>%
+  select(individual, n_cells) %>%
+  mutate(individual=paste0("NA", as.character(individual))) %>%
+  left_join(eb_pcs_transform, by="individual") %>%
+  ggplot(aes(x=n_cells, y=PC2)) +
+  geom_point()
+
+sample_summary %>%
+  select(individual, n_cells) %>%
+  mutate(individual=paste0("NA", as.character(individual))) %>%
+  left_join(eb_pcs_strict_transform, by="individual") %>%
+  ggplot(aes(x=n_cells, y=PC2)) +
+  geom_point()
+```
+```{r}
+vqtl_overlap <- filter(vqtl_all, gv %in% ebqtl_all$gv)  # 952623 of 990328
+ebqtl_overlap <- filter(ebqtl_all, gv %in% vqtl_overlap$gv) # 952623 of 1965203
+ebqtl_strict_overlap <- filter(ebqtl_strict_all, gv%in% vqtl_overlap$gv) # 790144 of 900306
+
+vqtl_overlap <- vqtl_overlap %>%
+  group_by(gene) %>% add_count() %>%
+  mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
+  select(-n)
+
+ebqtl_overlap <- ebqtl_overlap %>%
+  group_by(gene) %>% add_count() %>%
+  mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
+  select(-n)
+
+ebqtl_strict_overlap <- ebqtl_strict_overlap %>%
+  group_by(gene) %>% add_count() %>%
+  mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
+  select(-n)
+
+vqtl_overlap_tophits <- vqtl_overlap %>%
+  group_by(gene) %>%
+  arrange(bonf.p) %>%
+  filter(!duplicated(gene))
+vqtl_overlap_tophits$q <- qvalue(vqtl_overlap_tophits$bonf.p)$qvalues
+
+ebqtl_overlap_tophits <- ebqtl_overlap %>%
+  group_by(gene) %>%
+  arrange(bonf.p) %>%
+  filter(!duplicated(gene))
+ebqtl_overlap_tophits$q <- qvalue(ebqtl_overlap_tophits$bonf.p)$qvalues
+
+ebqtl_strict_overlap_tophits <- ebqtl_strict_overlap %>%
+  group_by(gene) %>%
+  arrange(bonf.p) %>%
+  filter(!duplicated(gene))
+ebqtl_strict_overlap_tophits$q <- qvalue(ebqtl_strict_overlap_tophits$bonf.p)$qvalues
+```
+

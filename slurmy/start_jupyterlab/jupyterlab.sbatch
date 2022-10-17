@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --time=7:0:0
-#SBATCH --partition=gpu2
-#SBATCH --gres=gpu:2
+#SBATCH --time=2:0:0
+#SBATCH --partition=bigmem2
+#SBATCH --gres=gpu:0
 #SBATCH --job-name=nb-tunnel
 #SBATCH --output=nb-log-%J.out
 #SBATCH --error=nb-log-%J.err
-#SBATCH --mem=100G
-#SBATCH --nodes=2
+#SBATCH --mem=250G
+#SBATCH --nodes=1
 
 ipnport=$(shuf -i8000-9999 -n1)
 ipnip=$(hostname -i)

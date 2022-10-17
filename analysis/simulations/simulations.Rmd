@@ -1,0 +1,128 @@
+---
+title: "Splatter and SplatPop Simulations"
+output: html_notebook
+---
+
+
+```{r}
+library(splatter)
+library(scran)
+library(Matrix)
+```
+
+## Investigating role of dropout on observed vs latent gene means
+```{r}
+params <- newSplatParams()
+params <- setParam(params, "nGenes", 1000)
+sim <- splatSimulate(params, batchCells=c(10000), out.prob = 0)
+ggplot(as.data.frame(rowData(sim)),
+       aes(x = log10(GeneMean))) +
+    geom_histogram(bins = 100)
+ggplot(as.data.frame(colData(sim)),
+       aes(x = ExpLibSize)) +
+    geom_histogram(bins = 100)
+```
+
+This is slightly greater depth than our cells, and also the distribution of library sizes doesn't match. Does assuming a normal distribution of library sizes have any influence on the distribution of gene means?
+```{r}
+sim_normal <- splatSimulate(params, batchCells=c(10000), lib.norm=T, out.prob = 0)
+ggplot(as.data.frame(rowData(sim_normal)),
+       aes(x = log10(GeneMean))) +
+    geom_histogram(bins = 100)
+ggplot(as.data.frame(colData(sim_normal)),
+       aes(x = ExpLibSize)) +
+    geom_histogram(bins = 100)
+```
+It actually does look like it might be introducing a bit more of a second hump. Let's model more genes and check
+```{r}
+params <- setParam(params, "nGenes", 5000)
+sim_normal <- splatSimulate(params, batchCells=c(10000), 
+                            lib.norm=T, lib.loc=2040, lib.scale=300, 
+                            out.prob = 0)
+ggplot(as.data.frame(rowData(sim_normal)),
+       aes(x = log10(GeneMean))) +
+    geom_histogram(bins = 100)
+ggplot(as.data.frame(colData(sim_normal)),
+       aes(x = ExpLibSize)) +
+    geom_histogram(bins = 100)
+```
+This distribution of library sizes looks right, but the distribution of gene means doesn't quite follow the trend we were seeing.
+
+Would dropout cause this?
+```{r}
+sim_dropout <- splatSimulate(params, batchCells=c(10000), 
+                            lib.norm=T, lib.loc=2040, lib.scale=300, 
+                            dropout.type="experiment", dropout.mid=2000,
+                            out.prob = 0)
+ggplot(as.data.frame(rowData(sim_dropout)),
+       aes(x = log10(GeneMean))) +
+    geom_histogram(bins = 100)
+ggplot(as.data.frame(colData(sim_dropout)),
+       aes(x = ExpLibSize)) +
+    geom_histogram(bins = 100)
+```
+
+## Fitting to real data
+```{r}
+counts <- as(t(readMM("/project2/gilad/jpopp/ebQTL/temp/meso_5kgenes_oneind_counts.mtx")), "matrix")
+```
+
+```{r}
+sce <- SingleCellExperiment(list(counts=as.matrix(counts)))
+```
+
+
+```{r}
+real_params <- splatEstimate(sce)
+real_params
+```
+```{r}
+saveRDS(real_params, "/project2/gilad/jpopp/ebQTL/temp/splat_fitted_params.rds")
+```
+
+```{r}
+sim_estimated <- splatSimulate(real_params, batchCells=c(10000))
+ggplot(as.data.frame(rowData(sim_estimated)),
+       aes(x = log10(GeneMean))) +
+    geom_histogram(bins = 30)
+ggplot(as.data.frame(colData(sim_estimated)),
+       aes(x = ExpLibSize)) +
+    geom_histogram(bins = 100)
+```
+These distributions both relate to latent expression, now let's compare them to what we'd measure from real data
+```{r}
+ggplot(tibble(ObsGeneMean=log10(rowMeans(counts(sim_estimated)))),
+       aes(x = ObsGeneMean)) +
+    geom_histogram(bins = 30)
+
+ggplot(tibble(ObsLibSize=colSums(counts(sim_estimated))),
+       aes(x = ObsLibSize)) +
+    geom_histogram(bins = 100)
+```
+This does look much more like our observed distributions - the bimodal gene mean distribution might come from some combination of cell type substructure and Poisson sampling of the underlying distribution. 
+```{r}
+sim_estimated_dropout <- splatSimulate(real_params, batchCells=c(10000), dropout.type="experiment")
+ggplot(as.data.frame(rowData(sim_estimated_dropout)),
+       aes(x = log10(GeneMean))) +
+    geom_histogram(bins = 100)
+ggplot(as.data.frame(colData(sim_estimated_dropout)),
+       aes(x = ExpLibSize)) +
+    geom_histogram(bins = 100)
+```
+
+```{r}
+ggplot(tibble(ObsGeneMean=log10(rowMeans(counts(sim_estimated_dropout)))),
+       aes(x = ObsGeneMean)) +
+    geom_histogram(bins = 30)
+
+ggplot(tibble(ObsLibSize=colSums(counts(sim_estimated_dropout))),
+       aes(x = ObsLibSize)) +
+    geom_histogram(bins = 100)
+```
+
+## SplatPop
+SplatPop needs the VCF file for our individuals
+```{r}
+
+```
+

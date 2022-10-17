@@ -5,6 +5,7 @@ eqtl_file <- snakemake@input[["eqtls"]]
 df_file <- snakemake@input[["df"]]
 all_tests_file <- snakemake@output[["all_tests"]]
 top_hits_file <- snakemake@output[["top_tests"]]
+n_hits_file <- snakemake@output[["n_hits"]]
 
 df.obs <- read_tsv(df_file, col_names=F)$X1[[1]]
 
@@ -23,3 +24,5 @@ top_eqtls <- eqtls %>%
 top_eqtls$q <- qvalue(top_eqtls$bonf.p)$qvalues
 
 write_tsv(top_eqtls, top_hits_file)
+
+write(sum(top_eqtls$q <= 0.1), file=n_hits_file)

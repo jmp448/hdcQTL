@@ -30,6 +30,15 @@ invnorm_transform <- function(x) {
   qqnorm(x, plot.it=F)$x
 }
 
+scale_tidy <- function(x, scale=TRUE) {
+  # a version of the scale function that doesn't expect a matrix
+  if (scale==TRUE) {
+    (x - mean(x, na.rm=TRUE)) / sd(x, na.rm=TRUE)
+  } else {
+    (x - mean(x, na.rm=TRUE))
+  }
+}
+
 # Read in pseudobulk data
 pseudobulk <- read_tsv(pseudobulk_loc) %>% 
   arrange(gene)
@@ -59,11 +68,11 @@ if (snakemake@wildcards[['decomp']] == "fastgxc") {
   pseudobulk <- ungroup(pseudobulk)
 } else if (snakemake@wildcards[['decomp']] == "fastgxc_context_centered") {
   pseudobulk <- pseudobulk %>%
-    mutate(expression=scale(expression, scale=FALSE)) %>%
+    mutate(expression=scale_tidy(expression, scale=FALSE)) %>%
     ungroup
 } else if (snakemake@wildcards[['decomp']] == "fastgxc_context_standardized") {
   pseudobulk <- pseudobulk %>%
-    mutate(expression=scale(expression, scale=FALSE)) %>%
+    mutate(expression=scale_tidy(expression, scale=TRUE)) %>%
     ungroup
 } else {
   stop("invalid decomp wildcard")

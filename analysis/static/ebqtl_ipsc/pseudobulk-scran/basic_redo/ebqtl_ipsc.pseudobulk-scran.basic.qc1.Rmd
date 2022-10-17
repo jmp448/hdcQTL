@@ -1,0 +1,95 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+## Overview of Pseudobulk Data
+First, which cell types are included in this analysis (after filtering out samples with too few cells)?
+```{r, warning=FALSE, message=FALSE}
+options(readr.show_progress = FALSE)
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))
+
+cell.types <- sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  count(type) %>%
+  filter(n > 25) %>%
+  pull(type)
+
+cell.types
+```
+
+How many samples do we have per cell type?
+```{r}
+sample_summary  %>%
+  filter(!dropped) %>%
+  count(type) %>%
+  ggplot(aes(x=type, y=n, fill=type)) +
+  geom_bar(stat="identity") +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=25, linetype="dashed")
+```
+
+How many cell types do we have per individual?
+```{r}
+sample_summary %>%
+  filter(!dropped) %>%
+  filter(type %in% cell.types) %>%
+  count(individual) %>%
+  arrange(n) %>%
+  ggplot(aes(x=individual, y=n)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+## Per-sample quality control
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/ebqtl_ipsc/pseudobulk-scran/basic_redo/", cell.types, "/qc.png"))
+```
+
+How does this compare to with strict thresholding?
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/ebqtl_ipsc/pseudobulk-scran/basic_strict/", cell.types, "/qc.png"))
+```
+And how do these compare to the variance QTL expression PCs?
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/vqtl_ipsc/pseudobulk-scran/basic/", cell.types, "/qc.png"))
+```
+
+Is PC1 picking up on library size?
+```{r}
+eb_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/basic_redo/IPSC/all_pcs.tsv")
+eb_strict_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk-scran/basic_strict/IPSC/all_pcs.tsv")
+```
+
+```{r}
+eb_pcs_transform <- eb_pcs %>%
+  column_to_rownames("covariate") %>%
+  t %>% as_tibble(rownames="individual")
+
+eb_pcs_strict_transform <- eb_strict_pcs  %>%
+  column_to_rownames("covariate") %>%
+  t %>% as_tibble(rownames="individual")
+
+sample_summary %>%
+  select(individual, n_cells) %>%
+  mutate(individual=paste0("NA", as.character(individual))) %>%
+  left_join(eb_pcs_transform, by="individual") %>%
+  ggplot(aes(x=n_cells, y=PC2)) +
+  geom_point()
+
+sample_summary %>%
+  select(individual, n_cells) %>%
+  mutate(individual=paste0("NA", as.character(individual))) %>%
+  left_join(eb_pcs_strict_transform, by="individual") %>%
+  ggplot(aes(x=n_cells, y=PC2)) +
+  geom_point()
+```
+
+

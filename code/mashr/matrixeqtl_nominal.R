@@ -6,9 +6,11 @@ snp_loc_file <- snakemake@input[["snp_locs"]]
 expression_file <- snakemake@input[["expression"]]
 gene_loc_file <- snakemake@input[["gene_locs"]]
 covariate_file <- snakemake@input[["covariates"]]
+npcs <- as.numeric(str_replace(snakemake@wildcards[["npcs"]], "pcs", ""))
 eqtl_file <- snakemake@output[["eqtls"]]
 df_file <- snakemake@output[["df"]]
 
+print(npcs)
 output.dir <- eqtl_file %>% str_match(".*/") %>% as.character
 dir.create(output.dir, showWarnings = FALSE)
 
@@ -48,14 +50,11 @@ gene$fileSliceSize = 10000      # read file in slices of 10,000 rows
 gene$LoadFile(expression_file)
 
 ## Load covariates
-cvrt = SlicedData$new()
-cvrt$fileDelimiter = "\t"      # the TAB character
-cvrt$fileOmitCharacters = "NA" # denote missing values
-cvrt$fileSkipRows = 1          # one row of column labels
-cvrt$fileSkipColumns = 1       # one column of row labels
-if(!is.null(covariate_file)) {
-  cvrt$LoadFile(covariate_file)
-}
+all_pcs = read_tsv(covariate_file)
+used_pcs = filter(all_pcs, covariate %in% paste0("PC", seq(1, npcs))) %>%
+  column_to_rownames("covariate") %>%
+  as.matrix
+cvrt = SlicedData$new(used_pcs)
 
 ## Run the analysis
 snpspos = read.table(snp_loc_file, header = TRUE, stringsAsFactors = FALSE)

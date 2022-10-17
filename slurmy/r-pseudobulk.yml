@@ -1,11 +1,12 @@
 name: r-pseudobulk
 channels:
-  - bioconda
   - r
   - conda-forge
+  - bioconda
 dependencies:
+  - r-dplyr=1.0.9
   - r-tidyverse
-  - r-reticulate
-  - r-anndata
   - r-matrix.utils
+  - r-matrixstats
   - bioconductor-edger
+  - bioconductor-limma
