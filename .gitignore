@@ -9,3 +9,4 @@ figs/*
 *.ipynb_checkpoints*
 *nb-log*
 temp/*
+analysis/*.html
