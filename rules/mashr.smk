@@ -24,11 +24,11 @@ def list_matrixeqtl_outputs(wildcards, npc=None):
           for ctpc in celltypes_pcs]
     return file_list
 
-def list_matrixeqtl_outputs_5pcs(wildcards):
+def list_matrixeqtl_outputs_npcs(wildcards):
     pseudobulk_file = f'data/single_cell_objects/{wildcards.annotation}.{wildcards.aggregation}.tsv'
     samples = list(pd.read_csv(pseudobulk_file, sep='\t', nrows=0).columns)[1:]
     celltypes = list(np.unique([s.split("_")[1] for s in samples]))
-    file_list = [f"results/static/{wildcards.annotation}/{wildcards.aggregation}/{wildcards.decomp}/{c}/5pcs/matrixeqtl.cis_qtl_pairs.all.mtc.tsv"
+    file_list = [f"results/static/{wildcards.annotation}/{wildcards.aggregation}/{wildcards.decomp}/{c}/{wildcards.npcs}/matrixeqtl.cis_qtl_pairs.all.mtc.tsv"
           for c in celltypes]
     return file_list
     
@@ -40,7 +40,15 @@ def list_matrixeqtl_outputs_with_shared(wildcards):
         pb_clusters.append("Shared")
     return [f"results/static/{wildcards.annotation}/{wildcards.aggregation}/{wildcards.decomp}/{c}/matrixeqtl.cis_qtl_pairs.all.mtc.tsv"
             for c in pb_clusters]
-            
+
+rule list_all_individuals:
+    input:
+	      "data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
+    output:
+    	  "data/genotypes/all_individuals.tsv"
+    shell:
+	      "code/mashr/list_all_individuals.sh {input} {output}"
+
 rule pseudobulk_qc:
     resources:
         mem_mb=250000,
@@ -161,11 +169,11 @@ rule run_matrixeqtl_allpcs:
     shell:
         "echo booyah > {output}"
         
-rule run_matrixeqtl_5pcs:
+rule run_matrixeqtl_npcs:
     input:
-        unpack(list_matrixeqtl_outputs_5pcs)
+        unpack(list_matrixeqtl_outputs_npcs)
     output:
-        "temp/{annotation}.{aggregation}.{decomp}.matrixeqtl.5pcs.done"
+        "temp/{annotation}.{aggregation}.{decomp}.matrixeqtl.{npcs}.done"
     shell:
         "echo booyah > {output}"
   
@@ -175,14 +183,14 @@ rule mashr:
         time="05:00:00",
         partition="broadwl"
     input:
-        unpack(list_matrixeqtl_outputs)
+        unpack(list_matrixeqtl_outputs_npcs)
     output:
-        trained="results/static/{annotation}/{aggregation}/{decomp}/mashr.trained.rds",
-        tophits="results/static/{annotation}/{aggregation}/{decomp}/mashr.tophits.rds",
-        random="results/static/{annotation}/{aggregation}/{decomp}/mashr.random_tests.tsv",
-        top="results/static/{annotation}/{aggregation}/{decomp}/mashr.top_hits.tsv",
-        datasets="results/static/{annotation}/{aggregation}/{decomp}/mashr.training_data.RData",
-        all_qtls="temp/{annotation}.{aggregation}.{decomp}.qtls_combined.rds"
+        trained="results/static/{annotation}/{aggregation}/{decomp}/{npcs}/mashr.trained.rds",
+        tophits="results/static/{annotation}/{aggregation}/{decomp}/{npcs}/mashr.tophits.rds",
+        random="results/static/{annotation}/{aggregation}/{decomp}/{npcs}/mashr.random_tests.tsv",
+        top="results/static/{annotation}/{aggregation}/{decomp}/{npcs}/mashr.top_hits.tsv",
+        datasets="results/static/{annotation}/{aggregation}/{decomp}/{npcs}/mashr.training_data.RData",
+        all_qtls="temp/{annotation}.{aggregation}.{decomp}.{npcs}.qtls_combined.rds"
     conda: "../slurmy/r-mashr.yml"
     script:
         "../code/mashr/mashr.R"

@@ -36,9 +36,11 @@ df.type <- qtls %>%
   distinct()
 
 # subset to snps that were kept for all analyses
+n_contexts <- length(unique(qtls$type))
+
 keepers <- qtls %>%
   dplyr::count(gv) %>% 
-  filter(n >= 20) %>%
+  filter(n == n_contexts) %>%
   pull(gv)
 
 qtls <- qtls %>%

@@ -11,7 +11,7 @@ df.obs <- read_tsv(df_file, col_names=F)$X1[[1]]
 
 eqtls <- read_tsv(eqtl_file) %>%
   mutate(df=df.obs, .after=`t-stat`) %>%
-  left_join(count(., gene), by="gene") %>%
+  add_count(gene) %>%
   mutate(bonf.p=if_else(`p-value`*n>1, 1, `p-value`*n)) %>%
   select(-n) %>%
   write_tsv(all_tests_file)
@@ -19,7 +19,7 @@ eqtls <- read_tsv(eqtl_file) %>%
 top_eqtls <- eqtls %>%
   group_by(gene) %>%
   arrange(bonf.p) %>%
-  filter(!duplicated(gene))
+  slice_head(n=1)
 
 top_eqtls$q <- qvalue(top_eqtls$bonf.p)$qvalues
 

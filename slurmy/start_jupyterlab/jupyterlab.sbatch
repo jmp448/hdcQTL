@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --time=2:0:0
+#SBATCH --time=5:0:0
 #SBATCH --partition=bigmem2
 #SBATCH --gres=gpu:0
 #SBATCH --job-name=nb-tunnel

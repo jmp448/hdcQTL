@@ -1,0 +1,151 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+## Per-sample quality control
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/cm_lineage/pseudobulk_tmm/basic/", c("ipsc", "mesendo", "meso", "cp", "cm"), "/qc.png"))
+```
+
+## PC Analysis
+### IPSCs
+```{r}
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/cm_lineage/pseudobulk_tmm/basic/sample_summary_manual.tsv") %>%
+  mutate(individual=paste0("NA", individual))
+
+ipsc_summary <- sample_summary %>%
+  filter(type == "ipsc")
+
+ipsc_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/cm_lineage/pseudobulk_tmm/basic/ipsc/covariates.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="individual") 
+
+cov_analysis <- inner_join(ipsc_summary, ipsc_pcs, by="individual")
+
+covs <- c("n_cells_filtered", "total_counts", "pluripotency_score", "log_cm_score")
+
+exp_drivers <- matrix(nrow=10, ncol=length(covs), dimnames=list(paste0("PC", seq(10)), covs))
+for (k in seq(10)) {
+  for (c in seq(length(covs))) {
+    r2 <- summary(lm(paste0("PC", k, "~", covs[c]), data=cov_analysis))$adj.r.squared
+    exp_drivers[k, c] <- r2
+  }
+}
+
+as_tibble(exp_drivers, rownames="PC") %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1,10)))) %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+```
+
+### Mesendo
+```{r}
+mesendo_summary <- sample_summary %>%
+  filter(type == "mesendo")
+
+mesendo_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/cm_lineage/pseudobulk_tmm/basic/mesendo/covariates.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="individual") 
+
+cov_analysis <- inner_join(mesendo_summary, mesendo_pcs, by="individual")
+
+covs <- c("n_cells_filtered", "total_counts", "pluripotency_score", "log_cm_score")
+
+exp_drivers <- matrix(nrow=10, ncol=length(covs), dimnames=list(paste0("PC", seq(10)), covs))
+for (k in seq(10)) {
+  for (c in seq(length(covs))) {
+    r2 <- summary(lm(paste0("PC", k, "~", covs[c]), data=cov_analysis))$adj.r.squared
+    exp_drivers[k, c] <- r2
+  }
+}
+
+as_tibble(exp_drivers, rownames="PC") %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1,10)))) %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+```
+
+### Mesoderm
+```{r}
+meso_summary <- sample_summary %>%
+  filter(type == "meso")
+
+meso_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/cm_lineage/pseudobulk_tmm/basic/meso/covariates.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="individual") 
+
+cov_analysis <- inner_join(meso_summary, meso_pcs, by="individual")
+
+covs <- c("n_cells_filtered", "total_counts", "pluripotency_score", "log_cm_score")
+
+exp_drivers <- matrix(nrow=10, ncol=length(covs), dimnames=list(paste0("PC", seq(10)), covs))
+for (k in seq(10)) {
+  for (c in seq(length(covs))) {
+    r2 <- summary(lm(paste0("PC", k, "~", covs[c]), data=cov_analysis))$adj.r.squared
+    exp_drivers[k, c] <- r2
+  }
+}
+
+as_tibble(exp_drivers, rownames="PC") %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1,10)))) %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+```
+
+### Cardiac Progenitor Cells
+```{r}
+cp_summary <- sample_summary %>%
+  filter(type == "cp")
+
+cp_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/cm_lineage/pseudobulk_tmm/basic/cp/covariates.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="individual") 
+
+cov_analysis <- inner_join(cp_summary, cp_pcs, by="individual")
+
+covs <- c("n_cells_filtered", "total_counts", "pluripotency_score", "log_cm_score")
+
+exp_drivers <- matrix(nrow=10, ncol=length(covs), dimnames=list(paste0("PC", seq(10)), covs))
+for (k in seq(10)) {
+  for (c in seq(length(covs))) {
+    r2 <- summary(lm(paste0("PC", k, "~", covs[c]), data=cov_analysis))$adj.r.squared
+    exp_drivers[k, c] <- r2
+  }
+}
+
+as_tibble(exp_drivers, rownames="PC") %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1,10)))) %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+```
+
+### Cardiomyocytes
+```{r}
+cm_summary <- sample_summary %>%
+  filter(type == "cm")
+
+cm_pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/cm_lineage/pseudobulk_tmm/basic/cm/covariates.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="individual") 
+
+cov_analysis <- inner_join(cm_summary, cm_pcs, by="individual")
+
+covs <- c("n_cells_filtered", "total_counts", "pluripotency_score", "log_cm_score")
+
+exp_drivers <- matrix(nrow=10, ncol=length(covs), dimnames=list(paste0("PC", seq(10)), covs))
+for (k in seq(10)) {
+  for (c in seq(length(covs))) {
+    r2 <- summary(lm(paste0("PC", k, "~", covs[c]), data=cov_analysis))$adj.r.squared
+    exp_drivers[k, c] <- r2
+  }
+}
+
+as_tibble(exp_drivers, rownames="PC") %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1,10)))) %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+```

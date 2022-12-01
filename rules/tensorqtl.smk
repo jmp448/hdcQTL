@@ -7,7 +7,7 @@ def list_tensorqtl_outputs(wildcards):
     pb_clusters = list(np.unique([s.split("_")[1] for s in samples]))
     if wildcards.decomp=="fastgxc":
         pb_clusters.append("Shared")
-    return [f"results/static/{wildcards.annotation}/{wildcards.aggregation}/{wildcards.decomp}/{c}/tensorqtl_permutations.tsv"
+    return [f"results/static/{wildcards.annotation}/{wildcards.aggregation}/{wildcards.decomp}/{c}/{wildcards.npcs}pcs/tensorqtl_permutations.tsv"
             for c in pb_clusters]
 
 rule plink_rewrite_keepers:
@@ -67,13 +67,14 @@ rule tensorqtl_mtc:
         mem_mb=100000,
         partition="gpu2",
         gres="gpu:1",
-        nodes=1
+        nodes=1,
+        time="02:00:00"
     input:
         genotypes=expand("data/static/{{annotation}}/{{aggregation}}/{{decomp}}/{{type}}/genotypes_filtered_plink.{out}", out=['bed', 'bim', 'fam']),
         exp="data/static/{annotation}/{aggregation}/{decomp}/{type}/expression.bed.gz",
         cov="data/static/{annotation}/{aggregation}/{decomp}/{type}/covariates.tsv"
     output:
-        "results/static/{annotation}/{aggregation}/{decomp}/{type}/tensorqtl_permutations.tsv"
+        "results/static/{annotation}/{aggregation}/{decomp}/{type}/{npcs}pcs/tensorqtl_permutations.tsv"
     params:
         plink_prefix="data/static/{annotation}/{aggregation}/{decomp}/{type}/genotypes_filtered_plink"
     conda:
@@ -85,6 +86,6 @@ rule run_tensorqtl:
     input:
         unpack(list_tensorqtl_outputs)
     output:
-        "temp/{annotation}.{aggregation}.{decomp}.tensorqtl.done"
+        "temp/{annotation}.{aggregation}.{decomp}.{npcs}pcs.tensorqtl.done"
     shell:
         "echo booyah > {output}"

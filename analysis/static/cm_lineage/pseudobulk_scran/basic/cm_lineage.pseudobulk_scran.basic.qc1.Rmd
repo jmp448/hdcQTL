@@ -1,0 +1,39 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+## Per-sample quality control
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static/ebqtl_ipsc/pseudobulk_scran/basic/IPSC/qc.png"))
+```
+
+## PC Analysis
+```{r}
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk_scran/basic/sample_summary_manual.tsv") %>%
+  mutate(individual=paste0("NA", individual))
+
+pcs <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static/ebqtl_ipsc/pseudobulk_scran/basic/IPSC/covariates.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="individual") 
+
+cov_analysis <- inner_join(sample_summary, pcs, by="individual")
+
+covs <- c("n_cells_filtered", "total_counts", "pluripotency_score")
+
+exp_drivers <- matrix(nrow=10, ncol=length(covs), dimnames=list(paste0("PC", seq(10)), covs))
+for (k in seq(10)) {
+  for (c in seq(length(covs))) {
+    r2 <- summary(lm(paste0("PC", k, "~", covs[c]), data=cov_analysis))$adj.r.squared
+    exp_drivers[k, c] <- r2
+  }
+}
+
+as_tibble(exp_drivers, rownames="PC") %>%
+  pivot_longer(!PC, names_to="covariate", values_to="value") %>%
+  mutate(PC=factor(PC, levels=paste0("PC", seq(1,10)))) %>%
+  ggplot(aes(x=PC, y=covariate, fill=value)) +
+  geom_tile()
+```

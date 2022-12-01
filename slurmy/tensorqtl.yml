@@ -1,6 +1,7 @@
 clearname: tensor-qtl
 channels:
   - conda-forge
+  - pytorch
 dependencies:
   - python
   - pip
@@ -11,7 +12,7 @@ dependencies:
   - statsmodels
   - numba
   - pandas
-  - cudatoolkit=11.0
+  - pytorch
   - pip:
     - scanpy
     - tensorqtl

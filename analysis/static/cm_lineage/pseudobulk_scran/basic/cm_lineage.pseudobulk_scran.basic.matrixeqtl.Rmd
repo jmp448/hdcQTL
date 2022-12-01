@@ -1,0 +1,57 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+library(qvalue)
+```
+
+## QTL results
+Influence of # PCs on QTL detection
+
+### IPSCs
+```{r}
+ipsc_qtls <- read_tsv(paste0("/project2/gilad/jpopp/ebQTL/results/static/cm_lineage/pseudobulk_scran/basic/ipsc/", seq(1, 10), "pcs/matrixeqtl.cis_qtl_pairs.nhits.tsv"), col_names="n_egenes") %>%
+  mutate(n_pcs=seq(10))
+
+ggplot(ipsc_qtls, aes(x=n_pcs, y=n_egenes)) +
+  geom_bar(stat="identity")
+```
+
+### Mesendo
+```{r}
+mesendo_qtls <- read_tsv(paste0("/project2/gilad/jpopp/ebQTL/results/static/cm_lineage/pseudobulk_scran/basic/mesendo/", seq(1, 10), "pcs/matrixeqtl.cis_qtl_pairs.nhits.tsv"), col_names="n_egenes") %>%
+  mutate(n_pcs=seq(10))
+
+ggplot(mesendo_qtls, aes(x=n_pcs, y=n_egenes)) +
+  geom_bar(stat="identity")
+```
+
+### Mesoderm
+```{r}
+meso_qtls <- read_tsv(paste0("/project2/gilad/jpopp/ebQTL/results/static/cm_lineage/pseudobulk_scran/basic/meso/", seq(1, 10), "pcs/matrixeqtl.cis_qtl_pairs.nhits.tsv"), col_names="n_egenes") %>%
+  mutate(n_pcs=seq(10))
+
+ggplot(meso_qtls, aes(x=n_pcs, y=n_egenes)) +
+  geom_bar(stat="identity")
+```
+
+### Cardiac Progenitor
+```{r}
+cp_qtls <- read_tsv(paste0("/project2/gilad/jpopp/ebQTL/results/static/cm_lineage/pseudobulk_scran/basic/cp/", seq(1, 10),
+                "pcs/matrixeqtl.cis_qtl_pairs.nhits.tsv"), col_names="n_egenes") %>%
+  mutate(n_pcs=seq(10))
+
+ggplot(cp_qtls, aes(x=n_pcs, y=n_egenes)) +
+  geom_bar(stat="identity")
+```
+
+### Cardiomyocytes
+```{r}
+cm_qtls <- read_tsv(paste0("/project2/gilad/jpopp/ebQTL/results/static/cm_lineage/pseudobulk_scran/basic/cm/", seq(1, 10), "pcs/matrixeqtl.cis_qtl_pairs.nhits.tsv"), col_names="n_egenes") %>%
+  mutate(n_pcs=seq(10))
+
+ggplot(cm_qtls, aes(x=n_pcs, y=n_egenes)) +
+  geom_bar(stat="identity")
+```

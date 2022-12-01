@@ -12,10 +12,11 @@ expression_bed = snakemake.input['exp']
 covariates_file = snakemake.input['cov']
 plink_prefix_path = snakemake.params['plink_prefix']
 output_loc = snakemake.output[0]
+npcs = snakemake.wildcards['npcs']
 
 # load phenotypes and covariates
 phenotype_df, phenotype_pos_df = tensorqtl.read_phenotype_bed(expression_bed)
-covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0).T
+covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0, nrows=int(npcs)).T
 
 # PLINK reader for genotypes
 pr = genotypeio.PlinkReader(plink_prefix_path)
