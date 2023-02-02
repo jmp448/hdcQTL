@@ -1,0 +1,62 @@
+---
+title: "Comparison of Pseudotime Inference Methods"
+output: html_notebook
+---
+
+
+```{r}
+library(zellkonverter)
+library(SingleCellExperiment)
+library(scater)
+library(tidyverse)
+```
+
+
+
+```{r}
+labs <- readH5AD("/project2/gilad/rjangi1/ebQTL/dynamic_eQTL/data/anndata/cm_lineage_SCRAN_pseudotime_bin.h5ad")
+```
+
+Arrange stages
+```{r}
+labs$stage <- factor(labs$stage, levels=c("ipsc", "mesendo", "meso", "cp", "cm"))
+```
+
+What do pseudotime values look like at each stage?
+```{r}
+plotColData(labs, y="dpt_pseudotime", x="stage")
+```
+
+Don't love it! Look at the cells in PC space
+```{r}
+plotReducedDim(labs, "X_pca", colour_by="stage")
+```
+
+```{r}
+labs$pc_pseudotime <- reducedDim(labs, "X_pca")[,1]
+plotColData(labs, y="pc_pseudotime", x="stage")
+```
+
+Now if I were to bin pseudotime, what would be the makeup from each stage
+```{r}
+pc_pseudotimes <- tibble("pc_pseudotime"=labs$pc_pseudotime, "stage"=labs$stage) %>%
+  mutate(bin=cut(labs$pc_pseudotime, breaks=5))
+
+median_pseudotime_vals <- pc_pseudotimes %>%
+  group_by(bin) %>%
+  summarize(median=median(pc_pseudotime))
+
+pc_pseudotimes <- pc_pseudotimes %>%
+  left_join(median_pseudotime_vals, by="bin")
+```
+
+
+```{r}
+pc_pseudotimes %>%
+  group_by(bin) %>%
+  dplyr::count(stage) %>%
+  ggplot(aes(x=bin, y=n, fill=stage)) + 
+    geom_bar(position="stack", stat="identity")
+```
+
+

@@ -1,0 +1,23 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+```
+
+## QTL results
+
+```{r, warning=FALSE, message=FALSE}
+tophits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static/vqtl_ipsc/pseudobulk-scran/basic/IPSC/matrixeqtl.cis_qtl_pairs.tophits.tsv")
+```
+
+How many eQTLs? In their work, they found 235.
+```{r}
+sum(tophits$q <= 0.1)
+```
+
+The difference between this figure and the 235 eQTLs that they found must arise from one of the decisions that varied between the pipeline we used here and what they did. Namely:
+- Quantification of mean expression levels per sample
+- Choice of the number of PCs regressed out
+- Approach to FDR control

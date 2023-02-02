@@ -1,0 +1,18 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+library(qvalue)
+```
+
+## QTL results
+Influence of # PCs on QTL detection
+```{r}
+qtls <- read_tsv(paste0("/project2/gilad/jpopp/ebQTL/results/static/ebqtl_ipsc/pseudobulk_tmm/basic/IPSC/", seq(1, 10), "pcs/matrixeqtl.cis_qtl_pairs.nhits.tsv"), col_names="n_egenes") %>%
+  mutate(n_pcs=seq(10))
+
+ggplot(qtls, aes(x=n_pcs, y=n_egenes)) +
+  geom_bar(stat="identity")
+```

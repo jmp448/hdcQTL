@@ -1,0 +1,215 @@
+---
+title: "Cell-ID Evaluation (EB Side)"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(Matrix.utils)
+library(fgsea)
+library(susieR)
+library(pathways)
+library(vroom)
+library(gseasusie)
+library(scater)
+library(Seurat)
+library(scales)
+```
+
+```{r}
+### Load & tidy data
+# Read in the input files from Snakefile
+eb_loc <- snakemake@input[["fca"]]
+celltype_signatures <- snakemake@input[["signatures"]]
+table_prefix <- snakemake@params[['table_prefix']]
+```
+
+Or
+```{r}
+eb_loc <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/highpass/eb_pflog1ppfnorm.fca_hvgs.mca.sce"
+load("/project2/gilad/jpopp/ebQTL/data/fca/cellid_signatures_and_hvgs.Rdata")
+```
+
+Load cell and gene embeddings
+```{r}
+eb <- readRDS(eb_loc)
+eb$celltype[eb$celltype=="unassigned"] <- NA
+# Get a list of cell types
+cell.types <- unique(eb$celltype)
+cell.types <- cell.types[!is.na(cell.types)]
+
+# Pull MCA embeddings of cells and genes
+cell_emb <- as_tibble(reducedDim(eb, "MCA"), rownames="cell") %>%
+  left_join(as_tibble(colData(eb), rownames="cell"), by="cell") 
+gene_emb <- attributes(cell_emb$MCA_1)$genesCoordinates
+
+# Get cell type centroids
+celltype_centroids <- as.matrix(aggregate.Matrix(reducedDim(eb, "MCA"), groupings=eb$celltype, fun="mean"))
+```
+
+## Centroid visualizations
+Visualize the distribution of cells around the cell type centroid
+```{r}
+list_cell_dists <- function(t) {
+  cell_emb_t <- cell_emb %>%
+    filter(celltype==t) %>%
+    select(c(cell, starts_with("MCA"))) %>%
+    column_to_rownames("cell") %>%
+    as.matrix()
+  centroid_t <- t(celltype_centroids[t,])
+  diffs_t <- sweep(cell_emb_t, 2, centroid_t)
+  dists_t <- apply(diffs_t, 1, norm, type="2") %>%
+    as_tibble() %>%
+    add_column(type=t)
+  return(dists_t)
+}
+
+cell_dists <- map_dfr(cell.types, list_cell_dists)
+write_tsv(cell_dists, "/project2/gilad/jpopp/ebQTL/data/fca/eb_centroid_cell_dists.tsv")
+
+ggplot(filter(cell_dists, value<= 10), aes(x=value, fill=type)) + 
+  geom_density() +
+  facet_wrap(vars(type))
+``` 
+
+
+Visualize the distribution of celltype marker genes around the cell type centroid
+```{r}
+list_gene_dists <- function(t) {
+  gene_emb_t <- gene_emb[intersect(rownames(gene_emb), new_signatures[[t]]),]
+  centroid_t <- t(celltype_centroids[t,])
+  diffs_t <- sweep(gene_emb_t, 2, centroid_t)
+  dists_t <- apply(diffs_t, 1, norm, type="2") %>%
+    as_tibble(rownames="gene") %>%
+    add_column(type=t)
+  return(dists_t)
+}
+
+gene_dists <- map_dfr(cell.types, list_gene_dists)
+write_tsv(gene_dists, "/project2/gilad/jpopp/ebQTL/data/fca/eb_centroid_gene_dists.tsv")
+
+ggplot(gene_dists, aes(x=value, fill=type)) + 
+  geom_density() +
+  facet_wrap(vars(type))
+```
+
+
+# Annotated Cell Embedding
+```{r}
+eb_annotated <- eb[,!is.na(eb$celltype)]
+```
+
+First I would like to show a PCA embedding of just these annotated cells
+```{r}
+eb_annotated.pca <- prcomp(t(logcounts(eb_annotated)), rank=50)
+reducedDims(eb_annotated) <- list(PCA=eb_annotated.pca$x)
+saveRDS(eb_annotated, "/project2/gilad/jpopp/ebQTL/temp/eb_annotated_pca.rds")
+```
+
+```{r}
+emb <- as_tibble(reducedDim(eb_annotated, "PCA"), rownames="sample") %>%
+  left_join(as_tibble(colData(eb_annotated), rownames="sample")) 
+emb_subset <- select(emb, c(PC1, PC2, celltype)) %>%
+  group_by(celltype) %>%
+  sample_n(min(n(), 200))
+
+ggplot(emb_subset, aes(x=PC1, y=PC2)) +
+  geom_point(aes(color=celltype)) 
+```
+
+Next, a UMAP embedding
+```{r}
+trythis <- runUMAP(eb_annotated, dimred="PCA")
+```
+
+```{r}
+emb2 <- as_tibble(reducedDim(trythis, "UMAP"), rownames="sample") %>%
+  left_join(as_tibble(colData(eb_annotated), rownames="sample")) 
+emb2_subset <- select(emb2, c(V1, V2, celltype)) %>%
+  group_by(celltype) %>%
+  sample_n(min(n(), 200))
+
+ggplot(emb2, aes(x=V1, y=V2)) +
+  geom_point(aes(color=celltype)) 
+```
+```{r}
+endoderm.types <- c("Hepatoblasts", "Goblet cells", "Parietal and chief cells")
+emb2_subset %>%
+  mutate(celltype_endo = factor(celltype, levels=endoderm.types)) %>%
+  mutate(celltype_endo = fct_explicit_na(celltype_endo, "Other")) %>%
+  mutate(celltype_endo = fct_relevel(celltype_endo, c("Other", endoderm.types))) %>%
+  ggplot(aes(x=V1, y=V2)) +
+  geom_point(aes(color=celltype_endo), size=0.1)  +
+  scale_color_manual(values=c("light grey", hue_pal()(3)))
+```
+
+```{r}
+mesoderm.types <- c("Vascular endothelial cells", "Smooth muscle cells", "Cardiomyocytes", 
+                    "Stromal cells", "Mesangial cells", "Stellate cells", "Mesothelial cells")
+emb2_subset %>%
+  mutate(celltype_endo = factor(celltype, levels=mesoderm.types)) %>%
+  mutate(celltype_endo = fct_explicit_na(celltype_endo, "Other")) %>%
+  mutate(celltype_endo = fct_relevel(celltype_endo, c("Other", mesoderm.types))) %>%
+  ggplot(aes(x=V1, y=V2)) +
+  geom_point(aes(color=celltype_endo), size=0.1) +
+  scale_color_manual(values=c("light grey", hue_pal()(7)))
+```
+
+```{r}
+ectoderm.types <- c("PNS neurons", "CNS neurons", "Neuroendocrine cells", 
+                    "PNS glia", "CNS glia", "Retinal cells")
+emb2_subset %>%
+  mutate(celltype_endo = factor(celltype, levels=ectoderm.types)) %>%
+  mutate(celltype_endo = fct_explicit_na(celltype_endo, "Other")) %>%
+  mutate(celltype_endo = fct_relevel(celltype_endo, c("Other", ectoderm.types))) %>%
+  ggplot(aes(x=V1, y=V2)) +
+  geom_point(aes(color=celltype_endo), size=0.1) +
+  scale_color_manual(values=c("light grey", hue_pal()(6)))
+```
+
+```{r}
+immune.types <- c("Lymphoid cells", "Megakaryocytes", "Erythroblasts")
+emb2_subset %>%
+  mutate(celltype_endo = factor(celltype, levels=immune.types)) %>%
+  mutate(celltype_endo = fct_explicit_na(celltype_endo, "Other")) %>%
+  mutate(celltype_endo = fct_relevel(celltype_endo, c("Other", immune.types))) %>%
+  ggplot(aes(x=V1, y=V2)) +
+  geom_point(aes(color=celltype_endo), size=0.1) +
+  scale_color_manual(values=c("light grey", hue_pal()(3)))
+```
+
+```{r}
+epithelial.types <- c("Acinar cells", "Bronchiolar and alveolar epithelial cells",
+                      "Ciliated epithelial cells", "Ductal cells", "Goblet cells",
+                      "Intestinal epithelial cells", "Parietal and chief cells",
+                      "Metanephric cells", "Ureteric bud cells", "Squamous epithelial cells")
+
+emb2_subset %>%
+  mutate(celltype_endo = factor(celltype, levels=epithelial.types)) %>%
+  mutate(celltype_endo = fct_explicit_na(celltype_endo, "Other")) %>%
+  mutate(celltype_endo = fct_relevel(celltype_endo, c("Other", epithelial.types))) %>%
+  ggplot(aes(x=V1, y=V2)) +
+  geom_point(aes(color=celltype_endo), size=0.1) +
+  scale_color_manual(values=c("light grey", hue_pal()(10)))
+```
+
+This raises concerns about the fine-grained cell type labels within the germ layers, but 
+more importantly, these epithelial cell types are grouping together on their own.
+
+Our options are to leave these labels as they are, jointly relabel them, or remove these cells from the analysis altogether.
+
+Skeletal muscle
+```{r}
+skeletal.muscle <- c("Skeletal muscle cells")
+
+emb2_subset %>%
+  mutate(celltype_endo = factor(celltype, levels=skeletal.muscle)) %>%
+  mutate(celltype_endo = fct_explicit_na(celltype_endo, "Other")) %>%
+  mutate(celltype_endo = fct_relevel(celltype_endo, c("Other", skeletal.muscle))) %>%
+  ggplot(aes(x=V1, y=V2)) +
+  geom_point(aes(color=celltype_endo), size=0.1) +
+  scale_color_manual(values=c("light grey", hue_pal()(10)))
+```
+
+
+

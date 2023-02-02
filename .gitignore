@@ -10,3 +10,5 @@ figs/*
 *nb-log*
 temp/*
 analysis/*.html
+*.DS_Store
+test.tmp

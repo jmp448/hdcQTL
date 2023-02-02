@@ -1,10 +1,1 @@
-[1] "Num workers: 38...\n"
-[1] "Quick cluster...\n"
-    user   system  elapsed 
-3538.838  144.082 3691.807 
-[1] "\nComputing sum factors...\n"
-    user   system  elapsed 
-3992.776  212.416 4215.629 
-[1] "\nModeling mean-variance...\n"
-   user  system elapsed 
-182.895  59.250 242.740 
+Fatal error: cannot open file '../code/cellid_assign.R': No such file or directory

@@ -47,7 +47,7 @@ rule list_all_individuals:
     output:
     	  "data/genotypes/all_individuals.tsv"
     shell:
-	      "code/mashr/list_all_individuals.sh {input} {output}"
+	      "code/static_qtl_methods_comp/list_all_individuals.sh {input} {output}"
 
 rule pseudobulk_qc:
     resources:
@@ -64,7 +64,7 @@ rule pseudobulk_qc:
         decomp_type= get_decomp_type("{decomp}")
     conda: "../slurmy/r-pseudobulk.yml"
     script:
-        "../code/mashr/{wildcards.aggregation}-{wildcards.decomp}-qc.R"
+        "../code/static_qtl_methods_comp/{wildcards.aggregation}-{wildcards.decomp}-qc.R"
         
 rule pseudobulk_agg:
     resources:
@@ -81,7 +81,7 @@ rule pseudobulk_agg:
         fig_prefix = "figs/static/{annotation}/{aggregation}/{decomp}"
     conda: "../slurmy/r-pseudobulk.yml"
     script:
-        "../code/mashr/{wildcards.aggregation}-{wildcards.decomp}-agg.R"
+        "../code/static_qtl_methods_comp/{wildcards.aggregation}-{wildcards.decomp}-agg.R"
 
 rule genotype_filter:
     input:
@@ -92,7 +92,7 @@ rule genotype_filter:
     params:
         prefix="data/static/{annotation}/{aggregation}/{decomp}/{type}/genotypes_filtered"
     shell:
-	      "code/mashr/genotype_filter.sh {input.genotypes} {input.inds} {params.prefix}"
+	      "code/static_qtl_methods_comp/genotype_filter.sh {input.genotypes} {input.inds} {params.prefix}"
 
 rule genotype_012:
     input:
@@ -102,7 +102,7 @@ rule genotype_012:
     params:
         prefix="data/static/{annotation}/{aggregation}/{decomp}/{type}/genotypes_filtered"
     shell:
-	      "code/mashr/genotype_012.sh {input} {params.prefix}"
+	      "code/static_qtl_methods_comp/genotype_012.sh {input} {params.prefix}"
 
 rule genotype_transpose:
     resources:
@@ -112,7 +112,7 @@ rule genotype_transpose:
     output:
 	      "data/static/{annotation}/{aggregation}/{decomp}/{type}/genotypes_filtered.012.transpose"
     shell:
-	      "code/mashr/genotype_transpose.sh {input} {output}"
+	      "code/static_qtl_methods_comp/genotype_transpose.sh {input} {output}"
 
 rule genotype_reformat:
     resources:
@@ -127,7 +127,7 @@ rule genotype_reformat:
     params:
         temp_loc="temp/genotype_reformat.{annotation}.{aggregation}.{decomp}.{type}"
     shell:
-        "code/mashr/genotype_reformat.sh {input.genotypes} {input.individuals} {input.snp_locs} {params.temp_loc} {output.snp_locs} {output.genotypes}" 
+        "code/static_qtl_methods_comp/genotype_reformat.sh {input.genotypes} {input.individuals} {input.snp_locs} {params.temp_loc} {output.snp_locs} {output.genotypes}" 
 
 rule matrixeqtl_nominal:
     resources:
@@ -144,7 +144,7 @@ rule matrixeqtl_nominal:
         df="results/static/{annotation}/{aggregation}/{decomp}/{type}/{npcs}/matrixeqtl.df.tsv"
     conda: "../slurmy/r-matrixEQTL.yml"
     script:
-        "../code/mashr/matrixeqtl_nominal.R"
+        "../code/static_qtl_methods_comp/matrixeqtl_nominal.R"
 
 rule matrixeqtl_mtc:
     resources:
@@ -159,7 +159,7 @@ rule matrixeqtl_mtc:
         n_hits="results/static/{annotation}/{aggregation}/{decomp}/{type}/{npcs}/matrixeqtl.cis_qtl_pairs.nhits.tsv"
     conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/mashr/matrixeqtl_mtc.R"
+        "../code/static_qtl_methods_comp/matrixeqtl_mtc.R"
 
 rule run_matrixeqtl_allpcs:
     input:
@@ -193,7 +193,7 @@ rule mashr:
         all_qtls="temp/{annotation}.{aggregation}.{decomp}.{npcs}.qtls_combined.rds"
     conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/mashr/mashr.R"
+        "../code/static_qtl_methods_comp/mashr.R"
 
 rule mashr_corr_eval:
     resources:
@@ -206,7 +206,7 @@ rule mashr_corr_eval:
         "results/static/highpass_cellid_all/pseudobulk-scran/basic/mashr_corr_eval.RData"
     conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/mashr/mashr_correlation_evaluation.R"
+        "../code/static_qtl_methods_comp/mashr_correlation_evaluation.R"
         
 rule ashr:
     resources:
@@ -222,4 +222,4 @@ rule ashr:
         tophits="results/static/{annotation}/{aggregation}/{decomp}/ashr.tophits.rds"
     conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/mashr/ashr.R"
+        "../code/static_qtl_methods_comp/ashr.R"

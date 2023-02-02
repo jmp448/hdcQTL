@@ -391,6 +391,29 @@ png("/project2/gilad/jpopp/ebQTL/temp/components.png", width=3000, height=1600)
 plot(fig)
 dev.off()
 ```
+View boilerplate
+```{r}
+boiler_pcs <- both_pcs
+boiler_pcs$value <- 1
+boiler_pcs[boiler_pcs$component=="PC2", "value"] <- 0.1
+boiler_pcs[(boiler_pcs$component=="PC2") & (boiler_pcs$celltype=="Visceral-neurons"), "value"] <- 1.0
+boiler_pcs[boiler_pcs$component=="PC1", "component"] <- "BC1"
+boiler_pcs[boiler_pcs$component=="PC2", "component"] <- "BC2"
+
+boiler_fig <- boiler_pcs %>% 
+  ggplot(aes(x=celltype, y=value, fill=`Germ Layer`)) +
+  facet_grid(cols=vars(component)) +
+  geom_bar(stat="identity") +
+  scale_fill_manual(values=germlayer_colors) +
+  coord_flip() +
+  theme_classic(base_size = 40) +
+  ylab("Loading") + xlab("Cell Type")
+
+png("/project2/gilad/jpopp/ebQTL/temp/boiler_components.png", width=1600, height=1600)
+plot(boiler_fig)
+dev.off()
+```
+
 
 ```{r}
 m$fitted_g$Ulist$ED_PCA_1 %>%
