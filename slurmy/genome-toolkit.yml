@@ -1,0 +1,7 @@
+name: genome_toolkit
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - crossmap
+  - samtools==1.11

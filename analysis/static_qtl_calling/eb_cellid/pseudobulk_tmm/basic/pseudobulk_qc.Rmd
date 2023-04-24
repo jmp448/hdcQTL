@@ -1,0 +1,257 @@
+---
+title: "Pseudobulk QC"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+library(gplots)
+```
+
+## Overview of Pseudobulk Data
+First, which cell types are included in this analysis (after filtering out samples with too few cells)?
+```{r, warning=FALSE, message=FALSE}
+options(readr.show_progress = FALSE)
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))
+
+cell.types <- sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  dplyr::count(type) %>%
+  filter(n > 25) %>%
+  pull(type)
+
+cell.types
+```
+
+How many samples do we have per cell type?
+```{r}
+sample_summary  %>%
+  filter(!dropped) %>%
+  dplyr::count(type) %>%
+  ggplot(aes(x=type, y=n, fill=type)) +
+  geom_bar(stat="identity") +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=25, linetype="dashed")
+```
+
+How many cells do we have (median) per cell type?
+```{r}
+sample_summary %>%
+  filter(!dropped) %>%
+  filter(type %in% cell.types) %>%
+  group_by(type) %>%
+  summarize(n_cells_median=median(n_cells_filtered)) %>%
+  arrange(n_cells_median) %>%
+  ggplot(aes(x=type, y=n_cells_median)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+And how many cell types per individual?
+```{r}
+sample_summary  %>%
+  filter(!dropped) %>%
+  dplyr::count(individual) %>%
+  ggplot(aes(x=individual, y=n, fill=individual)) +
+  geom_bar(stat="identity") +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=25, linetype="dashed")
+```
+
+## Per-cell type quality control
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", cell.types, "/qc.png"))
+```
+
+## Assessing outliers
+### Acinar cells
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Acinar-cells/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Acinar-cells/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(PC2)
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Acinar-cells")
+```
+
+NA19108 has the fewest cells, and appears to be an outlier, so we'll remove that sample from the analysis
+
+### Adrenocortical cells
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Adrenocortical-cells/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Adrenocortical-cells/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(PC2)
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Adrenocortical-cells")
+```
+
+NA18907 is on the lower end of the number of cells, and appears to be a strong outlier, so we'll remove that sample from the analysis as well
+
+### CNS glia
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/CNS-glia/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/CNS-glia/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(PC2)
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="CNS-glia")
+```
+
+NA18907 has the fewest cells, and appears to be an outlier, so we'll remove that sample from the analysis
+
+## CNS-neurons
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/CNS-neurons/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/CNS-neurons/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(PC2)
+```
+This is yet another cell type where 18907 is looking like an outlier, and it was already in the fewest cell types, so we are going to remove all samples from this donor
+
+### Cardiomyocytes
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Cardiomyocytes/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Cardiomyocytes/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(desc(PC2))
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Cardiomyocytes")
+```
+
+NA19152 and NA19193 are both on the low end in terms of number of cells, and appear to be outliers, so we'll remove those
+
+### Ductal cells
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Ductal-cells/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Ductal-cells/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(desc(PC2))
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Ductal-cells")
+```
+NA19108 has far fewer cells than other samples and does appear to be an outlier, will remove
+
+### Hepatoblasts
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Hepatoblasts/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Hepatoblasts/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(PC2)
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Hepatoblasts")
+```
+We'll remove NA19190 since it's got far fewer cells and looks like an outlier
+
+### Metanephric cells
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Metanephric-cells/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Metanephric-cells/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(PC2)
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Metanephric-cells")
+```
+Once again, donor with the fewest cells looks like an outlier, so we'll remove NA19108
+
+### Parietal and chief cells
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Parietal-and-chief-cells/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Parietal-and-chief-cells/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(desc(PC1))
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Parietal-and-chief-cells")
+```
+NA19225, fewest cells and appears an outlier
+
+### Retinal cells
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Retinal-cells/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Retinal-cells/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(desc(PC2))
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Retinal-cells")
+```
+Just NA18907, which was going to be removed anyway
+
+### Skeletal muscle cells
+```{r}
+knitr::include_graphics(paste0("/project2/gilad/jpopp/ebQTL/figs/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Skeletal-muscle-cells/qc.png"))
+```
+
+```{r}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Skeletal-muscle-cells/all_pcs.tsv") %>%
+  column_to_rownames("covariate") %>% t %>% as_tibble(rownames="donor_id") %>%
+  arrange(PC2)
+```
+
+```{r}
+sample_summary %>%
+  filter(type=="Skeletal-muscle-cells")
+```
+Will remove NA19114 
+

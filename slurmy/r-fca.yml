@@ -1,0 +1,15 @@
+name: r-fca
+channels:
+  - bioconda
+  - conda-forge
+  - r
+dependencies:
+  - r-tidyverse
+  - r-matrix
+  - r-matrix.utils
+  - r-anndata
+  - bioconductor-zellkonverter
+  - bioconductor-cellid
+  - bioconductor-scran
+  - bioconductor-rhdf5
+  - bioconductor-hdf5array

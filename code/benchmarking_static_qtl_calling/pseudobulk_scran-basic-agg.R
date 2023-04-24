@@ -33,13 +33,18 @@ invnorm_transform <- function(x) {
   qqnorm(x, plot.it=F)$x
 }
 
-# Read in pseudobulk data
+# Read in pseudobulk data & ensure it's sorted by gene and sample
 pseudobulk <- read_tsv(pseudobulk_loc) %>% 
   arrange(gene)
-type.ind <- colnames(pseudobulk)[-c(1)]
+sample_order <- pseudobulk %>%
+  select(-c(gene)) %>%
+  colnames %>%
+  sort
+pseudobulk <- relocate(pseudobulk, all_of(c("gene", sample_order)))
 
-# Identify low-quality samples
+# Read in sample summary, sort and identify low-quality samples
 samples_subset <- read_tsv(sample_summary_loc) %>%
+  arrange(ind_type) %>%
   filter(!dropped)
 
 pseudobulk <- pseudobulk %>%
@@ -66,10 +71,8 @@ for (d in c(cell.types)) {
   
   # expression normalization
   # 1. normalize each gene to have zero mean, unit variance across individuals
-  expression.mat <- t(scale(t(expression.mat), center=T, scale=T))
-  # 2. quantile normalize each individual to have standard normal dist across all genes
-  expression.mat <- apply(expression.mat, 2, invnorm_transform)
-  # 3. re-insert gene names and convert to tibble
+  expression.mat <- apply(expression.mat, 1, invnorm_transform) %>% t
+  # 2. re-insert gene names and convert to tibble
   rownames(expression.mat) <- gene_keepers
   expression <- as_tibble(expression.mat, rownames="gene") %>%
     write_tsv(paste0(table_prefix, "/", d, "/expression.tsv"))

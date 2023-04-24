@@ -14,6 +14,10 @@ pull_gene_name <- function(attr) {
   str_split(attr, "\"")[[1]][8]
 }
 
+pull_gene_ensg <- function(attr) {
+  str_split(attr, "\"")[[1]][2]
+}
+
 # load gencode data
 gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"), skip=5) %>%
   filter(seqname %in% paste0("chr", seq(1, 22))) %>%
@@ -26,11 +30,6 @@ gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "
 # TBCE, MATR3, HSPA14, GGT1
 hgnc.dup <- filter(gencode, hgnc %in% names(table(gencode$hgnc)[table(gencode$hgnc)>1]))
 gencode <- gencode %>% filter(!hgnc %in% hgnc.dup$hgnc)
-
-# save a filtered GFF file
-gtf.filt <- gencode %>%
-  select(!c(type, hgnc)) %>%
-  write_tsv(filtered_gtf_loc)
 
 # save a tsv file of TSS for each gene with 1-indexing
 tss.filt <- gencode %>%

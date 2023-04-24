@@ -4,7 +4,7 @@
 #SBATCH --job-name=jlab
 #SBATCH --output=nb-log-%J.out
 #SBATCH --error=nb-log-%J.err
-#SBATCH --mem=600G
+#SBATCH --mem=500G
 
 ipnport=$(shuf -i8000-9999 -n1)
 ipnip=$(hostname -i)

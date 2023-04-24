@@ -2,17 +2,15 @@ library(tidyverse)
 library(zellkonverter)  # note that this package requires R version 4.1.0
 library(SingleCellExperiment)
 
-eb_lowpass_h5ad_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.h5ad"
-eb_lowpass_sce_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.TEMP.sce"
-# eb_lowpass_h5ad_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.endoderm.raw.h5ad"
-# eb_lowpass_sce_dir <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/Lowpass.3seqbatches.merged.endoderm.raw.sce"
+h5ad_dir <- snakemake@input[['h5ad']]
+sce_dir <- snakemake@output[['sce']]
 
-eb_lowpass <- readH5AD(eb_lowpass_h5ad_dir)
-# eb_lowpass <- readH5AD(eb_lowpass_h5ad_dir, X_name="counts")
+sce <- readH5AD(h5ad_dir, X_name='logcounts',
+                use_hdf5=TRUE,
+                layers=FALSE,
+                uns=FALSE,
+                obsm=FALSE,
+                obsp=FALSE,
+                verbose=TRUE)
 
-# save the count data to the proper assay
-eb_counts <- assay(eb_lowpass)
-counts(eb_lowpass) <- t(eb_counts)
-assay(eb_lowpass, "X") <- NULL
-
-saveRDS(eb_lowpass, eb_lowpass_sce_dir)
+saveRDS(sce, sce_dir)

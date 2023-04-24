@@ -1,0 +1,187 @@
+---
+title: "MASH"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+library(gplots)
+library(mashr)
+```
+
+## Characterizing mash patterns
+```{r}
+load("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_inputs.Rdata")
+```
+
+```{r}
+ectoderm_types <- c("CNS-neurons", "CNS-glia", "PNS-neurons", "PNS-glia", 
+                    "Retinal-cells", "Adrenocortical-cells", "Neuroendocrine-cells"
+                    )
+epithelial_types <- c("Ciliated-epithelial-cells", "Ductal-cells", "Acinar-cells", 
+                      "Metanephric-cells", "Ureteric-bud-cells")
+endoderm_types <- c("Goblet-cells", "Hepatoblasts", "Parietal-and-chief-cells", 
+                    "Bronchiolar-and-alveolar-epithelial-cells", "Squamous-epithelial-cells")
+mesoderm_types <- c("Cardiomyocytes", "Stromal-cells", "Epicardial-fat-cells", 
+                    "Mesangial-cells", "Smooth-muscle-cells", "Mesothelial-cells",
+                    "Stellate-cells" , "Vascular-endothelial-cells", "Skeletal-muscle-cells")
+immune_types <- c("Erythroblasts", "Lymphoid-cells", "Megakaryocytes")
+
+type_levels <- c(ectoderm_types, epithelial_types, mesoderm_types, 
+                 endoderm_types, immune_types)
+```
+
+```{r}
+U.ed$ED_PCA_1 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+```{r}
+U.ed$ED_PCA_2 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+```{r}
+U.ed$ED_PCA_3 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+```{r}
+U.ed$ED_PCA_4 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+
+```{r}
+U.ed$ED_PCA_5 %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+
+```{r}
+U.ed$ED_tPCA %>%
+  princomp %>%
+  .$loadings %>%
+  .[,1] %>%
+  as_tibble(rownames="type") %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
+  ggplot(aes(x=type, y=value, fill=type)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight")
+```
+
+Which of these patterns does mash actually rely on the heaviest?
+```{r, fig.width=6, fig.height=8}
+fitted_m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_trained_model.rds")
+
+as_tibble(get_estimated_pi(fitted_m), rownames="component") %>%
+  mutate(component=factor(component, levels=names(get_estimated_pi(fitted_m)))) %>%
+  ggplot(aes(x=component, y=value)) +
+  geom_bar(stat="identity") +
+  scale_x_discrete(limits=rev) +
+  xlab("Regulatory Pattern") +
+  ylab("Weight") +
+  coord_flip() +
+  theme_classic(base_size = 20)
+```
+
+Let's also compare the numbers of eGenes with and without mash
+```{r}
+tophits_m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_fitted_model.tophits.rds")
+tibble(n_contexts=get_n_significant_conditions(tophits_m)) %>%
+  filter(n_contexts >= 1) %>%
+  dplyr::count(n_contexts, name="n_eqtl") %>%
+  mutate(n_contexts=factor(n_contexts, levels=seq(1, 29))) %>%
+  ggplot(aes(x=n_contexts, y=n_eqtl)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15)
+```
+
+```{r fig.width=6, fig.height=8}
+n_qtl <- colSums(tophits_m$result$lfsr <= 0.05)
+
+qtl_by_type <- tibble(type=names(n_qtl), n_eqtl=n_qtl)  %>% 
+  arrange(n_qtl)
+
+ggplot(qtl_by_type, aes(x=type, y=n_eqtl)) +
+  geom_segment( aes(x=type, xend=type, y=0, yend=n_eqtl), color="skyblue") +
+  geom_point( color="blue", size=8, alpha=0.6) +
+  theme_light(base_size=25) +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type")
+```
+
+## Power Comparison
+```{r}
+permutation_hits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_permutations.sighits.tsv") %>%
+  dplyr::count(context) %>%
+  dplyr::rename(type=context, permutations=n)
+
+mash_hits_comparison <- qtl_by_type %>%
+  rename(mash=n_eqtl) %>%
+  left_join(permutation_hits, by="type") %>%
+  pivot_longer(!type, names_to="method", values_to="n") %>%
+  replace_na(list(n=0)) %>%
+  mutate(type=factor(type, levels=type_levels))
+```
+
+```{r fig.width=5, fig.height=4}
+mash_hits_comparison  %>%
+  ggplot(aes(x=type, y=n, fill=method)) +
+  geom_bar(position="dodge", stat="identity") +
+  ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") +
+  coord_flip() +
+  theme_classic(base_size=12)
+```
+
