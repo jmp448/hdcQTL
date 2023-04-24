@@ -1,8 +1,13 @@
 import os
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
-include: "rules/mashr.smk"
-include: "rules/tensorqtl.smk"
+include: "rules/sc_preprocessing.smk"
+include: "rules/fca_annotation.smk"
+include: "rules/benchmark_static_qtl_calling.smk"
+include: "rules/benchmark_specificity_methods.smk"
+include: "rules/static_qtl_calling.smk"
+include: "rules/static_eqtl_followup.smk"
+include: "rules/trajectory_inference.smk"
 
 HTTP = HTTPRemoteProvider()
 
@@ -21,7 +26,6 @@ rule make_conda:
         "test.tmp"
     output:
         "test.tmp2"
-    conda: "slurmy/tensorqtl.yml"
+    conda: "slurmy/genome-toolkit.yml"
     shell:
         "echo booyah > {output}"
-
