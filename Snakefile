@@ -4,10 +4,11 @@ from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 include: "rules/sc_preprocessing.smk"
 include: "rules/fca_annotation.smk"
 include: "rules/benchmark_static_qtl_calling.smk"
-include: "rules/benchmark_specificity_methods.smk"
+include: "rules/benchmark_mash.smk"
 include: "rules/static_qtl_calling.smk"
 include: "rules/static_eqtl_followup.smk"
 include: "rules/trajectory_inference.smk"
+include: "rules/dynamic_qtl_calling.smk"
 
 HTTP = HTTPRemoteProvider()
 
@@ -26,6 +27,6 @@ rule make_conda:
         "test.tmp"
     output:
         "test.tmp2"
-    conda: "slurmy/genome-toolkit.yml"
+    conda: "slurmy/r-mashr.yml"
     shell:
         "echo booyah > {output}"

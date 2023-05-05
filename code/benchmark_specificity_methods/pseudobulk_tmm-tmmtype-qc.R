@@ -47,6 +47,9 @@ samples_subset <- read_tsv(sample_summary_loc) %>%
   arrange(ind_type) %>%
   filter(!dropped)
 
+pseudobulk <- pseudobulk %>%
+  select(c(gene, intersect(colnames(.), samples_subset$ind_type)))
+
 # Set up sample summary for manual check
 if (!file.exists(sample_summary_manual_loc)) {
   file.copy(sample_summary_loc, sample_summary_manual_loc)

@@ -10,8 +10,9 @@ se_loc = snakemake.output['se_df']
 tables = []
 
 for floc in floc_list:
-    table = pq.read_table(floc, columns=['phenotype_id', 'variant_id', 'slope', 'slope_se', 'pval_nominal'])
+    table = pq.read_table(floc)
     table = table.append_column('celltype', pa.array([floc.split("/")[5]] * table.num_rows))
+    table = table.select(['phenotype_id', 'variant_id', 'celltype', 'slope', 'slope_se'])
     tables.append(table)
 
 # Concatenate

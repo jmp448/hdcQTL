@@ -3,18 +3,17 @@ library(mashr)
 library(vroom)
 set.seed(1234)
 
-beta_df_loc <- "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.betas.tsv"
-se_df_loc <- "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.standard_errors.tsv"
-sample_summary_loc <- "data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv"
-
 beta_df_loc <- snakemake@input[['beta_df']]
 se_df_loc <- snakemake@input[['se_df']]
 sample_summary_loc <- snakemake@input[['sample_summary']]
 
 npcs <- as.numeric(snakemake@wildcards[['npcs']])
-n_contexts_cutoff <- as.numeric(snakemake@params[['min_contexts']])
 
 mash_input_data_loc <- snakemake@output[['mash_inputs']]
+
+beta_df_loc <- "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.betas.tsv"
+se_df_loc <- "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.standard_errors.tsv"
+sample_summary_loc <- "data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv"
 
 # subset to snps that were kept for all analyses
 beta.hat <- read_tsv(beta_df_loc) %>%
@@ -23,10 +22,9 @@ beta.hat <- read_tsv(beta_df_loc) %>%
 se.hat <- read_tsv(se_df_loc) %>%
   column_to_rownames("gv") %>% as.matrix
 
-# remove any tests that aren't in both matrices or aren't measured in at least 5 contexts
-keeper_snps <- intersect(rownames(beta.hat)[which(rowSums(!is.na(beta.hat)) >= n_contexts_cutoff)], rownames(se.hat)[which(rowSums(!is.na(beta.hat)) >= 5)])
-beta.hat <- beta.hat[keeper_snps,]
-se.hat <- se.hat[keeper_snps,]
+shared_snps <- intersect(rownames(beta.hat), rownames(se.hat))
+beta.hat <- beta.hat[shared_snps,]
+se.hat <- se.hat[shared_snps,]
 
 degf.hat <- read_tsv(sample_summary_loc) %>%
   filter(!dropped) %>%
@@ -48,15 +46,16 @@ p2z = function(pval, Bhat) {
 ## Shat = Bhat/Z where Z is the Z score corresponding to a p value from a t test done on (Bhat,Shat_orig,df)
 z.adj = p2z(2 * pt(-abs(beta.hat/se.hat), degf.hat), beta.hat)
 se.hat = beta.hat / z.adj
-# se.hat[which(z.adj == 0)] = 10 - removing this bc it's ok for them to be NA
+se.hat[which(z.adj == 0)] = 10
 
 # identify top hit per gene across all cell groups
-strongest_tests <- tibble(gv=rownames(z.adj), 
-                   max_value=apply(abs(z.adj), 1, max, na.rm=T),
-                   max_context=colnames(z.adj)[max.col(replace(abs(z.adj), is.na(z.adj), -Inf))]) %>%
+top.hits <- as_tibble(z.adj, rownames="gv") %>%
+  pivot_longer(!gv, names_to="type", values_to="z") %>%
+  mutate(z=abs(z)) %>%
   separate(gv, into=c("gene", "SNP"), sep="_", remove=F) %>%
-  group_by(gene) %>% slice_max(max_value, n=1, with_ties=FALSE)
-top.hits <- pull(strongest_tests, gv)
+  group_by(gene) %>%
+  slice_max(z, n=1, with_ties=FALSE) %>%
+  pull(gv)
 
 # identify a random subset of 250K tests for model fitting
 random.hits = sample(rownames(beta.hat), min(250000, nrow(beta.hat)))
@@ -79,10 +78,9 @@ data.strong = mash_set_data(beta.hat[top.hits,], se.hat[top.hits,], V=Vhat)
 
 # get data-driven covariances
 U.pca = cov_pca(data.strong, 5)
-U.ed = cov_ed(data.strong, Ulist_init=U.pca)
-U.flash = cov_flash(data.strong, remove_singleton=T)
+U.ed = cov_ed(data.strong, U.pca)
 
 # fit mash model
-U.c = cov_canonical(data.random, cov_methods = c("singletons", "equal_effects"))
+U.c = cov_canonical(data.random, cov_methods = c("identity", "singletons", "equal_effects"))
 
-save(data.temp, data.random, data.strong, strongest_tests, Vhat, V.em.full, U.flash, U.pca, U.ed, U.c, file=mash_input_data_loc)
+save(data.temp, data.random, data.strong, Vhat, V.em.full, U.pca, U.ed, U.c, file=mash_input_data_loc)

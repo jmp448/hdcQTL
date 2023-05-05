@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import tensorqtl
 import numpy as np
+import seaborn as sns
 from tensorqtl import genotypeio, cis, trans
 from sklearn import preprocessing
 

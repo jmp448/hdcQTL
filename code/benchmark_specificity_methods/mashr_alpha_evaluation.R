@@ -1,60 +1,41 @@
 library(tidyverse)
 library(mashr)
+set.seed(1234)
 
 # Load info from snakemake
-# load(snakemake@input[['data']])
-# gene_locs <- snakemake@input[['gene_locs']]
-# output_loc <- snakemake@output
+mash_data_loc <- snakemake@input[[1]]
+output_loc <- snakemake@output[[1]]
 
 # Load info locally
-load("results/static/highpass_cellid_all/pseudobulk-scran/basic/mashr.training_data.RData")
-gene_locs <- "/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filtered.tss.tsv"
-output_loc <- "results/static/highpass_cellid_all/pseudobulk-scran/basic/mashr_alpha_eval.tsv"
+load(mash_data_loc)
 
-# Divide up the previously used training data (200K variants) into training/ testing data sets
-is.even <- function(chrom) {
-  (as.numeric(str_replace(chrom, "chr", "")) %% 2) == 0
-}
-gene_assignments <- read_tsv(gene_locs) %>%
-  mutate(even=is.even(chr)) %>%
-  select(hgnc, even)
-
-even.chroms <- tibble(gv=rownames(data.random$Bhat)) %>%
-  separate(gv, into=c("gene", "SNP"), sep="--") %>%
-  left_join(gene_assignments, by=c("gene"="hgnc")) %>% 
-  pull(even)
-
-Bhat.train <- data.random$Bhat[!even.chroms,]
-Shat.train <- data.random$Shat[!even.chroms,]
-Bhat.test <- data.random$Bhat[even.chroms,]
-Shat.test <- data.random$Shat[even.chroms,]
-
-# Further reduce the train and test dataset sizes
-train.subset <- sample(seq(1, nrow(Bhat.train)), 20000)
-test.subset <- sample(seq(1, nrow(Bhat.test)), 20000)
-Bhat.train <- Bhat.train[train.subset,]
-Shat.train <- Shat.train[train.subset,]
-Bhat.test <- Bhat.test[test.subset,]
-Shat.test <- Shat.test[test.subset,]
-
+# Baseline - assume no correlation between contexts
 data.train <- mash_set_data(Bhat.train, Shat.train)
 U.c = cov_canonical(data.train)
 
 logliks <- tibble("alpha"=c(0, 0.25, 0.5, 0.75, 1),
                   "loglik"=rep(0, 5))
 
+training_model_list <- list()
+testing_model_list <- list()
+
 # Try multiple possible values for alpha
 for (i in seq(1, nrow(logliks))) {
-  data.train.a = mash_set_data(Bhat.train, Shat.train, alpha=logliks$alpha[i])
-  V.em.full = mash_estimate_corr_em(data.train.a, U.c, max_iter=10, details = TRUE)
-  V.em = V.em.full$V
-  m.Vem = V.em.full$mash.model
+  alpha_i = logliks$alpha[i]
+  data.train = mash_set_data(Bhat.train, Shat.train, alpha=alpha_i)
+  m.train = mash(data.train, U.c)
   
-  data.test.a = mash_set_data(Bhat.test, Shat.test, alpha=logliks$alpha[i], V=V.em)
-  m.Vem.test = mash(data.test.a, g=get_fitted_g(m.Vem), fixg=TRUE)
-  logliks$loglik[i] = get_loglik(m.Vem.test)
-  print(paste0("done with alpha = ", logliks$alpha[i]))
+  data.test = mash_set_data(Bhat.test, Shat.test, alpha=alpha_i)
+  m.test = mash(data.test, g=get_fitted_g(m.train), fixg=TRUE)
+  logliks$loglik[i] = get_loglik(m.test)
+  
+  training_model_name <- paste0("train_alpha_", alpha_i)
+  training_model_list[[training_model_name]] = m.train
+  
+  test_model_name <- paste0("test_alpha_", alpha_i)
+  testing_model_list[[test_model_name]] = m.test
 }
 
-# Save outputs - train/test data, fitted mash models, 
-write_tsv(logliks, output_loc)
+# Save outputs
+save(training_model_list, testing_model_list, logliks, 
+     file=output_loc)

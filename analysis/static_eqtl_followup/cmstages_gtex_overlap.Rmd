@@ -249,3 +249,18 @@ ggplot(replication_viz_long, aes(x = celltype, fill = replication_df)) +
   theme(axis.title.y.left = element_text(color="#B51700"))
 ```
 
+## Reran the analysis
+This time, number of white balls in the urn corresponds to the number of QTLs in the reference
+dataset that are within 1kb of an EB test. The sampling procedure remains the selection of hits 
+in an EB cell type, so
+N = # EB tests
+K = # GTEx/I2QTL hits within 1kb of an EB test (tested against same gene, etc)
+n = # EB hits
+k = # EB hits within 1kb of a GTEx/ I2QTL hit
+```{r}
+tibble("EB_Celltype -- Reference Dataset"=c("EB_IPSC -- I2QTL", "EB_IPSC -- GTEx", "EB_CM -- I2QTL", "EB_CM -- GTEx"),
+       "-log10(P Enrichment)"=c(20.94, 45.98, 11.97, 17.28)) %>%
+  ggplot(aes(x=`EB_Celltype -- Reference Dataset`, y=`-log10(P Enrichment)`)) +
+  geom_col()
+```
+

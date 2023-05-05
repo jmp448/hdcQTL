@@ -1,6 +1,14 @@
 #TODO update list_yri_tagged_snps so input file isn't from benchmarking, and isn't IPSC
+#TODO update tensorqtl_summary_to_bed_allsigtests to remove the manual removal of NAs
 # grab chain file from https://hgdownload.cse.ucsc.edu/goldenpath/hg19/liftOver/hg19ToHg38.over.chain.gz
+# write a bash script for this `ls ../GTEx_Analysis_v8_eQTL/*.txt | cut -d '/' -f 3- | cut -d '.' -f 1 | sort | uniq > temp/all_gtex_tissues.txt`
 
+import pandas as pd
+
+def list_sigtest_overlap_files(wildcards):
+    tissues = list(pd.read_csv("temp/all_gtex_tissues.txt", names=['tissue'])['tissue'])
+    return [f"results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{wildcards.npcs}/signif_variant_gene_pairs.{t}.overlap.bed" for t in tissues]
+    
 rule matrixeqtl_summary_to_bed:
     resources:
         mem_mb=10000,
@@ -31,7 +39,8 @@ rule tensorqtl_summary_to_bed:
         time="00:05:00"
     input:
         qtl_summary="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}/tensorqtl_permutations.sighits.tsv",
-        bim_file="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/genotypes_filtered_plink.bim"
+        bim_file="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/genotypes_filtered_plink.bim",
+        gtf_loc="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
     output:
         bedfile="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}/tensorqtl_permutations.sighits.bed"
     conda: "../slurmy/r-mashr.yml"
@@ -51,6 +60,20 @@ rule tensorqtl_summary_to_bed_alltests:
     conda: "../slurmy/r-mashr.yml"
     script:
         "../code/static_eqtl_followup/tensorqtl_summary_to_bed_alltests.R"
+        
+rule tensorqtl_summary_to_bed_allsigtests:
+    resources:
+        mem_mb=10000,
+        time="00:05:00"
+    input:
+        qtl_summary="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.tsv",
+        bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Retinal-cells/genotypes_filtered_plink.bim",
+        gtf_loc="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
+    output:
+        bedfile="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/tensorqtl_summary_to_bed_allsigtests.R"
         
 rule tensorqtl_summary_to_positions:
     resources:
@@ -95,6 +118,9 @@ rule reformat_yri_tagged_snps:
         
 rule reformat_GTEx_eqtls:
 # convert GTEx significant eGene-eVariant pairs to BED format
+    resources:
+        mem_mb=150000,
+        disk_mb=20000
     input:
         "/project2/gilad/jpopp/GTEx_Analysis_v8_eQTL/{tissue}.v8.signif_variant_gene_pairs.txt"
     output:
@@ -180,4 +206,43 @@ rule list_overlap_snps:
         """
         module load bedtools
         bedtools intersect -a {input.ebqtl} -b {input.gtex} -wa -wb | awk '$4 == $10' | awk '!seen[$4,$6]++' > {output}
+        """
+        
+rule list_overlap_snps_sigtests_per_tissue:
+    """
+    This command will:
+    1. find the SNP intersection of two bedfiles,
+    2. filter to SNPs which were tested against the same gene
+    """
+    input:
+        ebqtl="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.sorted.bed",
+        gtex="results/static_eqtl_followup/gtex/{tissue}.signif_variant_gene_pairs.sorted.bed"
+    output:
+        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.{tissue}.overlap.bed"
+    shell:
+        """
+        module load bedtools
+        bedtools intersect -a {input.ebqtl} -b {input.gtex} -wa -wb | awk '$4 == $11' > {output}
+        """
+
+rule merge_overlap_sigtests:
+    resources:
+        mem_mb=200000,
+        time="30:00"
+    input:
+        unpack(list_sigtest_overlap_files)
+    output:
+        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.full_gtex_overlap.bed"
+    params:
+        tempfile="temp/gtex_overlab_tempfile.txt"
+    shell:
+        """
+        # Combine input files into a single file
+        cat {input} > {params.tempfile}
+        
+        # Filter lines to unique rows
+        sort -u {params.tempfile} > {output}
+        
+        # Remove temporary file
+        rm {params.tempfile}
         """

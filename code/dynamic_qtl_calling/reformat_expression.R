@@ -18,4 +18,3 @@ bed <- genes %>%
   mutate(start=start-1) %>%
   inner_join(exp, by="gene") %>%
   write_tsv(expression_reformatted_loc)
-  

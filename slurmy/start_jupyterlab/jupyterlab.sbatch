@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --time=5:0:0
-#SBATCH --partition=bigmem2
+#SBATCH --time=3:0:0
+#SBATCH --partition=gilad
 #SBATCH --gres=gpu:0
 #SBATCH --job-name=nb-tunnel
 #SBATCH --output=nb-log-%J.out
 #SBATCH --error=nb-log-%J.err
-#SBATCH --mem=250G
+#SBATCH --mem=100G
 #SBATCH --nodes=1
 
 ipnport=$(shuf -i8000-9999 -n1)
@@ -34,7 +34,7 @@ Please find it in the \`nb-log-*.err\` file under your current directory.
 sleep 1
 # Start jupyter
 cd /project2/gilad/
-module load python cuda/11.0
+module load python
 jupyter-lab --no-browser --port=$ipnport --ip=$ipnip
 
 # Then follow instructions above.

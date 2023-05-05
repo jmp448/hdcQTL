@@ -138,3 +138,34 @@ tibble(tissue=c("Brain-Cortex", "Artery-Coronary", "Liver"),
   theme(legend.position="none")
 ```
 
+Look at just how many variants overlap with GTEx ANYWHERE
+```{r}
+all_hits <- read_tsv("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.bed")
+```
+
+```{r}
+overlapped_tests <- read_tsv("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.full_gtex_overlap.bed", col_names=c("EB_CHR", "EB_START", "EB_END", "EB_ENSG", "EB_HGNC", "EB_rsID", "Type", "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+```
+
+What fraction of tests appear somewhere in GTEx?
+```{r}
+nrow(overlapped_hits) / nrow(all_hits)
+```
+
+What fraction of genes have an eQTL in GTEx?
+```{r}
+stopifnot(length(unique(overlapped_hits$EB_ENSG)) == length(intersect(unique(overlapped_hits$EB_ENSG), 
+                                                                      unique(all_hits$EB_ENSG))))
+length(unique(overlapped_hits$EB_ENSG)) / length(unique(all_hits$EB_ENSG))
+```
+
+Look for any patterns in the genes that don't have an eQTL in GTEx
+```{r}
+surprise_egenes <- setdiff(unique(all_hits$EB_ENSG), unique(overlapped_hits$EB_ENSG))
+```
+
+```{r}
+filter(all_hits, EB_ENSG %in% surprise_egenes) %>%
+  dplyr::count(EB_CELLTYPE)
+```
+

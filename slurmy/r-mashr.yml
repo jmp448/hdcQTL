@@ -3,9 +3,11 @@ channels:
   - r
   - bioconda
   - aksarkar
+  - dnachun
   - conda-forge
 dependencies:
-  - r-mashr
+  - r-mashr==0.2.57
+  - r-flashr
   - bioconductor-qvalue
-  - r-tidyverse
+  - r-tidyverse>=1.3.2
   - r-vroom

@@ -8,6 +8,9 @@ expression_loc <- snakemake@input[['exp']]
 gene_loc <- snakemake@input[['gene_locs']]
 expression_reformatted_loc <- snakemake@output[['exp']]
 
+# expression_loc <- "data/static/highpass_cellid_all/pseudobulk-scran/Shared/expression.tsv"
+# gene_loc <- "data/gencode/gencode.hg38.filtered.tss.tsv"
+
 exp <- read_tsv(expression_loc)
 
 genes <- read_tsv(gene_loc)

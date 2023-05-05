@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import tensorqtl
 import numpy as np
+import seaborn as sns
 from tensorqtl import genotypeio, cis, trans
 from sklearn import preprocessing
 
@@ -23,10 +24,7 @@ pr = genotypeio.PlinkReader(plink_prefix_path)
 genotype_df = pr.load_genotypes()
 variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
 
-# Normalize genotypes 
-genotype_df_normalized = pd.DataFrame(preprocessing.scale(genotype_df, axis=1), index=genotype_df.index, columns=genotype_df.columns)
-
-cis.map_nominal(genotype_df_normalized, variant_df, 
+cis.map_nominal(genotype_df, variant_df, 
                 phenotype_df, phenotype_pos_df, 
                 output_loc, covariates_df,
                 window=50000)

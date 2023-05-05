@@ -1,6 +1,7 @@
 #TODO loop in the analysis files where pseudobulking is actually applied (right now analysis/annotation/assign_cellid, analysis/trajectory_inference/assign_cmstages)
 #TODO move all finalized code to the static_qtl_calling folder
-#TODO
+#TODO address discrepancy with elorbany data getting SCT counts for dynamic, RNA counts for static
+#TODO look into whether identity matrix should actually be included with mash 
 
 import numpy as np
 import pandas as pd
@@ -149,7 +150,7 @@ rule tensorqtl_nominal:
 rule tensorqtl_merge_nominal:
     resources:
         mem_mb=200000,
-        time="03:00:00"
+        time="30:00"
     input:
         unpack(list_tensorqtl_nominal_outputs)
     output:
@@ -241,7 +242,21 @@ rule tensorqtl_merge_independent:
         "../slurmy/r-mashr.yml"
     script:
         "../code/static_qtl_calling/tensorqtl_merge_independent.R"
-        
+ 
+rule list_significant_variant_gene_pairs:
+    resources:
+        mem_mb=100000,
+        time="30:00"
+    input:
+        permutations="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/tensorqtl_permutations.all.tsv",
+        nominal="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/tensorqtl_nominal.all.tsv"
+    output:
+        hit_list="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/signif_variant_gene_pairs.tsv"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_qtl_calling/list_significant_tests.R"
+
 ### MASH
 rule mash_prep:
     resources:
@@ -253,6 +268,8 @@ rule mash_prep:
         sample_summary="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/sample_summary_manual.tsv"
     output:
         mash_inputs="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_inputs.Rdata"
+    params:
+        min_contexts=3
     conda:
         "../slurmy/r-mashr.yml"
     script:

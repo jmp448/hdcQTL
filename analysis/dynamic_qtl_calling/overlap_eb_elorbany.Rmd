@@ -1,0 +1,175 @@
+```{r}
+library(tidyverse)
+library(vroom)
+library(qvalue)
+```
+
+## DYNAMIC EQTL OVERLAP
+```{r}
+eb_cm_interactions <- read_tsv("/project2/gilad/jpopp/ebQTL/results/dynamic_qtl_calling/eb_cmstages/pseudobulk_tmm/10clpcs/tensorqtl_interactions.all.tsv")
+
+elorbany_cm_interactions <- read_tsv("/project2/gilad/jpopp/ebQTL/results/dynamic_qtl_calling/elorbany_cm16bins/pseudobulk_tmm/5clpcs/tensorqtl_interactions.all.tsv")
+```
+Apply bonferroni correction and get the significant hits
+```{r}
+bonferroni_adjust <- function(p, n) {
+  min(1, n*p)
+}
+
+eb_cm_tophits <- eb_cm_interactions %>%
+  add_count(phenotype_id) %>%
+  group_by(phenotype_id) %>%
+  slice_min(order_by=pval_gi, n=1, with_ties=F, na_rm=T) %>%
+  mutate(pval_gi_bonf=map2_dbl(pval_gi, n, bonferroni_adjust))
+eb_cm_tophits$bh_gi_bonf <- p.adjust(eb_cm_tophits$pval_gi_bonf, "BH")
+```
+
+
+
+## EXPRESSION OVERLAP
+Get the median expression in each cell type from elorbany - made in #temp/get_tmm_alltypes.R
+```{r}
+elorbany <- vroom("/project2/gilad/jpopp/ebQTL/temp/elorbany_cmstages.pseudobulk_tmm.tsv")
+eb <- vroom("/project2/gilad/jpopp/ebQTL/temp/eb_cmstages.pseudobulk_tmm.tsv")
+```
+Get the median expression in each cell type
+```{r}
+elorbany_median <- elorbany %>%
+  pivot_longer(!gene, names_to="sample", values_to="expression") %>%
+  separate(sample, into=c("donor", "stage")) %>%
+  group_by(stage, gene) %>%
+  summarize(median_expression=median(expression)) %>%
+  pivot_wider(id_cols=gene, names_from=stage, values_from=median_expression)
+
+eb_median <- eb %>%
+  pivot_longer(!gene, names_to="sample", values_to="expression") %>%
+  separate(sample, into=c("donor", "stage")) %>%
+  group_by(stage, gene) %>%
+  summarize(median_expression=median(expression)) %>%
+  pivot_wider(id_cols=gene, names_from=stage, values_from=median_expression)
+```
+
+Merge the columns for easier comparison
+```{r}
+eb_median_comb <- eb_median %>%
+  rename(EB_CM=CM, EB_IPSC=IPSC, EB_MESENDO=MESENDO, EB_MESO=MESO, EB_PROG=PROG)
+
+elorbany_median_comb <- elorbany_median %>%
+  rename(EL_CM=CM, EL_IPSC=IPSC, EL_MES=MES, EL_CMES=CMES, EL_PROG=PROG)
+
+medians_all <- inner_join(eb_median_comb, elorbany_median_comb, by="gene")
+```
+
+```{r}
+expression_pairwise <- cor(medians_all[,c("EB_IPSC", "EB_MESENDO", "EB_MESO", "EB_PROG", "EB_CM")],
+                           medians_all[,c("EL_IPSC", "EL_MES", "EL_CMES", "EL_PROG", "EL_CM")],
+                           method="spearman", use="pairwise.complete.obs")
+corrplot(expression_pairwise,
+         method="color", addCoef.col = "black",
+         is.corr=F)
+```
+
+## CIS EQTL OVERLAP
+```{r}
+eb_mash_fit <- readRDS("results/static_qtl_calling/eb_cmstages/pseudobulk_tmm/basic/5pcs/mash_fitted_model.tophits.rds")
+elorbany_mash_fit <- readRDS("results/static_qtl_calling/elorbany_cmstages/pseudobulk_tmm/basic/5pcs/mash_fitted_model.tophits.rds")
+```
+These seem insanely inflated, will have to figure that out later
+
+```{r}
+eb_tensorqtl <- read_tsv("results/static_qtl_calling/eb_cmstages/pseudobulk_tmm/basic/8pcs/tensorqtl_permutations.all.tsv")
+
+elorbany_tensorqtl <- read_tsv("results/static_qtl_calling/elorbany_cmstages/pseudobulk_tmm/basic/5pcs/tensorqtl_permutations.all.tsv")
+```
+
+Nothing was significant at a single-stage level in Elorbany, so we're going to focus on just our EB hits
+```{r}
+eb_qtl_effect_sizes <- eb_tensorqtl %>%
+  filter(q <= 0.05) %>%
+  mutate(context=paste0("EB_", context)) %>%
+  unite(gv, phenotype_id, variant_id, sep="_") %>%
+  pivot_wider(id_cols=gv, names_from=context, values_from=slope)
+```
+
+Now let's see what the Elorbany data looks like there
+```{r}
+elorbany_all <- read_tsv("results/static_qtl_calling/elorbany_cmstages/pseudobulk_tmm/basic/5pcs/tensorqtl_nominal.betas.tsv")
+```
+
+```{r}
+effect_size_comp <- elorbany_all %>%
+  rename_with(function(s){paste0("EL_", s)}, .cols=!gv) %>%
+  right_join(eb_qtl_effect_sizes, by="gv")
+```
+
+```{r}
+eqtl_pairwise <- cor(effect_size_comp[,c("EB_IPSC", "EB_MESENDO", "EB_MESO", "EB_PROG", "EB_CM")],
+                     effect_size_comp[,c("EL_IPSC", "EL_MES", "EL_CMES", "EL_PROG", "EL_CM")],
+                     method="spearman", use="pairwise.complete.obs")
+corrplot(eqtl_pairwise,
+         method="color", addCoef.col = "black",
+         is.corr=F)
+```
+
+
+```{r}
+
+elorbany_ipscloci <- elorbany_all %>%
+  filter(gv %in% ipsc_loci)
+
+ipsc_comparison <- ipsc_effects %>%
+  select(gv, slope) %>%
+  right_join(elorbany_ipscloci, by=join_by(gv==gv))
+```
+
+How about among the very few PROG hits
+```{r}
+late_effects <- eb_qtl_hits %>%
+  filter(context %in% c("PROG", "CM")) %>%
+  select(phenotype_id, variant_id, slope) %>%
+  mutate(gv=paste0(phenotype_id, "_", variant_id))
+```
+
+```{r}
+elorbany_lateloci <- elorbany_all %>%
+  filter(gv %in% late_effects$gv)
+
+late_comparison <- late_effects %>%
+  select(gv, slope) %>%
+  right_join(elorbany_lateloci, by=join_by(gv==gv))
+
+```
+
+```{r}
+cor(late_comparison$slope[!is.na(late_comparison$IPSC)], late_comparison$IPSC[!is.na(late_comparison$IPSC)])
+cor(late_comparison$slope[!is.na(late_comparison$MES)], late_comparison$MES[!is.na(late_comparison$MES)])
+cor(late_comparison$slope[!is.na(late_comparison$CMES)], late_comparison$CMES[!is.na(late_comparison$CMES)])
+cor(late_comparison$slope[!is.na(late_comparison$PROG)], late_comparison$PROG[!is.na(late_comparison$PROG)])
+cor(late_comparison$slope[!is.na(late_comparison$CM)], late_comparison$CM[!is.na(late_comparison$CM)])
+```
+
+How about among the middle
+```{r}
+mid_effects <- eb_qtl_hits %>%
+  filter(context %in% c("MESENDO", "MESO")) %>%
+  select(phenotype_id, variant_id, slope) %>%
+  mutate(gv=paste0(phenotype_id, "_", variant_id))
+```
+
+```{r}
+elorbany_midloci <- elorbany_all %>%
+  filter(gv %in% mid_effects$gv)
+
+mid_comparison <- mid_effects %>%
+  select(gv, slope) %>%
+  right_join(elorbany_midloci, by=join_by(gv==gv))
+
+```
+
+```{r}
+cor(mid_comparison$slope[!is.na(mid_comparison$IPSC)], mid_comparison$IPSC[!is.na(mid_comparison$IPSC)])
+cor(mid_comparison$slope[!is.na(mid_comparison$MES)], mid_comparison$MES[!is.na(mid_comparison$MES)])
+cor(mid_comparison$slope[!is.na(mid_comparison$CMES)], mid_comparison$CMES[!is.na(mid_comparison$CMES)])
+cor(mid_comparison$slope[!is.na(mid_comparison$PROG)], mid_comparison$PROG[!is.na(mid_comparison$PROG)])
+cor(mid_comparison$slope[!is.na(mid_comparison$CM)], mid_comparison$CM[!is.na(mid_comparison$CM)])
+```
