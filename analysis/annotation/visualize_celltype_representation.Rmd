@@ -1,0 +1,102 @@
+```{r}
+library(tidyverse)
+```
+
+## Overview of Pseudobulk Data
+First, which cell types are included in this analysis (after filtering out samples with too few cells)?
+```{r, warning=FALSE, message=FALSE}
+options(readr.show_progress = FALSE)
+sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))
+
+cell.types <- sample_summary  %>%
+  mutate(type=as.character(type)) %>%
+  filter(!dropped) %>%
+  dplyr::count(type) %>%
+  filter(n > 25) %>%
+  pull(type)
+
+cell.types
+```
+
+How many samples do we have per cell type?
+```{r}
+sample_summary  %>%
+  filter(!dropped) %>%
+  select(individual, type, dropped) %>%
+  pivot_wider(names_from=type, values_from=dropped)
+  ggplot(aes(x=type, y=n, fill=type)) +
+  geom_bar(stat="identity") +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=25, linetype="dashed")
+```
+
+To emphasize that we do see most cell types in most donors, we can visualize this differently
+```{r, fig.width=8, fig.height=4}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/sample_summary.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))  %>%
+  #filter(!dropped) %>%
+  select(individual, type, dropped) %>%
+  pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>%
+  pivot_longer(!individual, names_to="type", values_to="dropped") %>%
+  mutate(individual=paste0("NA", individual)) %>%
+  mutate(observed=!dropped) %>%
+  ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) +
+    geom_point(shape = 1, size = 1, stroke=2) +
+    scale_color_manual(values = c("#1DB100", "#D5D5D5")) +
+    theme_classic(base_size=15) +
+    labs(title = "Cell Type Observations",
+         x = "Donor",
+         y = "Cell Type",
+         color = "Cell Type Observed") +
+    theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+After manual pruning of outlier samples
+```{r, fig.width=8, fig.height=4}
+read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv") %>%
+  mutate(individual=factor(individual), type=factor(type))  %>%
+  #filter(!dropped) %>%
+  select(individual, type, dropped) %>%
+  pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>%
+  pivot_longer(!individual, names_to="type", values_to="dropped") %>%
+  mutate(individual=paste0("NA", individual)) %>%
+  mutate(observed=!dropped) %>%
+  ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) +
+    geom_point(shape = 1, size = 1, stroke=2) +
+    scale_color_manual(values = c("#1DB100", "#D5D5D5")) +
+    theme_classic(base_size=15) +
+    labs(title = "Cell Type Observations",
+         x = "Donor",
+         y = "Cell Type",
+         color = "Cell Type Observed") +
+    theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+How many cells do we have (median) per cell type?
+```{r}
+sample_summary %>%
+  filter(!dropped) %>%
+  filter(type %in% cell.types) %>%
+  group_by(type) %>%
+  summarize(n_cells_median=median(n_cells_filtered)) %>%
+  arrange(n_cells_median) %>%
+  ggplot(aes(x=type, y=n_cells_median)) +
+  geom_bar(stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+```
+
+And how many cell types per individual?
+```{r}
+sample_summary  %>%
+  filter(!dropped) %>%
+  dplyr::count(individual) %>%
+  ggplot(aes(x=individual, y=n, fill=individual)) +
+  geom_bar(stat="identity") +
+  ylab("n samples") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
+  geom_abline(slope=0, intercept=25, linetype="dashed")
+```

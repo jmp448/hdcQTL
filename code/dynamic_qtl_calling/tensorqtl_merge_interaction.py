@@ -8,7 +8,7 @@ merged_df_loc = snakemake.output['merged_df']
 tables = []
 
 for floc in floc_list:
-    table = pq.read_table(floc, columns=['phenotype_id', 'variant_id', 'b_gi', 'b_gi_se', 'pval_gi'])
+    table = pq.read_table(floc, columns=['phenotype_id', 'variant_id', 'b_gi', 'b_gi_se', 'pval_gi', 'tests_emt', 'pval_emt', 'pval_adj_bh'])
     tables.append(table)
 
 # Concatenate

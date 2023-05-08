@@ -12,8 +12,6 @@ library(Matrix.utils)
 library(matrixStats)
 library(edgeR)
 set.seed(2021)
-source("/project2/gilad/jpopp/sc-dynamic-eqtl/code/cell_line_pca.R")
-#use_condaenv("/project2/gilad/jpopp/ebQTL/.snakemake/conda/980130bc9d8d3f8069c208a84393fb39")
 
 # Read in the input files from Snakefile
 pseudobulk_loc <- "data/static_qtl_calling/elorbany_cmstages/pseudobulk_tmm/elorbany_cmstages.pseudobulk_tmm.tsv"
@@ -21,6 +19,13 @@ sample_summary_loc="data/static_qtl_calling/elorbany_cmstages/pseudobulk_tmm/sam
 celltypes_loc="data/static_qtl_calling/elorbany_cmstages/pseudobulk_tmm/elorbany_cmstages.pseudobulk_tmm.tsv"
 
 tmm_expression_loc <- "temp/elorbany_cmstages.pseudobulk_tmm.tsv"
+
+pseudobulk_loc <- snakemake@input[['pseudobulk']]
+sample_summary_loc <- snakemake@input[['sample_summary_manual']]
+celltypes_loc <- snakemake@input[['celltypes']]
+
+full_expression_loc <- snakemake@output[['all']]
+median_expression_loc <- snakemake@output[['median']]
 
 # Get a list of cell types
 cell.types <- read_tsv(celltypes_loc, n_max=0, col_select=-c(1)) %>%
@@ -53,7 +58,7 @@ for (d in c(cell.types)) {
     as.matrix
   
   # TMM normalization to get log TMM-normalized counts
-  expression.mat <- DGEList(counts=expression.mat) %>% calcNormFactors(method="TMM") %>% cpm(log=T)
+  expression.mat <- DGEList(counts=expression.mat) %>% calcNormFactors(method="TMM") %>% cpm(log=F)
   expression <- as_tibble(expression.mat, rownames="gene")
   
   if (d == cell.types[[1]]) {
@@ -64,4 +69,12 @@ for (d in c(cell.types)) {
 }
 
 full_expression %>%
-  write_tsv(tmm_expression_loc)
+  write_tsv(full_expression_loc)
+
+median_expression <- full_expression %>%
+  pivot_longer(!gene, names_to="sample", values_to="expression") %>%
+  separate(sample, into=c("donor", "stage"), sep="_") %>%
+  group_by(stage, gene) %>%
+  summarize(median_expression=median(expression)) %>%
+  pivot_wider(id_cols=gene, names_from=stage, values_from=median_expression) %>%
+  write_tsv(median_expression_loc)

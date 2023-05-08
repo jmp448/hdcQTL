@@ -27,6 +27,6 @@ rule make_conda:
         "test.tmp"
     output:
         "test.tmp2"
-    conda: "slurmy/r-mashr.yml"
+    conda: "slurmy/tensorqtl.yml"
     shell:
         "echo booyah > {output}"

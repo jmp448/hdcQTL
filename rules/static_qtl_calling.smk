@@ -60,6 +60,28 @@ rule pseudobulk_agg:
     script:
         "../code/static_qtl_calling/pseudobulk_tmm-basic-agg.R"
 
+"""
+This just gives TMM-normalized gene expression across all cell types, whereas the previous don't actually save
+this intermediate (they additionally inverse normal transform the expression)
+
+It performs TMM normalization separately within each cell type, then it aggregates so all
+samples are in one dataframe, and it also takes the median across individuals from same cell type
+"""
+rule pseudobulk_tmm_only:
+    resources:
+        mem_mb=250000,
+        time="30:00"
+    input:
+        pseudobulk="data/static_qtl_calling/{annotation}/pseudobulk_tmm/{annotation}.pseudobulk_tmm.tsv",
+        sample_summary_manual="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/sample_summary_manual.tsv",
+        celltypes="data/static_qtl_calling/{annotation}/pseudobulk_tmm/{annotation}.pseudobulk_tmm.tsv"
+    output:
+        all="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/pseudobulk_tmm_all.tsv",
+        median="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/pseudobulk_tmm_median.tsv"
+    conda: "../slurmy/r-pseudobulk.yml"
+    script:
+        "../code/static_qtl_calling/tmm_normalization_only.R"
+
 ### PREPROCESSING GENOTYPES
 rule list_all_individuals:
     input:

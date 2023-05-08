@@ -1,0 +1,66 @@
+
+
+```{r}
+library(tidyverse)
+library(vroom)
+library(snpStats)
+```
+## Helper functions
+This function will take a snpMatrix from SnpStats and convert it to a tibble with genotype
+```{r}
+snpstats2geno <- function(s) {
+  ac <- tibble(ac=as.numeric(s$genotypes@.Data), sample=rownames(s$genotypes@.Data))
+  ac2geno <- tibble("ac"=c(1, 2, 3), 
+                    "genotype"=c(paste(rep(s$map$allele.1, 2), sep="", collapse=""), 
+                                                  paste(s$map$allele.1, s$map$allele.2, sep="", collapse=""), 
+                                                  paste(rep(s$map$allele.2, 2), sep="", collapse="")))
+  geno <- left_join(ac, ac2geno, by="ac")
+  geno
+}
+```
+
+
+## Static eQTL examples
+```{r}
+snp_rsid <- "rs1801072"
+gene_hgnc <- "TAPT1"
+celltype <- "Cardiomyocytes"
+```
+
+
+```{r}
+bed <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bed")
+bim <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bim")
+fam <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.fam")
+snpstat <- read.plink(bed, bim, fam, na.strings = c("0", "-9"), sep = "." , select.subjects = NULL, select.snps = snp_rsid)
+
+genotypes_df <- snpstats2geno(snpstat)
+```
+
+```{r}
+expression_df <- vroom(paste0("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/expression.bed.gz")) %>%
+  select(-c(`#chr`, start, end)) %>%
+  column_to_rownames("gene") %>% t %>%
+  as_tibble(rownames="sample") %>%
+  select(c(sample, gene_hgnc))
+```
+
+```{r}
+inner_join(genotypes_df, expression_df, by="sample") %>%
+  ggplot(aes(x=genotype, y=.data[[gene_hgnc]], fill=genotype)) +
+  geom_boxplot(alpha = 0.5) +
+  geom_jitter(position = position_jitter(seed = 1, width = 0.1)) +
+  theme_classic(base_size=15) +
+  scale_fill_discrete(name=snp_rsid) +
+  xlab("Genotype") + ylab(paste0(gene_hgnc, " Expression")) +
+  ggtitle(celltype)
+```
+
+Additionally visualize the eQTL with residualized expression
+```{r}
+covariate_expression <- vroom("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Cardiomyocytes/expression.bed.gz")
+
+```
+
+
+

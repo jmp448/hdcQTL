@@ -2,7 +2,7 @@
 #TODO think about whether the inverse normal transformation's tie-breaking approach is a problem
 #TODO do something better about handling duplicated SNP ID's in tensorqtl interaction test
 #TODO submit bug report to tensorqtl to fix the chromosome indexing
-#TODO fix eigenMT
+#TODO find more stable solution than to manually overwrite cis.py (/project2/gilad/jpopp/ebQTL/.snakemake/conda/e138ad8ec0b845ac547107b3c3d4cf50/lib/python3.10/site-packages/tensorqtl/cis.py) with updates from https://github.com/broadinstitute/tensorqtl/commit/6879d887db13d880fc5fc0619906c4fbdbbb2843
 
 rule pseudobulk_qc_dynamic:
     resources:
