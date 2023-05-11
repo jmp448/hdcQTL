@@ -1,14 +1,15 @@
 import os
 from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
 
-include: "rules/sc_preprocessing.smk"
-include: "rules/fca_annotation.smk"
-include: "rules/benchmark_static_qtl_calling.smk"
-include: "rules/benchmark_mash.smk"
-include: "rules/static_qtl_calling.smk"
-include: "rules/static_eqtl_followup.smk"
-include: "rules/trajectory_inference.smk"
-include: "rules/dynamic_qtl_calling.smk"
+include: "rules/sc_preprocessing.py"
+include: "rules/fca_annotation.py"
+include: "rules/benchmark_static_qtl_calling.py"
+include: "rules/benchmark_mash.py"
+include: "rules/static_qtl_calling.py"
+include: "rules/static_eqtl_followup.py"
+include: "rules/trajectory_inference.py"
+include: "rules/dynamic_qtl_calling.py"
+include: "rules/fast_topics.py"
 
 HTTP = HTTPRemoteProvider()
 
@@ -27,6 +28,6 @@ rule make_conda:
         "test.tmp"
     output:
         "test.tmp2"
-    conda: "slurmy/tensorqtl.yml"
+    conda: "slurmy/r-fasttopics.yml"
     shell:
         "echo booyah > {output}"
