@@ -100,13 +100,31 @@ corrplot(cor_gtex,
          method="color",
          is.corr=F, tl.cex=0.6, cl.cex=0.6)
 
+cor_gtex_eb <- apply(gtex_medians_mat, 2, function(x) {
+  apply(eb_medians_mat, 2, function(y) {
+    nonzero_cor(x, y)
+  })
+})
+
 hc_eb <- hclust(as.dist(1 - cor(pairwise_correlations)), method="ward.D2")$order
 hc_gtex <- hclust(as.dist(1 - cor(t(pairwise_correlations))), method="ward.D2")$order
 
-heatmap.2(t(pairwise_correlations),
+heatmap.2(t(cor_gtex_eb),
           density.info=NULL,
           trace="none",
           cexRow = 0.65,
           cexCol = 0.65,
           margins = c(15, 12),
           col=colorRampPalette(brewer.pal(9, "YlOrBr"))(100))
+
+corrplot(cor_gtex_eb[c("EB_Hepatoblasts","EB_Cardiomyocytes", "EB_CNS-neurons"),
+                      c("GTEX_Liver", "GTEX_Heart_Left_Ventricle", "GTEX_Brain_Cortex")],
+         addCoef.col = "black",
+         method="color", is.corr=F, tl.cex=1.2, cl.cex=1.2)
+
+corrplot(cor_gtex_eb[c("EB_Hepatoblasts","EB_Cardiomyocytes", "EB_CNS-neurons"),
+                     c("GTEX_Liver", "GTEX_Heart_Left_Ventricle", "GTEX_Brain_Cortex",
+                       "GTEX_Cells_Cultured_fibroblasts")],
+         addCoef.col = "black",
+         method="color", is.corr=F, tl.cex=1.2, cl.cex=1.2)
+

@@ -28,6 +28,7 @@ eb_all <- vroom(eb_sighits_loc)
 
 overlap_egenes <- unique(gtex_overlap$EB_HGNC)
 all_egenes <- unique(eb_all$phenotype_id)
+novel_egenes <- setdiff(all_egenes, overlap_egenes)
 ```
 
 Wrangle GO BP gene sets

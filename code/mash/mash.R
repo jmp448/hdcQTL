@@ -10,7 +10,7 @@ tophit_fitted_loc <- snakemake@output[['tophits_fitted_model']]
 
 load(mash_input_data_loc)
 
-m = mash(data.random, Ulist = c(U.pca,U.c), outputlevel = 4)
+m = mash(data.random, Ulist = c(U.flash,U.c), outputlevel = 4)
 saveRDS(m, trained_model_loc)
 
 m2 = mash(data.strong, g=get_fitted_g(m), fixg=TRUE, outputlevel=4)

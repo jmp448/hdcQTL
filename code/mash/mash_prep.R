@@ -1,6 +1,6 @@
 library(tidyverse)
 library(mashr)
-library(vroom)
+library(flashier)
 set.seed(1234)
 
 beta_df_loc <- "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.betas.tsv"
@@ -23,11 +23,6 @@ beta.hat <- read_tsv(beta_df_loc) %>%
 se.hat <- read_tsv(se_df_loc) %>%
   column_to_rownames("gv") %>% as.matrix
 
-# remove any tests that aren't in both matrices or aren't measured in at least 5 contexts
-keeper_snps <- intersect(rownames(beta.hat)[which(rowSums(!is.na(beta.hat)) >= n_contexts_cutoff)], rownames(se.hat)[which(rowSums(!is.na(beta.hat)) >= 5)])
-beta.hat <- beta.hat[keeper_snps,]
-se.hat <- se.hat[keeper_snps,]
-
 degf.hat <- read_tsv(sample_summary_loc) %>%
   filter(!dropped) %>%
   dplyr::count(type) %>%
@@ -48,25 +43,50 @@ p2z = function(pval, Bhat) {
 ## Shat = Bhat/Z where Z is the Z score corresponding to a p value from a t test done on (Bhat,Shat_orig,df)
 z.adj = p2z(2 * pt(-abs(beta.hat/se.hat), degf.hat), beta.hat)
 se.hat = beta.hat / z.adj
-# se.hat[which(z.adj == 0)] = 10 - removing this bc it's ok for them to be NA
 
-# identify top hit per gene across all cell groups
-strongest_tests <- tibble(gv=rownames(z.adj), 
-                   max_value=apply(abs(z.adj), 1, max, na.rm=T),
-                   max_context=colnames(z.adj)[max.col(replace(abs(z.adj), is.na(z.adj), -Inf))]) %>%
+# Find the strongest test per gene
+strongest_context_per_test <- tibble(gv=rownames(z.adj), 
+                          max_value=apply(abs(z.adj), 1, max, na.rm=T),
+                          max_context=colnames(z.adj)[max.col(replace(abs(z.adj), is.na(z.adj), -Inf))]) 
+
+strongest_test_per_gene <- strongest_context_per_test %>%
   separate(gv, into=c("gene", "SNP"), sep="_", remove=F) %>%
   group_by(gene) %>% slice_max(max_value, n=1, with_ties=FALSE)
-top.hits <- pull(strongest_tests, gv)
 
-# identify a random subset of 250K tests for model fitting
-random.hits = sample(rownames(beta.hat), min(250000, nrow(beta.hat)))
+top.hits <- strongest_test_per_gene %>%
+  pull(gv)
 
-# identify an even smaller subset of 25K tests for estimating correlation
-corr.subset = sample(random.hits, 25000)
+data.strong = mash_set_data(beta.hat[top.hits,], se.hat[top.hits,])
+
+# Identify a random subset of 50K tests for model fitting, without too many missing values
+keepers_cutoff <- intersect(rownames(beta.hat)[which(rowSums(!is.na(beta.hat)) >= n_contexts_cutoff)], 
+                         rownames(se.hat)[which(rowSums(!is.na(se.hat)) >= n_contexts_cutoff)])
+
+random.hits = sample(keepers_cutoff, min(50000, nrow(beta.hat)))
+
+data.random = mash_set_data(beta.hat[random.hits,], se.hat[random.hits,])
+
+# Get a stricter set of tests that were measured in every context (these will be used for learning regulatory patterns)
+keepers_nonmissing <- intersect(rownames(beta.hat)[which(rowSums(is.na(beta.hat)) == 0)],
+                                rownames(se.hat)[which(rowSums(is.na(se.hat)) == 0)]) 
+
+strongest_tests_nonmissing <- strongest_context_per_test %>%
+  filter(gv %in% keepers_nonmissing) %>%
+  separate(gv, into=c("gene", "SNP"), sep="_", remove=F) %>%
+  group_by(gene) %>% slice_max(max_value, n=1, with_ties=FALSE)
+top.hits.nonmissing <- strongest_tests_nonmissing %>%
+  arrange(desc(max_value)) %>%
+  slice_head(n=2000) %>%
+  pull(gv)
+
+data.strong.nonmissing = mash_set_data(beta.hat[top.hits.nonmissing,], se.hat[top.hits.nonmissing,])
+
+# Last but not least, get a sample of 25K tests (still no missingness) to estimate correlation structure
+corr.subset = sample(keepers_nonmissing, 25000)
 
 # estimate residual correlation
 data.temp = mash_set_data(beta.hat[corr.subset,], se.hat[corr.subset,])
-U.c = cov_canonical(data.temp)
+U.c = cov_canonical(data.temp, cov_methods = c("singletons", "equal_effects"))
 V.em.full = mash_estimate_corr_em(data.temp, U.c, details = TRUE)
 Vhat = V.em.full$V
 
@@ -74,15 +94,19 @@ Vhat = V.em.full$V
 # data.random = mash_set_data(beta.hat[random.hits,], se.hat[random.hits,], V=Vhat, df=degf.hat[random.hits,])
 # data.strong = mash_set_data(beta.hat[top.hits,], se.hat[top.hits,], V=Vhat, df=degf.hat[top.hits,])
 
-data.random = mash_set_data(beta.hat[random.hits,], se.hat[random.hits,], V=Vhat)
-data.strong = mash_set_data(beta.hat[top.hits,], se.hat[top.hits,], V=Vhat)
+data.strong = mash_update_data(data.strong, V=Vhat)
+data.random = mash_update_data(data.random, V=Vhat)
+data.strong.nonmissing = mash_update_data(data.strong.nonmissing, V=Vhat)
 
 # get data-driven covariances
-U.pca = cov_pca(data.strong, 5)
-U.ed = cov_ed(data.strong, Ulist_init=U.pca)
-U.flash = cov_flash(data.strong, remove_singleton=T)
+# U.pca = cov_pca(data.strong.5k, 5)
+# U.ed = cov_ed(data.strong, Ulist_init=U.pca)
+# U.flash = cov_flash(data.strong, remove_singleton=T)
+U.flash = cov_flash(data.strong.nonmissing, factors="nonneg", remove_singleton=T)
 
 # fit mash model
 U.c = cov_canonical(data.random, cov_methods = c("singletons", "equal_effects"))
 
-save(data.temp, data.random, data.strong, strongest_tests, Vhat, V.em.full, U.flash, U.pca, U.ed, U.c, file=mash_input_data_loc)
+save(data.temp, data.random, data.strong, data.strong.nonmissing, 
+     strongest_test_per_gene, Vhat, V.em.full, U.flash, U.c, 
+     file=mash_input_data_loc)

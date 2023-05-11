@@ -22,8 +22,8 @@ snpstats2geno <- function(s) {
 
 ## Static eQTL examples
 ```{r}
-snp_rsid <- "rs1801072"
-gene_hgnc <- "TAPT1"
+snp_rsid <- "rs13015615"
+gene_hgnc <- "FRZB"
 celltype <- "Cardiomyocytes"
 ```
 
@@ -58,7 +58,7 @@ inner_join(genotypes_df, expression_df, by="sample") %>%
 
 Additionally visualize the eQTL with residualized expression
 ```{r}
-covariate_expression <- vroom("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/Cardiomyocytes/expression.bed.gz")
+covariate_df <- vroom(paste0("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/expression.bed.gz")) 
 
 ```
 

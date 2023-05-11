@@ -1763,13 +1763,38 @@ pre code {
 <!-- rnb-text-begin -->
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5dmVyc2UpXG5saWJyYXJ5KE1hdHJpeC51dGlscylcbmxpYnJhcnkoZmdzZWEpXG5saWJyYXJ5KHN1c2llUilcbmxpYnJhcnkocGF0aHdheXMpXG5saWJyYXJ5KHZyb29tKVxubGlicmFyeShnc2Vhc3VzaWUpXG5gYGAifQ== -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh0aWR5dmVyc2UpXG5saWJyYXJ5KE1hdHJpeC51dGlscylcbmBgYCJ9 -->
 <pre class="r"><code>library(tidyverse)
-library(Matrix.utils)
-library(fgsea)
-library(susieR)
-library(pathways)
-library(vroom)
+library(Matrix.utils)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiTG9hZGluZyByZXF1aXJlZCBwYWNrYWdlOiBNYXRyaXhcblxuQXR0YWNoaW5nIHBhY2thZ2U6IOKAmE1hdHJpeOKAmVxuXG5UaGUgZm9sbG93aW5nIG9iamVjdHMgYXJlIG1hc2tlZCBmcm9tIOKAmHBhY2thZ2U6dGlkeXLigJk6XG5cbiAgICBleHBhbmQsIHBhY2ssIHVucGFja1xuIn0= -->
+<pre><code>Loading required package: Matrix
+
+Attaching package: ‘Matrix’
+
+The following objects are masked from ‘package:tidyr’:
+
+    expand, pack, unpack</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShmZ3NlYSlcbmBgYCJ9 -->
+<pre class="r"><code>library(fgsea)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiUmVnaXN0ZXJlZCBTMyBtZXRob2Qgb3ZlcndyaXR0ZW4gYnkgJ2RhdGEudGFibGUnOlxuICBtZXRob2QgICAgICAgICAgIGZyb21cbiAgcHJpbnQuZGF0YS50YWJsZSAgICAgXG4ifQ== -->
+<pre><code>Registered S3 method overwritten by &#39;data.table&#39;:
+  method           from
+  print.data.table     </code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeShzdXNpZVIpXG5saWJyYXJ5KHBhdGh3YXlzKVxuYGBgIn0= -->
+<pre class="r"><code>library(susieR)
+library(pathways)</code></pre>
+<!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiUmVnaXN0ZXJlZCBTMyBtZXRob2Qgb3ZlcndyaXR0ZW4gYnkgJ2h0bWx3aWRnZXRzJzpcbiAgbWV0aG9kICAgICAgICAgICBmcm9tICAgICAgICAgXG4gIHByaW50Lmh0bWx3aWRnZXQgdG9vbHM6cnN0dWRpb1xuIn0= -->
+<pre><code>Registered S3 method overwritten by &#39;htmlwidgets&#39;:
+  method           from         
+  print.htmlwidget tools:rstudio</code></pre>
+<!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubGlicmFyeSh2cm9vbSlcbmxpYnJhcnkoZ3NlYXN1c2llKVxuYGBgIn0= -->
+<pre class="r"><code>library(vroom)
 library(gseasusie)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
@@ -1786,27 +1811,43 @@ gtf_loc &lt;- &quot;/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filter
 <p>Load the genes with and without eQTL overlap in GTEx</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaXNfbm92ZWwgPC0gIWFsbF9lZ2VuZXMgJWluJSBvdmVybGFwX2VnZW5lcyAlPiUgYXJyYW5nZSgpXG5cbmBgYCJ9 -->
-<pre class="r"><code>is_novel &lt;- !all_egenes %in% overlap_egenes %&gt;% arrange()
-</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3RleF9vdmVybGFwIDwtIHZyb29tKGViX3NpZ2hpdHNfb3ZlcmxhcF9sb2MsIGNvbF9uYW1lcz1jKFwiQ0hSXCIsIFwiU1RBUlRcIiwgXCJTVE9QXCIsIFwiRUJfRU5TR1wiLCBcIkVCX0hHTkNcIiwgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXCJSU0lEXCIsIFwiQ0VMTFRZUEVcIiwgXCJDSFIxXCIsIFwiU1RBUlQxXCIsIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFwiU1RPUDFcIiwgXCJHVEVYX0VOU0dcIiwgXCJHVEVYX1JFRlwiLCBcIkdURVhfQUxUXCIpKVxuYGBgIn0= -->
+<pre class="r"><code>gtex_overlap &lt;- vroom(eb_sighits_overlap_loc, col_names=c(&quot;CHR&quot;, &quot;START&quot;, &quot;STOP&quot;, &quot;EB_ENSG&quot;, &quot;EB_HGNC&quot;, 
+                                                          &quot;RSID&quot;, &quot;CELLTYPE&quot;, &quot;CHR1&quot;, &quot;START1&quot;, 
+                                                          &quot;STOP1&quot;, &quot;GTEX_ENSG&quot;, &quot;GTEX_REF&quot;, &quot;GTEX_ALT&quot;))</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gVXNlTWV0aG9kKFwiYXJyYW5nZVwiKSA6IFxuICBubyBhcHBsaWNhYmxlIG1ldGhvZCBmb3IgJ2FycmFuZ2UnIGFwcGxpZWQgdG8gYW4gb2JqZWN0IG9mIGNsYXNzIFwibG9naWNhbFwiXG4ifQ== -->
-<pre><code>Error in UseMethod(&quot;arrange&quot;) : 
-  no applicable method for &#39;arrange&#39; applied to an object of class &quot;logical&quot;</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gdnJvb20oZWJfc2lnaGl0c19vdmVybGFwX2xvYywgY29sX25hbWVzID0gYyhcIkNIUlwiLCBcIlNUQVJUXCIsIFwiU1RPUFwiLCAgOiBcbiAgY291bGQgbm90IGZpbmQgZnVuY3Rpb24gXCJ2cm9vbVwiXG4ifQ== -->
+<pre><code>Error in vroom(eb_sighits_overlap_loc, col_names = c(&quot;CHR&quot;, &quot;START&quot;, &quot;STOP&quot;,  : 
+  could not find function &quot;vroom&quot;</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Wrangle GO BP gene sets</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ210X21hdCA8LSB0KGFzLm1hdHJpeChnbXRfbWF0W3doaWNoKHZhbGlkX2dlbmVzZXRzKSxdKSlcblxuYGBgIn0= -->
-<pre class="r"><code>gmt_mat &lt;- t(as.matrix(gmt_mat[which(valid_genesets),]))
-</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ210X2ZpbGUgPC0gXCIvcHJvamVjdDIvZ2lsYWQvanBvcHAvZWJRVEwvZGF0YS9nZW5lX3NldHMvYzUuZ28uYnAudjIwMjIuMS5Icy5zeW1ib2xzLmdtdFwiXG5cbmdtdF9saW5lcyA8LSByZWFkTGluZXMoZ210X2ZpbGUpXG5cbmdtdF9saXN0IDwtIGxhcHBseShnbXRfbGluZXMsIGZ1bmN0aW9uKHgpIHVubGlzdChzdHJzcGxpdCh4LCBcIlxcdFwiKSkpXG5nbXRfbGlzdDIgPC0gbGFwcGx5KGdtdF9saXN0LCBmdW5jdGlvbih4KSBsaXN0KHhbMV0sIHhbMl0sIHhbMzpsZW5ndGgoeCldKSlcblxuZ210X2RmIDwtIGFzX3RpYmJsZShkby5jYWxsKFwicmJpbmRcIiwgZ210X2xpc3QyKSkgJT4lXG4gIG11dGF0ZShhY3Jvc3MoVjE6VjIsIHVubGlzdCkpICU+JVxuICBkcGx5cjo6cmVuYW1lKGdlbmVzZXQ9VjEsIGxpbms9VjIsIGdlbmVzPVYzKVxuXG5nbXRfbWF0IDwtIGdtdF9kZiAlPiVcbiAgc2VsZWN0KC1jKGxpbmspKSAlPiVcbiAgdW5uZXN0KGdlbmVzKSAlPiVcbiAgZmlsdGVyKGdlbmVzICVpbiUgYWxsX2VnZW5lcykgJT4lXG4gIHBpdm90X3dpZGVyKG5hbWVzX2Zyb20gPSBnZW5lcywgdmFsdWVzX2Zyb20gPSBnZW5lcywgdmFsdWVzX2ZuID0gbGVuZ3RoLCB2YWx1ZXNfZmlsbCA9IDApICU+JVxuICBjb2x1bW5fdG9fcm93bmFtZXMoXCJnZW5lc2V0XCIpXG5cbiMgc3Vic2V0IHRvIGdlbmVzZXRzIHdpdGggYmV0d2VlbiAxMCBhbmQgNTAwIGdlbmVzXG52YWxpZF9nZW5lc2V0cyA8LSAoMTAgPD0gcm93U3VtcyhnbXRfbWF0KSkgJiAocm93U3VtcyhnbXRfbWF0KSA8IDUwMClcbmdtdF9tYXQgPC0gdChhcy5tYXRyaXgoZ210X21hdFt3aGljaCh2YWxpZF9nZW5lc2V0cyksXSkpXG5gYGAifQ== -->
+<pre class="r"><code>gmt_file &lt;- &quot;/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt&quot;
+
+gmt_lines &lt;- readLines(gmt_file)
+
+gmt_list &lt;- lapply(gmt_lines, function(x) unlist(strsplit(x, &quot;\t&quot;)))
+gmt_list2 &lt;- lapply(gmt_list, function(x) list(x[1], x[2], x[3:length(x)]))
+
+gmt_df &lt;- as_tibble(do.call(&quot;rbind&quot;, gmt_list2)) %&gt;%
+  mutate(across(V1:V2, unlist)) %&gt;%
+  dplyr::rename(geneset=V1, link=V2, genes=V3)
+
+gmt_mat &lt;- gmt_df %&gt;%
+  select(-c(link)) %&gt;%
+  unnest(genes) %&gt;%
+  filter(genes %in% all_egenes) %&gt;%
+  pivot_wider(names_from = genes, values_from = genes, values_fn = length, values_fill = 0) %&gt;%
+  column_to_rownames(&quot;geneset&quot;)
+
+# subset to genesets with between 10 and 500 genes
+valid_genesets &lt;- (10 &lt;= rowSums(gmt_mat)) &amp; (rowSums(gmt_mat) &lt; 500)
+gmt_mat &lt;- t(as.matrix(gmt_mat[which(valid_genesets),]))</code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gaChzaW1wbGVFcnJvcihtc2csIGNhbGwpKSA6IFxuICBlcnJvciBpbiBldmFsdWF0aW5nIHRoZSBhcmd1bWVudCAneCcgaW4gc2VsZWN0aW5nIGEgbWV0aG9kIGZvciBmdW5jdGlvbiAndCc6IGVycm9yIGluIGV2YWx1YXRpbmcgdGhlIGFyZ3VtZW50ICd4JyBpbiBzZWxlY3RpbmcgYSBtZXRob2QgZm9yIGZ1bmN0aW9uICdhcy5tYXRyaXgnOiBzdWJzY3JpcHQgb3V0IG9mIGJvdW5kc1xuIn0= -->
-<pre><code>Error in h(simpleError(msg, call)) : 
-  error in evaluating the argument &#39;x&#39; in selecting a method for function &#39;t&#39;: error in evaluating the argument &#39;x&#39; in selecting a method for function &#39;as.matrix&#39;: subscript out of bounds</code></pre>
-<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <div id="gsea" class="section level1">
@@ -1815,16 +1856,15 @@ gtf_loc &lt;- &quot;/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filter
 <h3>Pathway Analysis</h3>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaXNfbm92ZWwgPC0gIXJvd25hbWVzKGdtdF9tYXQpICVpbiUgb3ZlcmxhcF9lZ2VuZXNcbmxvZ2lzdGljLmZpdCA8LSBnc2Vhc3VzaWU6OmZpdF9sb2dpc3RpY19zdXNpZShYPWdtdF9tYXQsIHk9aXNfbm92ZWwsIEw9NSlcblxuYGBgIn0= -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaXNfbm92ZWwgPC0gIXJvd25hbWVzKGdtdF9tYXQpICVpbiUgb3ZlcmxhcF9lZ2VuZXNcbmxvZ2lzdGljLmZpdCA8LSBnc2Vhc3VzaWU6OmZpdF9sb2dpc3RpY19zdXNpZShYPWdtdF9tYXQsIHk9aXNfbm92ZWwsIEw9NSlcbmBgYCJ9 -->
 <pre class="r"><code>is_novel &lt;- !rownames(gmt_mat) %in% overlap_egenes
-logistic.fit &lt;- gseasusie::fit_logistic_susie(X=gmt_mat, y=is_novel, L=5)
-</code></pre>
+logistic.fit &lt;- gseasusie::fit_logistic_susie(X=gmt_mat, y=is_novel, L=5)</code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-output-begin eyJkYXRhIjoiZml0dGluZyBsb2dpc3RpYyBzdXNpZS4uLlxuIn0= -->
 <pre><code>fitting logistic susie...</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiMS4zNzIgc2VjIGVsYXBzZWRcbiJ9 -->
-<pre><code>1.372 sec elapsed</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiMi4zNDkgc2VjIGVsYXBzZWRcbiJ9 -->
+<pre><code>2.349 sec elapsed</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-source-begin eyJkYXRhIjoiYGBgclxub3JhIDwtIGdzZWFzdXNpZTo6Zml0X29yYShYPWdtdF9tYXQsIHk9aXNfbm92ZWwpXG5gYGAifQ== -->
 <pre class="r"><code>ora &lt;- gseasusie::fit_ora(X=gmt_mat, y=is_novel)</code></pre>
@@ -1832,9 +1872,16 @@ logistic.fit &lt;- gseasusie::fit_logistic_susie(X=gmt_mat, y=is_novel, L=5)
 <!-- rnb-output-begin eyJkYXRhIjoiY29tcHV0aW5nIE9SQSBzdGF0aXN0aWNzLi4uXG4ifQ== -->
 <pre><code>computing ORA statistics...</code></pre>
 <!-- rnb-output-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiMS40NTggc2VjIGVsYXBzZWRcbiJ9 -->
-<pre><code>1.458 sec elapsed</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiMS4zMTQgc2VjIGVsYXBzZWRcbiJ9 -->
+<pre><code>1.314 sec elapsed</code></pre>
 <!-- rnb-output-end -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuaWYgKCFpcy5udWxsKGxvZ2lzdGljLmZpdCRzZXRzJGNzKSkge1xuICBjcyA8LSBwaXZvdF9sb25nZXIoYXNfdGliYmxlKGxvZ2lzdGljLmZpdCRzZXRzJGNzKSwgZXZlcnl0aGluZygpLCBuYW1lc190bz1cImNvbXBvbmVudFwiLCB2YWx1ZXNfdG89XCJpbmRleFwiKVxufSBlbHNlIHtcbiAgY3MgPC0gdGliYmxlKGNvbXBvbmVudD1jaGFyYWN0ZXIoKSwgaW5kZXg9bnVtZXJpYygpKVxufVxuYGBgIn0= -->
+<pre class="r"><code>if (!is.null(logistic.fit$sets$cs)) {
+  cs &lt;- pivot_longer(as_tibble(logistic.fit$sets$cs), everything(), names_to=&quot;component&quot;, values_to=&quot;index&quot;)
+} else {
+  cs &lt;- tibble(component=character(), index=numeric())
+}</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>The connective tissue development enrichment is exciting, see which
@@ -1853,7 +1900,7 @@ novel_connective_tissue_qtls &lt;- filter(eb_all, phenotype_id %in% novel_egenes
 </div>
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiQ2VsbC1JRCBFdmFsdWF0aW9uIChFQiBTaWRlKSIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKYGBge3J9CmxpYnJhcnkodGlkeXZlcnNlKQpsaWJyYXJ5KE1hdHJpeC51dGlscykKbGlicmFyeShmZ3NlYSkKbGlicmFyeShzdXNpZVIpCmxpYnJhcnkocGF0aHdheXMpCmxpYnJhcnkodnJvb20pCmxpYnJhcnkoZ3NlYXN1c2llKQpgYGAKCmBgYHtyfQplYl9zaWdoaXRzX2xvYyA8LSAiL3Byb2plY3QyL2dpbGFkL2pwb3BwL2ViUVRML3Jlc3VsdHMvc3RhdGljX3F0bF9jYWxsaW5nL2ViX2NlbGxpZC9wc2V1ZG9idWxrX3RtbS9iYXNpYy84cGNzL3NpZ25pZl92YXJpYW50X2dlbmVfcGFpcnMudHN2IgplYl9zaWdoaXRzX292ZXJsYXBfbG9jIDwtICIvcHJvamVjdDIvZ2lsYWQvanBvcHAvZWJRVEwvcmVzdWx0cy9zdGF0aWNfZXF0bF9mb2xsb3d1cC9lYl9jZWxsaWQvcHNldWRvYnVsa190bW0vYmFzaWMvOHBjcy9zaWduaWZfdmFyaWFudF9nZW5lX3BhaXJzLmZ1bGxfZ3RleF9vdmVybGFwLmJlZCIKZ3RmX2xvYyA8LSAiL3Byb2plY3QyL2dpbGFkL2pwb3BwL2ViUVRML2RhdGEvZ2VuY29kZS9nZW5jb2RlLmhnMzguZmlsdGVyZWQuZ3RmIgpgYGAKCkxvYWQgdGhlIGdlbmVzIHdpdGggYW5kIHdpdGhvdXQgZVFUTCBvdmVybGFwIGluIEdURXgKYGBge3J9Cmd0ZXhfb3ZlcmxhcCA8LSB2cm9vbShlYl9zaWdoaXRzX292ZXJsYXBfbG9jLCBjb2xfbmFtZXM9YygiQ0hSIiwgIlNUQVJUIiwgIlNUT1AiLCAiRUJfRU5TRyIsICJFQl9IR05DIiwgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiUlNJRCIsICJDRUxMVFlQRSIsICJDSFIxIiwgIlNUQVJUMSIsIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIlNUT1AxIiwgIkdURVhfRU5TRyIsICJHVEVYX1JFRiIsICJHVEVYX0FMVCIpKQplYl9hbGwgPC0gdnJvb20oZWJfc2lnaGl0c19sb2MpCgpvdmVybGFwX2VnZW5lcyA8LSB1bmlxdWUoZ3RleF9vdmVybGFwJEVCX0hHTkMpCmFsbF9lZ2VuZXMgPC0gdW5pcXVlKGViX2FsbCRwaGVub3R5cGVfaWQpCmBgYAoKV3JhbmdsZSBHTyBCUCBnZW5lIHNldHMKYGBge3J9CmdtdF9maWxlIDwtICIvcHJvamVjdDIvZ2lsYWQvanBvcHAvZWJRVEwvZGF0YS9nZW5lX3NldHMvYzUuZ28uYnAudjIwMjIuMS5Icy5zeW1ib2xzLmdtdCIKCmdtdF9saW5lcyA8LSByZWFkTGluZXMoZ210X2ZpbGUpCgpnbXRfbGlzdCA8LSBsYXBwbHkoZ210X2xpbmVzLCBmdW5jdGlvbih4KSB1bmxpc3Qoc3Ryc3BsaXQoeCwgIlx0IikpKQpnbXRfbGlzdDIgPC0gbGFwcGx5KGdtdF9saXN0LCBmdW5jdGlvbih4KSBsaXN0KHhbMV0sIHhbMl0sIHhbMzpsZW5ndGgoeCldKSkKCmdtdF9kZiA8LSBhc190aWJibGUoZG8uY2FsbCgicmJpbmQiLCBnbXRfbGlzdDIpKSAlPiUKICBtdXRhdGUoYWNyb3NzKFYxOlYyLCB1bmxpc3QpKSAlPiUKICBkcGx5cjo6cmVuYW1lKGdlbmVzZXQ9VjEsIGxpbms9VjIsIGdlbmVzPVYzKQoKZ210X21hdCA8LSBnbXRfZGYgJT4lCiAgc2VsZWN0KC1jKGxpbmspKSAlPiUKICB1bm5lc3QoZ2VuZXMpICU+JQogIGZpbHRlcihnZW5lcyAlaW4lIGFsbF9lZ2VuZXMpICU+JQogIHBpdm90X3dpZGVyKG5hbWVzX2Zyb20gPSBnZW5lcywgdmFsdWVzX2Zyb20gPSBnZW5lcywgdmFsdWVzX2ZuID0gbGVuZ3RoLCB2YWx1ZXNfZmlsbCA9IDApICU+JQogIGNvbHVtbl90b19yb3duYW1lcygiZ2VuZXNldCIpCgojIHN1YnNldCB0byBnZW5lc2V0cyB3aXRoIGJldHdlZW4gMTAgYW5kIDUwMCBnZW5lcwp2YWxpZF9nZW5lc2V0cyA8LSAoMTAgPD0gcm93U3VtcyhnbXRfbWF0KSkgJiAocm93U3VtcyhnbXRfbWF0KSA8IDUwMCkKZ210X21hdCA8LSB0KGFzLm1hdHJpeChnbXRfbWF0W3doaWNoKHZhbGlkX2dlbmVzZXRzKSxdKSkKYGBgCgojIEdTRUEKIyMjIFBhdGh3YXkgQW5hbHlzaXMKYGBge3J9CmlzX25vdmVsIDwtICFyb3duYW1lcyhnbXRfbWF0KSAlaW4lIG92ZXJsYXBfZWdlbmVzCmxvZ2lzdGljLmZpdCA8LSBnc2Vhc3VzaWU6OmZpdF9sb2dpc3RpY19zdXNpZShYPWdtdF9tYXQsIHk9aXNfbm92ZWwsIEw9NSkKb3JhIDwtIGdzZWFzdXNpZTo6Zml0X29yYShYPWdtdF9tYXQsIHk9aXNfbm92ZWwpCgppZiAoIWlzLm51bGwobG9naXN0aWMuZml0JHNldHMkY3MpKSB7CiAgY3MgPC0gcGl2b3RfbG9uZ2VyKGFzX3RpYmJsZShsb2dpc3RpYy5maXQkc2V0cyRjcyksIGV2ZXJ5dGhpbmcoKSwgbmFtZXNfdG89ImNvbXBvbmVudCIsIHZhbHVlc190bz0iaW5kZXgiKQp9IGVsc2UgewogIGNzIDwtIHRpYmJsZShjb21wb25lbnQ9Y2hhcmFjdGVyKCksIGluZGV4PW51bWVyaWMoKSkKfQpgYGAKClRoZSBjb25uZWN0aXZlIHRpc3N1ZSBkZXZlbG9wbWVudCBlbnJpY2htZW50IGlzIGV4Y2l0aW5nLCBzZWUgd2hpY2ggY2VsbCB0eXBlcyB0aGF0IGNhbWUgZnJvbQpgYGB7cn0KY29ubmVjdGl2ZV90aXNzdWVfZ2VuZXMgPC0gcm93bmFtZXMoZ210X21hdClbd2hpY2goZ210X21hdFssIkdPQlBfQ09OTkVDVElWRV9USVNTVUVfREVWRUxPUE1FTlQiXT09MSldCm5vdmVsX2VnZW5lc19jb25uZWN0aXZlX3Rpc3N1ZSA8LSBpbnRlcnNlY3QoY29ubmVjdGl2ZV90aXNzdWVfZ2VuZXMsIHNldGRpZmYoYWxsX2VnZW5lcywgb3ZlcmxhcF9lZ2VuZXMpKQoKbm92ZWxfY29ubmVjdGl2ZV90aXNzdWVfcXRscyA8LSBmaWx0ZXIoZWJfYWxsLCBwaGVub3R5cGVfaWQgJWluJSBub3ZlbF9lZ2VuZXNfY29ubmVjdGl2ZV90aXNzdWUpCmBgYAoKCg==</div>
+<div id="rmd-source-code">LS0tCnRpdGxlOiAiQ2VsbC1JRCBFdmFsdWF0aW9uIChFQiBTaWRlKSIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKYGBge3J9CmxpYnJhcnkodGlkeXZlcnNlKQpsaWJyYXJ5KE1hdHJpeC51dGlscykKbGlicmFyeShmZ3NlYSkKbGlicmFyeShzdXNpZVIpCmxpYnJhcnkocGF0aHdheXMpCmxpYnJhcnkodnJvb20pCmxpYnJhcnkoZ3NlYXN1c2llKQpgYGAKCmBgYHtyfQplYl9zaWdoaXRzX2xvYyA8LSAiL3Byb2plY3QyL2dpbGFkL2pwb3BwL2ViUVRML3Jlc3VsdHMvc3RhdGljX3F0bF9jYWxsaW5nL2ViX2NlbGxpZC9wc2V1ZG9idWxrX3RtbS9iYXNpYy84cGNzL3NpZ25pZl92YXJpYW50X2dlbmVfcGFpcnMudHN2IgplYl9zaWdoaXRzX292ZXJsYXBfbG9jIDwtICIvcHJvamVjdDIvZ2lsYWQvanBvcHAvZWJRVEwvcmVzdWx0cy9zdGF0aWNfZXF0bF9mb2xsb3d1cC9lYl9jZWxsaWQvcHNldWRvYnVsa190bW0vYmFzaWMvOHBjcy9zaWduaWZfdmFyaWFudF9nZW5lX3BhaXJzLmZ1bGxfZ3RleF9vdmVybGFwLmJlZCIKZ3RmX2xvYyA8LSAiL3Byb2plY3QyL2dpbGFkL2pwb3BwL2ViUVRML2RhdGEvZ2VuY29kZS9nZW5jb2RlLmhnMzguZmlsdGVyZWQuZ3RmIgpgYGAKCkxvYWQgdGhlIGdlbmVzIHdpdGggYW5kIHdpdGhvdXQgZVFUTCBvdmVybGFwIGluIEdURXgKYGBge3J9Cmd0ZXhfb3ZlcmxhcCA8LSB2cm9vbShlYl9zaWdoaXRzX292ZXJsYXBfbG9jLCBjb2xfbmFtZXM9YygiQ0hSIiwgIlNUQVJUIiwgIlNUT1AiLCAiRUJfRU5TRyIsICJFQl9IR05DIiwgCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiUlNJRCIsICJDRUxMVFlQRSIsICJDSFIxIiwgIlNUQVJUMSIsIAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIlNUT1AxIiwgIkdURVhfRU5TRyIsICJHVEVYX1JFRiIsICJHVEVYX0FMVCIpKQplYl9hbGwgPC0gdnJvb20oZWJfc2lnaGl0c19sb2MpCgpvdmVybGFwX2VnZW5lcyA8LSB1bmlxdWUoZ3RleF9vdmVybGFwJEVCX0hHTkMpCmFsbF9lZ2VuZXMgPC0gdW5pcXVlKGViX2FsbCRwaGVub3R5cGVfaWQpCm5vdmVsX2VnZW5lcyA8LSBzZXRkaWZmKGFsbF9lZ2VuZXMsIG92ZXJsYXBfZWdlbmVzKQpgYGAKCldyYW5nbGUgR08gQlAgZ2VuZSBzZXRzCmBgYHtyfQpnbXRfZmlsZSA8LSAiL3Byb2plY3QyL2dpbGFkL2pwb3BwL2ViUVRML2RhdGEvZ2VuZV9zZXRzL2M1LmdvLmJwLnYyMDIyLjEuSHMuc3ltYm9scy5nbXQiCgpnbXRfbGluZXMgPC0gcmVhZExpbmVzKGdtdF9maWxlKQoKZ210X2xpc3QgPC0gbGFwcGx5KGdtdF9saW5lcywgZnVuY3Rpb24oeCkgdW5saXN0KHN0cnNwbGl0KHgsICJcdCIpKSkKZ210X2xpc3QyIDwtIGxhcHBseShnbXRfbGlzdCwgZnVuY3Rpb24oeCkgbGlzdCh4WzFdLCB4WzJdLCB4WzM6bGVuZ3RoKHgpXSkpCgpnbXRfZGYgPC0gYXNfdGliYmxlKGRvLmNhbGwoInJiaW5kIiwgZ210X2xpc3QyKSkgJT4lCiAgbXV0YXRlKGFjcm9zcyhWMTpWMiwgdW5saXN0KSkgJT4lCiAgZHBseXI6OnJlbmFtZShnZW5lc2V0PVYxLCBsaW5rPVYyLCBnZW5lcz1WMykKCmdtdF9tYXQgPC0gZ210X2RmICU+JQogIHNlbGVjdCgtYyhsaW5rKSkgJT4lCiAgdW5uZXN0KGdlbmVzKSAlPiUKICBmaWx0ZXIoZ2VuZXMgJWluJSBhbGxfZWdlbmVzKSAlPiUKICBwaXZvdF93aWRlcihuYW1lc19mcm9tID0gZ2VuZXMsIHZhbHVlc19mcm9tID0gZ2VuZXMsIHZhbHVlc19mbiA9IGxlbmd0aCwgdmFsdWVzX2ZpbGwgPSAwKSAlPiUKICBjb2x1bW5fdG9fcm93bmFtZXMoImdlbmVzZXQiKQoKIyBzdWJzZXQgdG8gZ2VuZXNldHMgd2l0aCBiZXR3ZWVuIDEwIGFuZCA1MDAgZ2VuZXMKdmFsaWRfZ2VuZXNldHMgPC0gKDEwIDw9IHJvd1N1bXMoZ210X21hdCkpICYgKHJvd1N1bXMoZ210X21hdCkgPCA1MDApCmdtdF9tYXQgPC0gdChhcy5tYXRyaXgoZ210X21hdFt3aGljaCh2YWxpZF9nZW5lc2V0cyksXSkpCmBgYAoKIyBHU0VBCiMjIyBQYXRod2F5IEFuYWx5c2lzCmBgYHtyfQppc19ub3ZlbCA8LSAhcm93bmFtZXMoZ210X21hdCkgJWluJSBvdmVybGFwX2VnZW5lcwpsb2dpc3RpYy5maXQgPC0gZ3NlYXN1c2llOjpmaXRfbG9naXN0aWNfc3VzaWUoWD1nbXRfbWF0LCB5PWlzX25vdmVsLCBMPTUpCm9yYSA8LSBnc2Vhc3VzaWU6OmZpdF9vcmEoWD1nbXRfbWF0LCB5PWlzX25vdmVsKQoKaWYgKCFpcy5udWxsKGxvZ2lzdGljLmZpdCRzZXRzJGNzKSkgewogIGNzIDwtIHBpdm90X2xvbmdlcihhc190aWJibGUobG9naXN0aWMuZml0JHNldHMkY3MpLCBldmVyeXRoaW5nKCksIG5hbWVzX3RvPSJjb21wb25lbnQiLCB2YWx1ZXNfdG89ImluZGV4IikKfSBlbHNlIHsKICBjcyA8LSB0aWJibGUoY29tcG9uZW50PWNoYXJhY3RlcigpLCBpbmRleD1udW1lcmljKCkpCn0KYGBgCgpUaGUgY29ubmVjdGl2ZSB0aXNzdWUgZGV2ZWxvcG1lbnQgZW5yaWNobWVudCBpcyBleGNpdGluZywgc2VlIHdoaWNoIGNlbGwgdHlwZXMgdGhhdCBjYW1lIGZyb20KYGBge3J9CmNvbm5lY3RpdmVfdGlzc3VlX2dlbmVzIDwtIHJvd25hbWVzKGdtdF9tYXQpW3doaWNoKGdtdF9tYXRbLCJHT0JQX0NPTk5FQ1RJVkVfVElTU1VFX0RFVkVMT1BNRU5UIl09PTEpXQpub3ZlbF9lZ2VuZXNfY29ubmVjdGl2ZV90aXNzdWUgPC0gaW50ZXJzZWN0KGNvbm5lY3RpdmVfdGlzc3VlX2dlbmVzLCBzZXRkaWZmKGFsbF9lZ2VuZXMsIG92ZXJsYXBfZWdlbmVzKSkKCm5vdmVsX2Nvbm5lY3RpdmVfdGlzc3VlX3F0bHMgPC0gZmlsdGVyKGViX2FsbCwgcGhlbm90eXBlX2lkICVpbiUgbm92ZWxfZWdlbmVzX2Nvbm5lY3RpdmVfdGlzc3VlKQpgYGAKCgo=</div>
 
 
 
