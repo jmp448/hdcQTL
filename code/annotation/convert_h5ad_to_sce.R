@@ -4,8 +4,9 @@ library(SingleCellExperiment)
 
 h5ad_dir <- snakemake@input[['h5ad']]
 sce_dir <- snakemake@output[['sce']]
+xname <- snakemake@params[['X_name']]
 
-sce <- readH5AD(h5ad_dir, X_name='logcounts',
+sce <- readH5AD(h5ad_dir, X_name=xname,
                 use_hdf5=TRUE,
                 layers=FALSE,
                 uns=FALSE,

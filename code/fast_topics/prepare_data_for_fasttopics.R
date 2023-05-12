@@ -10,8 +10,11 @@ library(Matrix)
 library(Seurat)
 library(stringi)
 
+pseudocell_seurat_loc <- snakemake@input[['seurat']]
+fasttopics_ready_loc <- snakemake@output[['fasttopics_ready']]
+
 # Load the dataset
-full <- readRDS(snakemake@input[[1]])
+pseudocells <- readRDS(pseudocell_seurat_loc)
 # Get the raw counts data for the full dataset
 counts<- GetAssayData(full, slot="counts", assay="RNA")
 counts<- t(counts)
@@ -22,7 +25,6 @@ cat(sprintf("Proportion of counts that are non-zero: %0.1f%%.\n",
             100*mean(counts > 0)))
 
 # Save the counts and metadata
-
 save(list = c("genes", "counts"),
-     file= snakemake@output[[1]])
+     file= fasttopics_ready_loc)
 

@@ -24,7 +24,8 @@ adata = sc.read_h5ad(adata_raw_loc)
 pseudocell_mapping = pd.read_csv(pseudocell_mapping_loc, sep="\t")
 
 adata = adata[pseudocell_mapping['cell'], :] 
-adata.obs['pseudocell'] = pseudocell_mapping['individual_leiden_clusters_15']
+adata.obs['pseudocell'] = list(pseudocell_mapping['individual_leiden_clusters_15'])
+adata.obs['pseudocell'] = adata.obs['pseudocell'].astype("category")
 
 # Aggregate (sum) across cells within a pseudocell
 onehot = OneHotEncoder(sparse=True).fit_transform(adata.obs[['pseudocell']])
@@ -38,6 +39,7 @@ pseudocell_var = adata.var
 pseudocell_obs = pd.DataFrame(pseudocell_mapping[['individual_leiden_clusters_15']].value_counts()).reset_index().rename(columns={'individual_leiden_clusters_15': 'pseudocell', 0: 'ncells'}) 
 pseudocell_obs['donor_id'] = [s.split("_")[0] for s in pseudocell_obs['pseudocell']]
 pseudocell_obs = pseudocell_obs.set_index("pseudocell")
+pseudocell_obs = pseudocell_obs.reindex(adata.obs['pseudocell'].astype("category").cat.categories)
 
 # make sure indices match
 assert np.array_equal(pseudocell_obs.index, adata.obs['pseudocell'].astype("category").cat.categories)

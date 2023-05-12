@@ -67,6 +67,8 @@ rule h5ad_to_sce:
         h5ad="data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.h5ad"
     output:
         sce="data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.sce"
+    params:
+        X_name="logcounts"
     conda:
         "../slurmy/r-fca.yml"
     script:

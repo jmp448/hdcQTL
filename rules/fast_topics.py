@@ -38,18 +38,47 @@ rule pseudocell_aggregation:
     script:
         "../code/fast_topics/pseudocell_aggregation.py"
 
+rule fasttopics_h5ad_to_sce:
+    resources:
+        mem_mb=250000,
+        partition="bigmem2"
+    input:
+        h5ad="data/single_cell_objects/eb_pseudocells_raw.h5ad"
+    output:
+        sce="data/single_cell_objects/eb_pseudocells_raw.sce"
+    params:
+        X_name="counts"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/convert_h5ad_to_sce.R"
+
+rule fasttopics:
+    resources:
+        mem_mb=250000,
+        partition="bigmem2"
+    threads: 28
+    input:
+        pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce"
+    output:
+        fasttopics_fit="results/fast_topics/fasttopics_{k}topics_fit.rds"
+    conda:
+        "../slurmy/r-fasttopics.yml"
+    script:
+        "../code/fast_topics/fast_topics.R"
+  
 rule h5ad2seurat:
     resources:
         mem_mb = 50000,
         time = "00:30:00"
+    envmodules:
+        ["hdf5_hl"]
     input:
         anndata="data/single_cell_objects/eb_pseudocells_raw.h5ad"
     output:
         seurat="data/single_cell_objects/eb_pseudocells_raw.seurat.rds"
     conda:
         "../slurmy/r-fasttopics.yml"
-    envmodules:
-        ["hdf5_hl"]
     script:
         "../code/fast_topics/h5ad2seurat.R"
         
