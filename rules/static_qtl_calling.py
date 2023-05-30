@@ -2,6 +2,8 @@
 #TODO move all finalized code to the static_qtl_calling folder
 #TODO address discrepancy with elorbany data getting SCT counts for dynamic, RNA counts for static
 #TODO look into whether identity matrix should actually be included with mash 
+#TODO include sex as a covariate everywhere
+#TODO use proper variant and phenotype ID format
 
 import numpy as np
 import pandas as pd
@@ -103,6 +105,20 @@ rule genotype_filter:
 	      "code/static_qtl_calling/genotype_filter.sh {input.genotypes} {input.inds} {params.prefix}"
 
 rule compute_af_all:
+    resources:
+        mem_mb=10000,
+        time="30:00"
+    input:
+        genotypes="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz",
+        inds="data/genotypes/all_individuals.tsv"
+	  output:
+	      "data/genotypes/af_all.frq"
+	  params:
+	      prefix="data/genotypes/af_all"
+	  shell:
+	      "code/static_qtl_calling/compute_af_all.sh {input.genotypes} {input.inds} {params.prefix}"
+
+rule compute_af_all_celltypespecific:
     resources:
         mem_mb=10000,
         time="30:00"
@@ -310,3 +326,16 @@ rule mash:
         "../slurmy/r-mashr.yml"
     script:
         "../code/mash/mash.R"
+
+rule tidy_mash_hits:
+    resources:
+        mem_mb=50000,
+        time="01:00:00"
+    input:
+        mash_model="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_fitted_model.tophits.rds"
+    output:
+        mash_hits="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_sighits_lfsr_{threshold}.tsv"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_qtl_calling/tidy_mash_hits.R"

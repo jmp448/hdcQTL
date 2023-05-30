@@ -8,7 +8,7 @@ import pandas as pd
 
 def list_sigtest_overlap_files(wildcards):
     tissues = list(pd.read_csv("temp/all_gtex_tissues.txt", names=['tissue'])['tissue'])
-    return [f"results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{wildcards.npcs}/signif_variant_gene_pairs.{t}.overlap.bed" for t in tissues]
+    return [f"results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{wildcards.npcs}/{wildcards.snpset}_variant_gene_pairs.{t}.overlap.bed" for t in tissues]
     
 rule tensorqtl_summary_to_bed_alltests:
     resources:
@@ -38,6 +38,23 @@ rule tensorqtl_summary_to_bed_allsigtests:
     script:
         "../code/static_eqtl_followup/tensorqtl_summary_to_bed_allsigtests.R"
         
+rule list_background_snps_eb_hits_all:
+    resources:
+        mem_mb=50000,
+        time="01:00:00"
+    input:
+        test_list="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt",
+        afs="data/genotypes/af_all.frq",
+        gtf="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf",
+        all_hits="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.tsv"
+    output:
+        hits_bed="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif-matched_variant_gene_pairs.bed",
+        background_bed="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/background-matched_variant_gene_pairs.bed",
+        match_details="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif-hits-matcher.rds"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/list_background_snps_eb_hits_all.R"
+
 rule reformat_GTEx_eqtls:
 # convert GTEx significant eGene-eVariant pairs to BED format
     resources:
@@ -51,7 +68,6 @@ rule reformat_GTEx_eqtls:
     script:
         "../code/static_eqtl_followup/reformat_gtex_snps.R"
         
-        
 rule sort_bed:
     input:
         "{fname}.bed"
@@ -62,25 +78,6 @@ rule sort_bed:
         module load bedtools
         sort -k1,1 -k2,2n {input} > {output}
         """
-
-
-rule list_overlap_snps:
-    """
-    This command will:
-    1. find the SNP intersection of two bedfiles,
-    2. filter to SNPs which were tested against the same gene,
-    3. filter to lines tagging a unique EB eQTL (so large LD blocks with multiple overlaps aren't multiply counted)
-    """
-    input:
-        ebqtl="results/static_eqtl_followup/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}/yri_ldblock_tophits.sorted.bed",
-        gtex="results/static_eqtl_followup/gtex/{tissue}.signif_variant_gene_pairs.sorted.bed"
-    output:
-        "results/static_eqtl_followup/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}/eqtl_overlap.{tissue}.bed"
-    shell:
-        """
-        module load bedtools
-        bedtools intersect -a {input.ebqtl} -b {input.gtex} -wa -wb | awk '$4 == $10' | awk '!seen[$4,$6]++' > {output}
-        """
         
 rule list_overlap_snps_sigtests_per_tissue:
     """
@@ -88,11 +85,13 @@ rule list_overlap_snps_sigtests_per_tissue:
     1. find the SNP intersection of two bedfiles,
     2. filter to SNPs which were tested against the same gene
     """
+    resources:
+        mem_mb=10000
     input:
-        ebqtl="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.sorted.bed",
+        ebqtl="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/{snpset}_variant_gene_pairs.sorted.bed",
         gtex="results/static_eqtl_followup/gtex/{tissue}.signif_variant_gene_pairs.sorted.bed"
     output:
-        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.{tissue}.overlap.bed"
+        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/{snpset}_variant_gene_pairs.{tissue}.overlap.bed"
     shell:
         """
         module load bedtools
@@ -106,7 +105,7 @@ rule merge_overlap_sigtests:
     input:
         unpack(list_sigtest_overlap_files)
     output:
-        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.full_gtex_overlap.bed"
+        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/{snpset}_variant_gene_pairs.full_gtex_overlap.bed"
     params:
         tempfile="temp/gtex_overlab_tempfile.txt"
     shell:
@@ -121,6 +120,98 @@ rule merge_overlap_sigtests:
         rm {params.tempfile}
         """
 
+### REGULATORY OVERLAP WITH GTEX
+rule filter_and_tidy_gtex_allpairs:
+    """This command filters to entries that have <50kb dist to TSS, and fixes the ENSG ID to drop the version number (after the .)"""
+    input:
+        "../GTEx_Analysis_v8_eQTL_all_associations/{tissue}.allpairs.txt"
+    output:
+        "results/static_eqtl_followup/gtex/allpairs_filtered/{tissue}.allpairs.filtered_50kb_dist2tss.txt"
+    shell:
+        """
+        awk -F"\t" 'BEGIN {{OFS="\t"}} NR == 1 {{print; next}} {{gsub(/\\..*/,"",$1); if (sqrt($3^2) <= 50000) print}}' {input} > {output}
+        """
+        
+rule list_all_gtex_tests:
+    resources:
+        mem_mb=100000
+    input:
+        expand("results/static_eqtl_followup/gtex/allpairs_filtered/{tissue}.allpairs.filtered_50kb_dist2tss.txt", 
+        tissue=['Liver', 'Heart_Left_Ventricle', 'Brain_Cortex', 'Cells_Cultured_fibroblasts'])
+    output:
+        "results/static_eqtl_followup/gtex/allpairs_filtered/gtex_all_tests.txt"
+    shell:
+        """
+        tail -q -n +2 {input} | cut -f1,2 | sort -u > {output}
+        """
+
+rule filter_and_tidy_gtex_sigtests:
+    """This command filters to entries that have <50kb dist to TSS, and fixes the ENSG ID to drop the version number (after the .)"""
+    """Note that gene names were in column 1 for the allpairs files but are in column 2 here""" 
+    input:
+        "../GTEx_Analysis_v8_eQTL/{tissue}.v8.signif_variant_gene_pairs.txt"
+    output:
+        "results/static_eqtl_followup/gtex/sigtests_filtered/{tissue}.signif_variant_gene_pairs.filtered_50kb_dist2tss.txt"
+    shell:
+        """
+        awk -F"\t" 'BEGIN {{OFS="\t"}} NR == 1 {{print; next}} {{gsub(/\\..*/,"",$2); if (sqrt($3^2) <= 50000) print}}' {input} > {output}
+        """
+
+rule map_rsid_to_snpinfo:
+    input:
+        vcf_all="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
+    output:
+        rsid_snpinfo_map="data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.tsv"
+    shell:
+        """
+        module load bcftools
+        bcftools query -f '%ID\t%CHROM\t%POS\t%REF\t%ALT\n' {input.vcf_all} | awk -F'\t' '{{OFS="\t"; print $1, $2"_"$3"_"$4"_"$5"_b38"}}' > {output.rsid_snpinfo_map}
+        """
+
+rule harmonize_eb_to_gtex_alltests:
+    resources:
+        mem_mb=100000
+    input:
+        all_gtex="results/static_eqtl_followup/gtex/allpairs_filtered/gtex_all_tests.txt",
+        all_eb="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/tensorqtl_nominal.all.tsv",
+        gtf="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf",
+        rsid_map="data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.tsv"
+    output:
+        harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/harmonize_ebs_to_gtex_all.R"
+
+rule list_joint_hits:
+  resources:
+      mem_mb=100000
+  input:
+      all_gtex="results/static_eqtl_followup/gtex/allpairs_filtered/{tissue}.allpairs.filtered_50kb_dist2tss.txt",
+      hits_gtex="results/static_eqtl_followup/gtex/sigtests_filtered/{tissue}.signif_variant_gene_pairs.filtered_50kb_dist2tss.txt",
+      all_eb="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/tensorqtl_nominal.all.tsv",
+      hits_eb="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.tsv",
+      harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
+  output:
+      joint_hit_positions="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_positions_joint.{tissue}.{celltype}.pos",
+      joint_effects="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/regulatory_overlap.{tissue}.{celltype}.tsv"
+  conda: 
+      "../slurmy/r-mashr.yml"
+  script:
+      "../code/static_eqtl_followup/regulatory_overlap_gtex.R"
+
+rule report_cor:
+  resources:
+      mem_mb=15000
+  input:
+      pos="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_positions_joint.{tissue}.{celltype}.pos",
+      effects="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/regulatory_overlap.{tissue}.{celltype}.tsv"
+  output:
+      cor="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/regulatory_cor.{tissue}.{celltype}.txt"
+  conda: 
+      "../slurmy/r-mashr.yml"
+  script:
+      "../code/static_eqtl_followup/report_regulatory_cor.R"
+      
 # Scripts used for the LD tagging analysis
 # 
 # rule matrixeqtl_summary_to_bed:
@@ -250,4 +341,44 @@ rule merge_overlap_sigtests:
 #         """
 #         module load bedtools
 #         bedtools window -w 10000 -a {input.ebqtl} -b {input.gtex} | awk '$4 == $10' | awk '!seen[$4,$6]++' | awk 'END {{print NR}}' > {output}
+#         """
+# 
+# Stuff from misunderstanding how harmonization would work
+# rule list_rsids_alltests:
+#     input:
+#         eb_alltests="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/tensorqtl_nominal.all.tsv"
+#     output:
+#         rsid_list="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/rsids.alltests.tsv"
+#     shell:
+#         """
+#         cut -f 2 {input.eb_alltests} | tail -n +2 | sort -u > {output.rsid_list}
+#         """
+# 
+# rule list_snpinfo_alltests:
+#     input:
+#         rsid_list="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/rsids.alltests.tsv",
+#         vcf_all="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
+#     output:
+#         snp_info="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/snp_info.alltests.tsv"
+#     shell:
+#         """
+#         module load bcftools
+#         bcftools view -R {input.rsid_list} -f '%ID\t%CHROM\t%POS\t%REF\t%ALT\n' {input.vcf_all} > {output.snp_info}
+#         """
+# rule list_overlap_snps:
+#     """
+#     This command will:
+#     1. find the SNP intersection of two bedfiles,
+#     2. filter to SNPs which were tested against the same gene,
+#     3. filter to lines tagging a unique EB eQTL (so large LD blocks with multiple overlaps aren't multiply counted)
+#     """
+#     input:
+#         ebqtl="results/static_eqtl_followup/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}/yri_ldblock_tophits.sorted.bed",
+#         gtex="results/static_eqtl_followup/gtex/{tissue}.signif_variant_gene_pairs.sorted.bed"
+#     output:
+#         "results/static_eqtl_followup/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}/eqtl_overlap.{tissue}.bed"
+#     shell:
+#         """
+#         module load bedtools
+#         bedtools intersect -a {input.ebqtl} -b {input.gtex} -wa -wb | awk '$4 == $10' | awk '!seen[$4,$6]++' > {output}
 #         """

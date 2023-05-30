@@ -28,6 +28,6 @@ rule make_conda:
         "test.tmp"
     output:
         "test.tmp2"
-    conda: "slurmy/r-fasttopics.yml"
+    conda: "slurmy/r-mashr.yml"
     shell:
         "echo booyah > {output}"

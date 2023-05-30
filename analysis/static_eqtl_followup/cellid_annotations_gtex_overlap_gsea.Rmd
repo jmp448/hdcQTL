@@ -11,6 +11,7 @@ library(susieR)
 library(pathways)
 library(vroom)
 library(gseasusie)
+library(nullranges)
 ```
 
 ```{r}
@@ -78,4 +79,32 @@ novel_egenes_connective_tissue <- intersect(connective_tissue_genes, setdiff(all
 novel_connective_tissue_qtls <- filter(eb_all, phenotype_id %in% novel_egenes_connective_tissue)
 ```
 
+## Does this hold up when comparing to a background set?
+```{r}
+matched_hits_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif-matched_variant_gene_pairs.bed"
+matched_hits_overlap_loc <- "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/signif-matched_variant_gene_pairs.full_gtex_overlap.bed"
+
+matched_background_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/background-matched_variant_gene_pairs.bed"
+matched_background_overlap_loc <- "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/background-matched_variant_gene_pairs.full_gtex_overlap.bed"
+
+matched_hits_overlap <- vroom(matched_hits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+hits_all <- vroom(matched_hits_loc)
+
+matched_background_overlap <- vroom(matched_background_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+background_all <- vroom(matched_background_loc)
+```
+
+Yes, it does hold up. 85% (21401 of 25051) of our EB eQTLs show up as an eQTL somewhere in GTEx, 
+compared to 54% (13675 of 25051) of SNP-gene pairs matched for MAF and distance to TSS.
+
+And we can assess whether this set was appropriately matched
+```{r}
+matcher <- readRDS("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif-hits-matcher.rds")
+plotCovariate(matcher)
+plotCovariate(matcher, "dist2tss")
+```
 

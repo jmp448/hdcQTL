@@ -73,14 +73,6 @@ rule pseudobulk_agg_benchmark:
         "../code/benchmarking_static_qtl_calling/{wildcards.aggregation}-{wildcards.normalization}-agg.R"
 
 ### PREPROCESSING GENOTYPES
-rule list_all_individuals_benchmark:
-    input:
-	      "data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
-    output:
-    	  "data/genotypes/all_individuals.tsv"
-    shell:
-	      "code/benchmarking_static_qtl_calling/list_all_individuals.sh {input} {output}"
-
 rule genotype_filter_benchmark:
     input:
 	      genotypes="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz",

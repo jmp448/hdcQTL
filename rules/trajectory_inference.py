@@ -21,7 +21,7 @@ rule trajectory_isolation:
         gs="data/gene_sets/{trajectory}_lineage.tsv"
     output:
         scdrs="data/trajectory_inference/{trajectory}_lineage/scdrs_scores.tsv",
-        adata_filtered="data/trajectory_inference/{trajectory}_lineage/eb_{trajectory}_lineage.adata"
+        adata_filtered="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.adata"
     conda: "../slurmy/scvi.yml"
     script:
         "../code/trajectory_inference/trajectory_isolation.py"
@@ -31,12 +31,25 @@ rule infer_pseudotime:
         mem_mb=250000,
         time="30:00"
     input:
-        adata="data/trajectory_inference/{trajectory}_lineage/eb_{trajectory}_lineage.adata",
+        adata="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.adata",
         stage_labels="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage_stages.tsv"
     output:
-        adata_pseudotime="data/trajectory_inference/{trajectory}_lineage/eb_{trajectory}_lineage.pseudotime.adata"
+        adata_pseudotime="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.pseudotime.adata"
     conda: "../slurmy/scvi.yml"
     script:
         "../code/trajectory_inference/infer_pseudotime.py"
+        
+rule infer_pseudotime_trim_ends:
+    resources:
+        mem_mb=250000,
+        time="30:00"
+    input:
+        adata="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.adata"
+    output:
+        adata_pseudotime="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.{nbins}_pseudotime.adata"
+    conda: "../slurmy/scvi.yml"
+    script:
+        "../code/trajectory_inference/infer_pseudotime_trim_ends.py"
+
 
 

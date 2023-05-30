@@ -9,22 +9,16 @@
 
 # Load a few packages.
 library(Matrix)
-library(optparse)
 require(fastTopics)
+library(SingleCellExperiment)
+library(parallel)
 
-# Process the command-line arguments.
-parser <- OptionParser()
-parser <- add_option(parser,c("--countfile","-c"),type = "character",default = "")
-parser <- add_option(parser,c("--fit","-f"),type = "character",default = "")
-parser <- add_option(parser,c("--out","-o"),type="character",default="out.rds")
-parser <- add_option(parser,"--nc",type = "integer",default = 1)
-out    <- parse_args(parser)
-countfile <- out$countfile 
-fitfile   <- out$fit
-outfile   <- out$out
-nc        <- out$nc
 
-rm(parser,out)
+# Get inputs/ outputs from snakemake
+ncores <- min(as.integer(snakemake@threads), detectCores())
+sce_loc <- snakemake@input[['pseudocells_sce']]
+fasttopics_fit_loc <- snakemake@input[['fasttopics_fit']]
+outfile <- snakemake@output[['de_analysis']]
 
 # Initialize the sequence of pseudorandom numbers.
 set.seed(1)
@@ -35,11 +29,11 @@ set.seed(1)
 cat("Loading data.\n")
 
 # Load the count data
-load(countfile)
-counts<-counts
+pseudocell_exp <- readRDS(sce_loc)
+counts <- t(as(assay(pseudocell_exp), "sparseMatrix"))
 
 # Load the fitting data
-fit <- readRDS(fitfile)$fit
+fit <- readRDS(fasttopics_fit_loc)
 
 cat("Recover the topic model.\n")
 fit_multinom <- poisson2multinom(fit)
@@ -49,12 +43,14 @@ fit_multinom <- poisson2multinom(fit)
 # ---------------------------------------------
 cat("DE analysis to allow for partial membership to groups.\n")
 timing <- system.time(
-  dfa_out <- de_analysis(fit_multinom,counts, control=list(ns=20000, nc=nc)))
+  dfa_out <- de_analysis(fit=fit_multinom, X=counts, control=list(ns=20000, nc=ncores))
+)
 
 # SAVE RESULTS
 # ------------
 cat("Saving results.\n")
-saveRDS(list(fit = fit, fit_multinom=fit_multinom, counts = counts, dfa_out = dfa_out),file = outfile)
+save(list(fit = fit, fit_multinom=fit_multinom, counts = counts, dfa_out = dfa_out),
+     file = outfile)
 
 # SESSION INFO
 # ------------

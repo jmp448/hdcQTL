@@ -7,6 +7,7 @@ sce_dir <- snakemake@output[['sce']]
 xname <- snakemake@params[['X_name']]
 
 sce <- readH5AD(h5ad_dir, X_name=xname,
+                reader="R",
                 use_hdf5=TRUE,
                 layers=FALSE,
                 uns=FALSE,

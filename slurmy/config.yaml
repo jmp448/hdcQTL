@@ -8,11 +8,13 @@ cluster:
     --output=logs/{rule}/{wildcards}-%j.out
     --time={resources.time}
     --gres={resources.gres}
+    --nodes={resources.nodes}
 default-resources:
   - partition=gilad
   - mem_mb=1000
   - time="01:00:00"
   - gres="gpu:0"
+  - nodes=1
 max-jobs-per-second: 10
 max-status-checks-per-second: 1
 local-cores: 1

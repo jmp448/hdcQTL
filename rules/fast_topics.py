@@ -53,11 +53,12 @@ rule fasttopics_h5ad_to_sce:
     script:
         "../code/annotation/convert_h5ad_to_sce.R"
 
-rule fasttopics:
+rule fast_topics:
     resources:
-        mem_mb=250000,
-        partition="bigmem2"
-    threads: 28
+        mem_mb=100000,
+        partition="gilad",
+        time="50:00:00"
+    threads: 40
     input:
         pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce"
     output:
@@ -66,33 +67,20 @@ rule fasttopics:
         "../slurmy/r-fasttopics.yml"
     script:
         "../code/fast_topics/fast_topics.R"
-  
-rule h5ad2seurat:
+
+rule topic_de_analysis:
     resources:
-        mem_mb = 50000,
-        time = "00:30:00"
-    envmodules:
-        ["hdf5_hl"]
+        mem_mb=80000,
+        partition="broadwl-lc",
+        time="36:00:00",
+        nodes=4
+    threads: 28
     input:
-        anndata="data/single_cell_objects/eb_pseudocells_raw.h5ad"
+        pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce",
+        fasttopics_fit="results/fast_topics/fasttopics_{k}topics_fit.rds"
     output:
-        seurat="data/single_cell_objects/eb_pseudocells_raw.seurat.rds"
+        de_analysis="results/fast_topics/fasttopics_{k}topics_de_analysis.Rdata"
     conda:
         "../slurmy/r-fasttopics.yml"
     script:
-        "../code/fast_topics/h5ad2seurat.R"
-        
-rule prepare_data_for_fasttopics:
-    resources:
-        partition = "gilad",
-        mem_mb = 30000,
-        time = "00:30:00"
-    input:
-        input_file="/project2/gilad/mli/eb_project/snakemake/0.test_dataset/test_data.rds"
-    output:
-        output_file="/project2/gilad/mli/eb_project/snakemake/0.test_dataset/test_data.RData"
-    conda:
-        "/project2/gilad/mli/eb_project/snakemake/slurmy/r-package.yml"
-    script:
-        "/project2/gilad/mli/eb_project/snakemake/3.prepare_data_for_fasttopics/prepare_data_for_fasttopics.R"
-  
+        "../code/fast_topics/topic_de_analysis.R"

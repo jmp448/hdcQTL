@@ -22,6 +22,7 @@
 
 # Load a few packages.
 library(Matrix)
+library(SingleCellExperiment)
 library(fastTopics)
 library(parallel)
 
@@ -39,7 +40,7 @@ set.seed(1)
 # Load the previously prepared data.
 cat("Loading data.\n")
 pseudocell_exp <- readRDS(sce_loc)
-counts <- counts(pseudocell_exp)
+counts <- t(as(assay(pseudocell_exp), "sparseMatrix")) # cells x genes after transpose
 cat(sprintf("Loaded %d x %d counts matrix.\n", nrow(counts), ncol(counts)))
 
 # PRE-FIT POISSON NON-NEGATIVE MATRIX FACTORIZATION

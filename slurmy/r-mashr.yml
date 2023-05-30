@@ -12,3 +12,4 @@ dependencies:
   - r-tidyverse>=1.3.2
   - r-vroom
   - r-devtools
+  - bioconductor-nullranges
