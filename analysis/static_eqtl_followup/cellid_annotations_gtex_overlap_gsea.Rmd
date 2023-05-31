@@ -98,8 +98,8 @@ matched_background_overlap <- vroom(matched_background_overlap_loc, col_names=c(
 background_all <- vroom(matched_background_loc)
 ```
 
-Yes, it does hold up. 85% (21401 of 25051) of our EB eQTLs show up as an eQTL somewhere in GTEx, 
-compared to 54% (13675 of 25051) of SNP-gene pairs matched for MAF and distance to TSS.
+Yes, it does hold up. 85% (24987 of 29466) of our EB eQTLs show up as an eQTL somewhere in GTEx, 
+compared to 54% (16012 of 29466) of SNP-gene pairs matched for MAF and distance to TSS.
 
 And we can assess whether this set was appropriately matched
 ```{r}
