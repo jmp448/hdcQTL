@@ -3,7 +3,6 @@
 #TODO do something better about handling duplicated SNP ID's in tensorqtl interaction test
 #TODO submit bug report to tensorqtl to fix the chromosome indexing
 #TODO find more stable solution than to manually overwrite cis.py (/project2/gilad/jpopp/ebQTL/.snakemake/conda/e138ad8ec0b845ac547107b3c3d4cf50/lib/python3.10/site-packages/tensorqtl/cis.py) with updates from https://github.com/broadinstitute/tensorqtl/commit/6879d887db13d880fc5fc0619906c4fbdbbb2843
-#TODO in pseudobulk_assign_dynamic, get rid of the 25-sample cutoff for pseudotime bin inclusion, which is a holdout from cellid analysis
 
 rule pseudobulk_assign_dynamic:
     resources:
@@ -13,7 +12,7 @@ rule pseudobulk_assign_dynamic:
         raw="data/single_cell_objects/highpass/eb_raw.qc.h5ad",
         pseudotimed="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.{nbins}_pseudotime.adata"
     output:
-        celltype_summary="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/samples_per_celltype.tsv",
+        donor_summary="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/samples_per_donor.tsv",
         sample_summary="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/sample_summary.tsv",
         pseudobulk="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{trajectory}_{nbins}.pseudobulk_tmm.tsv"
     params:
@@ -47,7 +46,8 @@ rule pseudobulk_agg_dynamic:
         pseudobulk="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{trajectory}_{nbins}.pseudobulk_tmm.tsv",
         sample_summary_manual="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/sample_summary_manual.tsv"
     output:
-        all_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudobulk_all.tsv"
+        all_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudobulk_all.tsv",
+        pseudotime="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudotime.tsv"
     params:
         table_prefix = "data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/",
         fig_prefix = "figs/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/"
@@ -107,7 +107,7 @@ rule tensorqtl_interaction_prep:
     script:
         "../code/dynamic_qtl_calling/tensorqtl_interaction_prep.py"
 
-rule tensorqtl_nominal_interaction:
+rule tensorqtl_interaction:
     resources:
         mem_mb=120000,
         partition="gpu2",
@@ -120,14 +120,15 @@ rule tensorqtl_nominal_interaction:
         variant_df="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/variant_df.tsv",
         pseudotime="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudotime.tsv"
     output:
-        expand("results/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/{{n_cl_pcs}}clpcs/tensorqtl_interactions.cis_qtl_pairs.chr{i}.parquet", i=range(1, 23))
+        expand("results/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/{{n_cl_pcs}}clpcs/tensorqtl_interactions.cis_qtl_pairs.chr{i}.parquet", i=range(1, 23)),
+        "results/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/{{n_cl_pcs}}clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz"
     params:
         plink_prefix="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/genotypes_filtered_plink",
         output_prefix="results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/tensorqtl_interactions"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
-        "../code/dynamic_qtl_calling/tensorqtl_interaction_nominal.py"
+        "../code/dynamic_qtl_calling/tensorqtl_interaction.py"
 
 rule tensorqtl_merge_interaction:
     resources:

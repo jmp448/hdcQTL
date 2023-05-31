@@ -10,6 +10,7 @@ include: "rules/static_eqtl_followup.py"
 include: "rules/trajectory_inference.py"
 include: "rules/dynamic_qtl_calling.py"
 include: "rules/fast_topics.py"
+include: "rules/cellregmap_eqtl_calling.py"
 
 HTTP = HTTPRemoteProvider()
 

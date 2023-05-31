@@ -89,10 +89,18 @@ rule list_all_individuals:
     input:
 	      "data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
     output:
-    	  "data/genotypes/all_individuals.tsv"
+    	  "data/genotypes/all_individuals_120.tsv"
     shell:
 	      "code/static_qtl_calling/list_all_individuals.sh {input} {output}"
 
+rule list_study_individuals:
+    input: 
+        "/project2/gilad/jpopp/ebQTL/data/benchmark_specificity_methods/eb_cellid/pseudobulk_tmm/sample_summary.tsv"
+    output: 
+        "data/genotypes/all_individuals_53.tsv"
+    shell: 
+        "cat {input} | cut -f 3 | tail -n +2 | sort -u | sed 's/^/NA/' > {output}"
+    
 rule genotype_filter:
     input:
 	      genotypes="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz",
@@ -110,7 +118,7 @@ rule compute_af_all:
         time="30:00"
     input:
         genotypes="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz",
-        inds="data/genotypes/all_individuals.tsv"
+        inds="data/genotypes/all_individuals_53.tsv"
 	  output:
 	      "data/genotypes/af_all.frq"
 	  params:

@@ -99,7 +99,7 @@ plot(pcomp$u$PC1, pcomp$u$PC2,
 dev.off()
 
 # Cell line PCs - covariates for QTL calling
-cell_line_pcs <- cell.line.pca(expression,npc=15)
+cell_line_pcs <- cell.line.pca(expression,npc=12)
 cell_line_pcs$cell.line.pcs %>% 
   write_tsv(paste0(table_prefix,'all_cell_line_pcs.tsv'))
 
