@@ -11,6 +11,7 @@ include: "rules/trajectory_inference.py"
 include: "rules/dynamic_qtl_calling.py"
 include: "rules/fast_topics.py"
 include: "rules/cellregmap_eqtl_calling.py"
+include: "rules/trans_qtl_calling.py"
 
 HTTP = HTTPRemoteProvider()
 

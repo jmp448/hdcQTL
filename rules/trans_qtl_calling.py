@@ -1,6 +1,3 @@
-def strip_tissue:
-  
-
 rule list_samples_gtex_tissue:
     input:
         "~/scratch16-abattle4/lab_data/GTEx_v8/sample_annotations/GTEx_Analysis_2017-06-05_v8_Annotations_SampleAttributesDS.txt"
