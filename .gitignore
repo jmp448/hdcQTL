@@ -12,3 +12,4 @@ temp/*
 analysis/*.html
 *.DS_Store
 test.tmp
+slurmy/config.yaml

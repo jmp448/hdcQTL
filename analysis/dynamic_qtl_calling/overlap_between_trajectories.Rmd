@@ -1,0 +1,162 @@
+```{r}
+library(tidyverse)
+library(vroom)
+library(qvalue)
+```
+
+Load the hits in the cardiomyocyte and neuronal trajectories
+```{r}
+cm_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+cm_hits <- filter(cm_emt, pval_adj_bh <= 0.05)
+cm_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.all.tsv")
+
+neur_emt <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+neur_hits <- filter(neur_emt, pval_adj_bh <= 0.05)
+neur_all <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.all.tsv")
+```
+
+```{r}
+classify_dynamics <- function(main_effect, interaction_effect, pseudotime_range, switch_cutoff=1.5) {
+  if (sign(main_effect) == sign(interaction_effect)) {
+    effect = "late"
+  } else if (abs(interaction_effect * pseudotime_range) > switch_cutoff * abs(main_effect)) {
+    effect = "switch"
+  } else {
+    effect = "early"
+  }
+}
+```
+
+Figure out the pseudotime range for the neuronal trajectory
+```{r}
+cm_pseudotime_range <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  pull(pseudotime) %>%
+  range %>% diff
+
+neur_pseudotime_range <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  pull(pseudotime) %>%
+  range %>% diff
+```
+
+Classify the dynamic eQTLs
+```{r}
+cm_hits_classified <- cm_hits %>%
+  mutate(qtl_class=map2_chr(.x=b_g, .y=b_gi, .f=classify_dynamics, pseudotime_range=cm_pseudotime_range, switch_cutoff=2)) %>%
+  arrange(pval_adj_bh)
+
+neur_hits_classified <- neur_hits %>%
+  mutate(qtl_class=map2_chr(.x=b_g, .y=b_gi, .f=classify_dynamics, pseudotime_range=neur_pseudotime_range, switch_cutoff=2)) %>%
+  arrange(pval_adj_bh)
+
+ggplot(count(cm_hits_classified, qtl_class), aes(x=qtl_class, y=n)) +
+  geom_col() + ggtitle("Cardiomyocyte Dynamic eQTLs by Type")
+ggplot(count(neur_hits_classified, qtl_class), aes(x=qtl_class, y=n)) +
+  geom_col() + ggtitle("Neuronal Dynamic eQTLs by Type")
+head(cm_hits_classified, n=10)
+head(neur_hits_classified, n=10)
+```
+
+Visualize some examples
+```{r}
+cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% c(cm_hits$phenotype_id, neur_hits$phenotype_id)) %>%
+  select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+cm_genotype_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% c(cm_hits$variant_id, neur_hits$variant_id)) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+```
+
+Visualize a switch CM example
+```{r}
+g <- "BMP5"
+v <- "rs7743744"
+select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot()
+
+g <- "FLVCR1"
+v <- "rs12048942"
+select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot()
+
+g <- "FEZ1"
+v <- "rs12276635"
+select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot()
+```
+
+Visualize an early CM example
+```{r}
+g <- "RILPL1"
+v <- "rs112931584"
+select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot()
+```
+
+Visualize a late CM example
+```{r}
+g <- "TXNL4B"
+v <- "rs8047930"
+select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot()
+```
+
+## Replication Between Lineages
+High replication of dynamic eQTLs across the two trajectories 
+```{r}
+cm_all_rep_in_neur <- cm_hits_classified %>%
+  select(c(phenotype_id, variant_id)) %>%
+  inner_join(neur_all, by=c("phenotype_id", "variant_id"))
+hist(qvalue(cm_all_rep_in_neur$pval_gi))
+```
+
+Especially high among early tests
+```{r}
+cm_early_rep_in_neur <- cm_hits_classified %>%
+  filter(qtl_class=="early") %>%
+  select(c(phenotype_id, variant_id)) %>%
+  inner_join(neur_all, by=c("phenotype_id", "variant_id"))
+hist(qvalue(cm_early_rep_in_neur$pval_gi, lambda=0.5))
+
+neur_early_rep_in_cm <- neur_hits_classified %>%
+  filter(qtl_class=="early") %>%
+  select(c(phenotype_id, variant_id)) %>%
+  inner_join(cm_all, by=c("phenotype_id", "variant_id"))
+hist(qvalue(neur_early_rep_in_cm$pval_gi, lambda=0.5))
+```
+
+```{r}
+cm_late_rep_in_neur <- cm_hits_classified %>%
+  filter(qtl_class=="late") %>%
+  select(c(phenotype_id, variant_id)) %>%
+  inner_join(neur_all, by=c("phenotype_id", "variant_id"))
+hist(qvalue(cm_late_rep_in_neur$pval_gi, lambda=0.5))
+
+neur_late_rep_in_cm <- neur_hits_classified %>%
+  filter(qtl_class=="late") %>%
+  select(c(phenotype_id, variant_id)) %>%
+  inner_join(cm_all, by=c("phenotype_id", "variant_id"))
+hist(qvalue(neur_late_rep_in_cm$pval_gi, lambda=0.5))
+```

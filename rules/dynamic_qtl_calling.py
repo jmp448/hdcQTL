@@ -121,7 +121,7 @@ rule tensorqtl_interaction:
         pseudotime="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudotime.tsv"
     output:
         expand("results/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/{{n_cl_pcs}}clpcs/tensorqtl_interactions.cis_qtl_pairs.chr{i}.parquet", i=range(1, 23)),
-        "results/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/{{n_cl_pcs}}clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz"
+        "results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz"
     params:
         plink_prefix="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/genotypes_filtered_plink",
         output_prefix="results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/tensorqtl_interactions"

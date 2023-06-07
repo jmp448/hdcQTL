@@ -110,6 +110,27 @@ corrplot(eqtl_pairwise,
          method="color", addCoef.col = "black",
          is.corr=F)
 ```
+How many tests were evaluated to come up with these figures?
+```{r}
+both_non_na <- function(eb_type, elorbany_type, comp_df=effect_size_comp) {
+  sum(!(is.na(comp_df[,eb_type]) | is.na(comp_df[,elorbany_type])))
+}
+eb_types <- c("EB_IPSC", "EB_MESENDO", "EB_MESO", "EB_PROG", "EB_CM")
+el_types <- c("EL_IPSC", "EL_MES", "EL_CMES", "EL_PROG", "EL_CM")
+
+num_tests_evaluated <- matrix(nrow=5, ncol=5, dimnames=list(eb_types, el_types))
+
+for (eb_i in eb_types) {
+  for (el_i in el_types) {
+    num_tests_evaluated[eb_i, el_i] <- both_non_na(eb_i, el_i)
+  }
+}
+
+corrplot(num_tests_evaluated,
+         method="color", addCoef.col = "black",
+         is.corr=F)
+```
+
 
 
 ```{r}

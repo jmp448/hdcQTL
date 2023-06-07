@@ -12,6 +12,7 @@ library(pathways)
 library(vroom)
 library(gseasusie)
 library(nullranges)
+set.seed(1)
 ```
 
 ```{r}
@@ -107,4 +108,55 @@ matcher <- readRDS("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8p
 plotCovariate(matcher)
 plotCovariate(matcher, "dist2tss")
 ```
+
+## Overlap with trans-eQTLs
+First, we need our translator for between EB and GTEx
+```{r}
+translator <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/eb_gtex_harmonized_tests.txt")
+
+eb_all_harmonized <- eb_all %>%
+  dplyr::rename(phenotype_id_hgnc=phenotype_id, variant_id_rsid=variant_id) %>%
+  left_join(translator, by=c("phenotype_id_hgnc", "variant_id_rsid"))
+```
+
+```{r}
+gtex_trans <- vroom("/project2/gilad/jpopp/GTEx_Analysis_v8_eQTL/all_tissues.v8.trans_eQTL_associations.txt") %>%
+  mutate(phenotype_id_ensg=str_extract(gene_id, "[^.]+"), .keep="unused") 
+
+eb_trans_overlap <- inner_join(eb_all_harmonized, gtex_trans, by=c("phenotype_id_ensg", "variant_id")) # no overlap
+```
+There's no overlap between the 162 GTEx genome-wide trans eQTLs and the eQTLs we discovered in our EBs
+
+## Calling trans-eQTLs
+First, we're going to isolate some variants of interest - these are the top eQTLs on 
+the eGenes lacking EB-GTEx overlap, which appear in the 'Tissue Development' GO BP gene set
+```{r}
+tissue_dev_genes <- rownames(gmt_mat)[which(gmt_mat[,"GOBP_TISSUE_DEVELOPMENT"]==1)]
+novel_egenes_tissue_dev <- intersect(tissue_dev_genes, setdiff(all_egenes, overlap_egenes))
+
+top_tissue_dev_qtls <- filter(eb_all, phenotype_id %in% novel_egenes_tissue_dev) %>%
+  arrange(pval_nominal) %>%
+  group_by(phenotype_id) %>%
+  slice_head(n=1)
+```
+
+Next, we define our super positive controls - the top eQTLs on the eGenes that did have
+EB-GTEx overlap, which also appear in the 'Tissue Development' GO BP gene set
+```{r}
+gtex_egenes_tissue_dev <- intersect(tissue_dev_genes, overlap_egenes)
+
+top_tissue_dev_qtls_gtex <- filter(eb_all, phenotype_id %in% gtex_egenes_tissue_dev) %>%
+  arrange(pval_nominal) %>%
+  group_by(phenotype_id) %>%
+  slice_head(n=1) %>%
+  ungroup() %>%
+  sample_n(nrow(top_tissue_dev_qtls))
+```
+
+Now, for a weaker positive control - a random set of EB top cis-eQTLs, matched by MAF and TSS distance
+```{r}
+
+```
+
+
 

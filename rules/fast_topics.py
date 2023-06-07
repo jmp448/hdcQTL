@@ -70,10 +70,9 @@ rule fast_topics:
 
 rule topic_de_analysis:
     resources:
-        mem_mb=80000,
-        partition="broadwl-lc",
-        time="36:00:00",
-        nodes=4
+        mem_mb=150000,
+        partition="bigmem2",
+        time="36:00:00"
     threads: 28
     input:
         pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce",
