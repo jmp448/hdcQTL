@@ -2,6 +2,9 @@ name: snakemake
 channels:
   - conda-forge
   - bioconda
+  - nodefaults
 dependencies:
-  - mamba
-  - snakemake
+  - conda-forge::mamba=0.22.1
+  - conda-forge::python=3.10.2
+  - bioconda::snakemake=7.0.4
+  - conda-forge::tabulate=0.8.9
