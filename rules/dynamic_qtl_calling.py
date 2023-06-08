@@ -109,7 +109,7 @@ rule tensorqtl_interaction_prep:
 
 rule tensorqtl_interaction:
     resources:
-        mem_mb=120000,
+        mem_mb=80000,
         partition="gpu2",
         gres="gpu:1",
         nodes=1
