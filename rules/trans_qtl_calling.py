@@ -1,6 +1,6 @@
 #TODO update listing of candidate variants to be based on GTEx MAF, not just YRI
 #TODO update the snakemake environment so that it has the right conda version without manually installing 4.11.0
-
+#TODO note bandaid - manually changed read_phenotype_bed in tensorqtl
 rule list_donors_gtex_tissue:
     input:
         "/home/jpopp/scratch16-abattle4/lab_data/GTEx_v8/sample_annotations/GTEx_Analysis_2017-06-05_v8_Annotations_SampleAttributesDS.txt"
@@ -26,6 +26,22 @@ rule list_samples_gtex_tissue:
         cut -f1,14 {input} | grep '{params.tissue_string}' | cut -d: -f2 | sort -u | tail -n +2 > {output}
         """
 
+rule get_tissue_maf:
+    resources:
+        mem_mb=10000,
+        time="30:00"
+    input:
+        genotypes="/home/jpopp/scratch16-abattle4/lab_data/GTEx_v8/genotypes/WGS/variant_calls/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.vcf.gz",
+        inds="data/trans_qtl_calling/gtex/{tissue}_donors.txt",
+        positions="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/eb_gtex_harmonized_tests.txt"
+	  output:
+	      "data/genotypes/gtex_maf_{tissue}.frq"
+	  params:
+	      prefix="data/genotypes/gtex_maf"
+	  shell:
+	      "code/trans_qtl_calling/compute_af_gtex.sh {input.genotypes} {input.inds} {params.prefix}_{tissue} {input.positions}"
+
+  
 rule plink_genotype_reformat_trans:
     # This command requires GTEx data access, which is protected
     resources:
