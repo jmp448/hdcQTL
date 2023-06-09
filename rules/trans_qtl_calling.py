@@ -39,7 +39,7 @@ rule get_tissue_maf:
 	  params:
 	      prefix="data/genotypes/gtex_maf"
 	  shell:
-	      "code/trans_qtl_calling/compute_af_gtex.sh {input.genotypes} {input.inds} {params.prefix}_{tissue} {input.positions}"
+	      "code/trans_qtl_calling/compute_af_gtex.sh {input.genotypes} {input.inds} {params.prefix}_{wildcards.tissue} {input.positions}"
 
   
 rule plink_genotype_reformat_trans:
