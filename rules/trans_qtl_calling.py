@@ -23,7 +23,7 @@ rule list_samples_gtex_tissue:
         tissue_string="Nerve - Tibial"
     shell:
         """
-        cut -f1,14 {input} | grep '{params.tissue_string}' | cut -d: -f2 | sort -u | tail -n +2 > {output}
+        cut -f1,14 {input} | grep '{params.tissue_string}' | cut -d: -f2 | cut -f1 | sort -u | tail -n +2 > {output}
         """
 
 rule plink_genotype_reformat_trans:
