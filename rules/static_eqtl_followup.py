@@ -182,6 +182,16 @@ rule harmonize_eb_to_gtex_alltests:
     script:
         "../code/static_eqtl_followup/harmonize_ebs_to_gtex_all.R"
 
+rule list_variant_ids_for_gtex:
+    input:
+        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
+    output:
+        "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/tested_variants.txt"
+    shell:
+        """
+        tail -n +2 {input} | cut -f 3 > {output}
+        """
+  
 rule list_joint_hits:
   resources:
       mem_mb=100000
