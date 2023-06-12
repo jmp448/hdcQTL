@@ -228,20 +228,32 @@ rule list_trans_qtl_candidate_variants:
       mem_mb=50000
   input:
       tests_list="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt",
-      afs="data/genotypes/af_all.frq",
+      afs="data/genotypes/gtex_maf_{tissue}.frq",
       eb_hits="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.tsv",
       eb_gtex_overlap="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.full_gtex_overlap.bed",
       gtf="data/gencode/gencode.hg38.filtered.gtf",
       gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
   output:
-      candidate_info="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidate_info.{gs}.tsv",
-      candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidates.{gs}.txt",
-      match_details="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_matchers.{gs}.Rdata"
+      candidate_info="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidate_info.{gs}.{tissue}.tsv",
+      candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidates.{gs}.{tissue}.txt",
+      match_details="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_matchers.{gs}.{tissue}.Rdata"
   conda: 
       "../slurmy/r-mashr.yml"
   script:
       "../code/static_eqtl_followup/list_trans_qtl_candidate_variants.R"
 
+rule list_trans_qtl_candidate_genes:
+  resources:
+      mem_mb=50000
+  input:
+      gtf="data/gencode/gencode.hg38.filtered.gtf",
+      gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
+  output:
+      gene_set="data/gene_sets/{gs}.ensg.tsv"
+  conda: 
+      "../slurmy/r-mashr.yml"
+  script:
+      "../code/static_eqtl_followup/list_trans_qtl_candidate_genes.R"
 
 
 # Scripts used for the LD tagging analysis
