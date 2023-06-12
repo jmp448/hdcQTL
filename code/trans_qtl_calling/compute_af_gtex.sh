@@ -10,6 +10,6 @@ module load vcftools
 genotypes="$1"
 inds="$2"
 prefix="$3"
-positions="$4"
+snps="$4"
 
-vcftools --gzvcf $genotypes --out $prefix --keep $inds --positions $positions --freq
+vcftools --gzvcf $genotypes --out $prefix --keep $inds --snps $snps --freq

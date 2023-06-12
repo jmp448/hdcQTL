@@ -1,4 +1,4 @@
-clearname: tensor-qtl
+name: tensorqtl
 channels:
   - conda-forge
   - pytorch
