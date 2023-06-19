@@ -45,11 +45,12 @@ rule get_tissue_maf:
 rule plink_genotype_reformat_trans:
     # This command requires GTEx data access, which is protected
     resources:
-        mem_mb=100000
+        mem_mb=100000,
+        time="02:00:00"
     input:
         genotypes="/home/jpopp/scratch16-abattle4/lab_data/GTEx_v8/genotypes/WGS/variant_calls/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.vcf.gz",
         inds="data/trans_qtl_calling/gtex/{tissue}_donors.txt",
-        trans_candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/trans_eqtl_variant_candidates.{gs}.txt"
+        trans_candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/trans_eqtl_variant_candidates.{gs}.{tissue}.txt"
     output:
         expand("data/trans_qtl_calling/gtex/genotypes_filtered_plink.{{tissue}}.{{gs}}.{out}", out=['bed', 'bim', 'fam'])
     params:
