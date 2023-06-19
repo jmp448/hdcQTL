@@ -1,6 +1,7 @@
 #TODO tidy up QC
 #TODO look at batch effects
 #TODO update the text file outputs to include cell names
+#TODO go back to kenneth and katie's pipelines
 
 rule create_anndata:
     resources:

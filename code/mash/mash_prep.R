@@ -26,7 +26,7 @@ se.hat <- read_tsv(se_df_loc) %>%
 degf.hat <- read_tsv(sample_summary_loc) %>%
   filter(!dropped) %>%
   dplyr::count(type) %>%
-  mutate(df=n-npcs-1) %>%
+  mutate(df=n-npcs-2) %>% # 2 for sex (and genotype)
   select(c(type, n)) %>%
   column_to_rownames("type") %>% t %>%
   as_tibble() %>% 

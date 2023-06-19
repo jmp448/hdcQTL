@@ -24,10 +24,9 @@ if not os.path.exists(output_loc.rsplit('/', 1)[0]):
 phenotype_df, phenotype_pos_df = tensorqtl.read_phenotype_bed(expression_bed)
 
 # Load and wrangle cell line PC covariates
-cell_line_pc_df = pd.read_csv(covariates_file, sep='\t', usecols=range(n_clpcs + 1))
+cell_line_pc_df = pd.read_csv(covariates_file, sep='\t', usecols=range(n_clpcs + 2)) #+2 for one-indexing, and to additionally include sex
 
 cell_line_pc_long = pd.melt(cell_line_pc_df, id_vars=['ind'], var_name='covariate', value_name='value')
-cell_line_pc_long['covariate'] = cell_line_pc_long['covariate'].apply(lambda x: 'CL' + x)
 cell_line_pc_long = cell_line_pc_long.astype({'covariate': 'string', 'ind': 'string'})
 
 sample_map = pd.DataFrame({'sample': phenotype_df.columns})

@@ -1,0 +1,62 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+gtf_loc <- "data/gencode/gencode.hg38.filtered.gtf"
+```
+
+```{r}
+pull_gene_type <- function(attr) {
+  str_split(attr, "\"")[[1]][11]
+}
+
+pull_gene_name <- function(attr) {
+  str_split(attr, "\"")[[1]][15]
+}
+
+pull_gene_ensg <- function(attr) {
+  str_split(attr, "\"")[[1]][3]
+}
+
+gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"), skip=5) %>%
+  filter(seqname %in% paste0("chr", seq(1, 22))) %>%
+  filter(feature == "gene") %>%
+  mutate(hgnc=map_chr(attribute, pull_gene_name)) %>%
+  mutate(ensg=map_chr(attribute, pull_gene_ensg))
+```
+Load all summary stats
+```{r}
+eb_sumstats_all <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.all.tsv") %>%
+  rename(rsid=variant_id)
+```
+
+Load a variant dictionary to map rsID to chromosome position
+```{r}
+snp_map <- vroom("data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.tsv",
+                 col_names=c("rsid", "variant_id"))
+```
+
+## Visualize an example
+```{r}
+gene <- "CTNNBIP1"
+tss <- filter(gencode, hgnc==gene) %>%
+  mutate(tss=if_else(strand=="+", start, end)) %>%
+  pull(tss)
+
+locus_df <- eb_sumstats_all %>%
+  filter((phenotype_id==gene)) %>% 
+  left_join(snp_map, by="rsid") %>%
+  separate(variant_id, into=c("chr", "pos", "ref", "alt", "build"), sep="_") %>%
+  mutate(nlog10p=-log10(pval_nominal)) %>%
+  mutate(pos=as.numeric(pos))
+```
+
+```{r fig.width=5, fig.height=4}
+ggplot(locus_df, aes(x=pos, y=nlog10p, color=nlog10p)) +
+  geom_point() +
+  geom_vline(xintercept=tss, linetype="dashed", color="red") +
+  scale_color_viridis() +
+  theme_classic() +
+  facet_wrap(vars(celltype))
+```

@@ -14,6 +14,7 @@ dependencies:
   - pandas
   - pytorch<=1.13
   - pyarrow
+  - pandas-plink
   - pip:
     - scanpy
     - tensorqtl

@@ -3,14 +3,15 @@
 #TODO do something better about handling duplicated SNP ID's in tensorqtl interaction test
 #TODO submit bug report to tensorqtl to fix the chromosome indexing
 #TODO find more stable solution than to manually overwrite cis.py (/project2/gilad/jpopp/ebQTL/.snakemake/conda/e138ad8ec0b845ac547107b3c3d4cf50/lib/python3.10/site-packages/tensorqtl/cis.py) with updates from https://github.com/broadinstitute/tensorqtl/commit/6879d887db13d880fc5fc0619906c4fbdbbb2843
-
+#TODO similar issue, /project2/gilad/jpopp/ebQTL/.snakemake/conda/633df945cb6942e683de1035f6270d68_/lib/python3.11/site-packages/tensorqtl/eigenmt.py had to change np.float (deprecated) to np.float64
 rule pseudobulk_assign_dynamic:
     resources:
         mem_mb=250000,
         time="01:30:00"
     input:
         raw="data/single_cell_objects/highpass/eb_raw.qc.h5ad",
-        pseudotimed="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.{nbins}_pseudotime.adata"
+        pseudotimed="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.{nbins}_pseudotime.adata",
+        metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv"
     output:
         donor_summary="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/samples_per_donor.tsv",
         sample_summary="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/sample_summary.tsv",
@@ -44,9 +45,11 @@ rule pseudobulk_agg_dynamic:
         time="30:00"
     input:
         pseudobulk="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{trajectory}_{nbins}.pseudobulk_tmm.tsv",
+        metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv",
         sample_summary_manual="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/sample_summary_manual.tsv"
     output:
         all_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudobulk_all.tsv",
+        covariates="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/covariates.tsv",
         pseudotime="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudotime.tsv"
     params:
         table_prefix = "data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/",
@@ -94,7 +97,8 @@ rule tensorqtl_interaction_prep:
     input:
         genotypes=expand("data/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/genotypes_filtered_plink.{out}", out=['bed', 'bim', 'fam']),
         exp="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/expression.bed.gz",
-        cov="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/cell_line_pcs.tsv"
+        cov="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/covariates.tsv",
+        metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv"
     output:
         covariate_df="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/covariate_df.tsv",
         genotype_df="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/genotype_df.tsv",

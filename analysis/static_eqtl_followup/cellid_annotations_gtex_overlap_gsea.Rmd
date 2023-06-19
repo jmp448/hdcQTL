@@ -80,6 +80,14 @@ novel_egenes_connective_tissue <- intersect(connective_tissue_genes, setdiff(all
 novel_connective_tissue_qtls <- filter(eb_all, phenotype_id %in% novel_egenes_connective_tissue)
 ```
 
+How about tissue development?
+```{r}
+tissue_dev_genes <- rownames(gmt_mat)[which(gmt_mat[,"GOBP_TISSUE_DEVELOPMENT"]==1)]
+novel_egenes_tissue_dev <- intersect(tissue_dev_genes, setdiff(all_egenes, overlap_egenes))
+
+novel_tissue_dev_qtls <- filter(eb_all, phenotype_id %in% novel_egenes_tissue_dev)
+```
+
 ## Does this hold up when comparing to a background set?
 ```{r}
 matched_hits_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif-matched_variant_gene_pairs.bed"

@@ -1,0 +1,39 @@
+```{r}
+library(tidyverse)
+library(vroom)
+```
+
+```{r}
+trans_eqtls <- vroom("/project2/gilad/jpopp/ebQTL/data/trans_qtl_calling/gtex/trans_eqtl_results_2.tsv")
+variant_groups <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/trans_eqtl_variant_candidate_info.GOBP_CIRCULATORY_SYSTEM_DEVELOPMENT.Artery-Tibial.tsv")
+
+trans_eqtls_grouped <- left_join(trans_eqtls, variant_groups, by="variant_id")
+```
+
+```{r}
+qq_viz <- trans_eqtls_grouped %>%
+  arrange(group, pval) %>% group_by(group) %>%
+  add_tally() %>% mutate(group_index=row_number()) %>%
+  mutate(nlog10_pval_unif=map2_dbl(group_index, n, function(a,b){-log10(a/b)})) %>%
+  mutate(nlog10_pval=-log10(pval)) %>%
+  mutate(group=factor(group, levels=c("pathway_novel",
+                                      "pathway_matched",
+                                      "ciseqtl_matched",
+                                      "covariate_matched")))
+```
+
+View by group
+```{r}
+ggplot(qq_viz, aes(x = nlog10_pval_unif, y = nlog10_pval, color=group)) +
+  geom_line() +
+  geom_abline(intercept = 0, slope = 1, color = "red", linetype = "dashed") +
+  labs(x = "Expected (-log10 p-values)",
+       y = "Observed (-log10 p-values)",
+       title = "QQ Plot") +
+  theme_minimal()
+```
+
+The covariate hits here don't seem driven by cross-mappability, but they also don't reach genome-wide significance 
+
+
+
