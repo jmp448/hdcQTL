@@ -70,8 +70,8 @@ rule fast_topics:
 
 rule topic_de_analysis:
     resources:
-        mem_mb=150000,
-        partition="bigmem2",
+        mem_mb=100000,
+        partition="gilad",
         time="36:00:00"
     threads: 28
     input:

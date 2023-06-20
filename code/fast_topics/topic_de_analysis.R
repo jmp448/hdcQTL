@@ -49,7 +49,7 @@ timing <- system.time(
 # SAVE RESULTS
 # ------------
 cat("Saving results.\n")
-saveRDS(list(fit = fit, fit_multinom=fit_multinom, counts = counts, dfa_out = dfa_out),
+save(list(fit = fit, fit_multinom=fit_multinom, counts = counts, dfa_out = dfa_out),
      file = outfile)
 
 # SESSION INFO

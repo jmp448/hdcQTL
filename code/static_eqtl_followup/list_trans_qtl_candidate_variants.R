@@ -8,6 +8,7 @@ set.seed(1234)
 # eb_sighits_loc <- "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.tsv"
 # eb_sighits_overlap_loc <- "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.full_gtex_overlap.bed"
 # gtf_loc <- "data/gencode/gencode.hg38.filtered.gtf"
+# gtf_loc <- "/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
 # gmt_file <- "data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
 # 
 # go_geneset <- "GOBP_TISSUE_DEVELOPMENT"
@@ -79,15 +80,18 @@ all_tests <- all_tests %>%
 #### Again, for simplicity we're just going to pull gene locations for a 
 # get a mapping from HGNC to ENSG
 pull_gene_type <- function(attr) {
-  str_split(attr, "\"")[[1]][11]
+  # str_split(attr, "\"")[[1]][11] for the online version
+  str_split(attr, "\"")[[1]][6] # for the kenneth version
 }
 
 pull_gene_name <- function(attr) {
-  str_split(attr, "\"")[[1]][15]
+  # str_split(attr, "\"")[[1]][15] for the online version
+  str_split(attr, "\"")[[1]][8] # for the kenneth version
 }
 
 pull_gene_ensg <- function(attr) {
-  str_split(attr, "\"")[[1]][3]
+  # str_split(attr, "\"")[[1]][3] for the online version
+  str_split(attr, "\"")[[1]][2] # for the kenneth version
 }
 
 gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"), skip=5) %>%
@@ -109,10 +113,6 @@ all_tests <- all_tests %>%
 pathway_novel <- filter(eb_all_hits, phenotype_id %in% novel_egenes_gs) %>%
   dplyr::rename(phenotype_id_hgnc=phenotype_id, variant_id_rsid=variant_id) %>%
   inner_join(all_tests, by=c("phenotype_id_hgnc", "variant_id_rsid")) %>%
-  arrange(pval_nominal) %>%
-  group_by(phenotype_id_hgnc) %>%
-  slice_head(n=1) %>%
-  ungroup() %>%
   select(c(variant_id, phenotype_id_ensg, MAF, dist2tss)) %>% 
   distinct() %>%
   unite(test, variant_id, phenotype_id_ensg, sep="-", remove=F) %>%
@@ -121,78 +121,87 @@ pathway_novel <- filter(eb_all_hits, phenotype_id %in% novel_egenes_gs) %>%
 pathway_novel_candidates <- as_tibble(pathway_novel) %>%
   mutate(group="pathway_novel") 
 
-## Matched background 1 - tests also in the gene set, but did have GTEx overlap
-pathway_matched <- filter(eb_all_hits, phenotype_id %in% gtex_egenes_gs) %>%
-  dplyr::rename(phenotype_id_hgnc=phenotype_id, variant_id_rsid=variant_id) %>%
-  inner_join(all_tests, by=c("phenotype_id_hgnc", "variant_id_rsid")) %>%
-  arrange(pval_nominal) %>%
-  group_by(phenotype_id_hgnc) %>%
-  slice_head(n=1) %>%
-  ungroup() %>%
-  select(c(variant_id, phenotype_id_ensg, MAF, dist2tss)) %>% 
-  distinct() %>%
-  unite(test, variant_id, phenotype_id_ensg, sep="-", remove=F) %>%
-  filter(!variant_id %in% pathway_novel$variant_id) %>%
-  column_to_rownames("test")
-
-pathway_matcher <- matchRanges(focal=pathway_novel, 
-                       pool=pathway_matched, 
-                       covar= ~ MAF + dist2tss,
-                       method='stratified',
-                       replace = FALSE)
-
-pathway_matched_candidates <- as_tibble(pathway_matched[pathway_matcher@matchedIndex,]) %>%
-  mutate(group="pathway_matched") 
-
-## Matched background 2 - misc cis eQTLs with GTEx overlap
-ciseqtl_matched <- filter(eb_all_hits, phenotype_id %in% overlap_egenes) %>%
-  dplyr::rename(phenotype_id_hgnc=phenotype_id, variant_id_rsid=variant_id) %>%
-  inner_join(all_tests, by=c("phenotype_id_hgnc", "variant_id_rsid")) %>%
-  arrange(pval_nominal) %>%
-  group_by(phenotype_id_hgnc) %>%
-  slice_head(n=1) %>%
-  ungroup() %>%
-  select(c(variant_id, phenotype_id_ensg, MAF, dist2tss)) %>% 
-  distinct() %>%
-  unite(test, variant_id, phenotype_id_ensg, sep="-", remove=F) %>%
-  filter(!variant_id %in% c(pathway_novel$variant_id, pathway_matched$variant_id)) %>%
-  column_to_rownames("test")
-
-ciseqtl_matcher <- matchRanges(focal=pathway_novel, 
-                               pool=ciseqtl_matched, 
-                               covar= ~ MAF + dist2tss,
-                               method='stratified',
-                               replace = FALSE)
-
-ciseqtl_matched_candidates <- as_tibble(ciseqtl_matched[ciseqtl_matcher@matchedIndex,]) %>%
-  mutate(group="ciseqtl_matched") 
-
-## Matched background 3 - misc variants (non-eQTLs)
-covariate_matched <- select(all_tests, c(variant_id, phenotype_id_ensg, MAF, dist2tss)) %>%
-  unite(test, variant_id, phenotype_id_ensg, sep="-", remove=F) %>%
-  filter(!variant_id %in% c(pathway_novel$variant_id, pathway_matched$variant_id, ciseqtl_matched$variant_id)) %>%
-  column_to_rownames("test")
-
-covariate_matcher <- matchRanges(focal=pathway_novel, 
-                               pool=covariate_matched, 
-                               covar= ~ MAF + dist2tss,
-                               method='stratified',
-                               replace = FALSE)
-
-covariate_matched_candidates <- as_tibble(covariate_matched[covariate_matcher@matchedIndex,]) %>%
-  mutate(group="covariate_matched")
-
-# Save all four sets of variants
-trans_qtl_variant_candidates <- bind_rows(pathway_novel_candidates,
-                                          pathway_matched_candidates,
-                                          ciseqtl_matched_candidates,
-                                          covariate_matched_candidates) %>%
+# Save just this set of variants 
+trans_qtl_variant_candidates <- pathway_novel_candidates %>%
   write_tsv(variant_candidates_info_loc)
 
 trans_qtl_variant_candidates_ids <- trans_qtl_variant_candidates %>%
   select(variant_id) %>%
   write_tsv(variant_candidates_loc, col_names=F)
 
-save(pathway_matcher, ciseqtl_matcher, covariate_matcher, file=matchers_loc)
-  
-  
+### BEFORE UNCOMMENTING - note that matching needs to change to accommodate the use of entire LD blocks (not just matching variants any more)
+# ## Matched background 1 - tests also in the gene set, but did have GTEx overlap
+# pathway_matched <- filter(eb_all_hits, phenotype_id %in% gtex_egenes_gs) %>%
+#   dplyr::rename(phenotype_id_hgnc=phenotype_id, variant_id_rsid=variant_id) %>%
+#   inner_join(all_tests, by=c("phenotype_id_hgnc", "variant_id_rsid")) %>%
+#   arrange(pval_nominal) %>%
+#   group_by(phenotype_id_hgnc) %>%
+#   slice_head(n=1) %>%
+#   ungroup() %>%
+#   select(c(variant_id, phenotype_id_ensg, MAF, dist2tss)) %>% 
+#   distinct() %>%
+#   unite(test, variant_id, phenotype_id_ensg, sep="-", remove=F) %>%
+#   filter(!variant_id %in% pathway_novel$variant_id) %>%
+#   column_to_rownames("test")
+# 
+# pathway_matcher <- matchRanges(focal=pathway_novel, 
+#                        pool=pathway_matched, 
+#                        covar= ~ MAF + dist2tss,
+#                        method='stratified',
+#                        replace = FALSE)
+# 
+# pathway_matched_candidates <- as_tibble(pathway_matched[pathway_matcher@matchedIndex,]) %>%
+#   mutate(group="pathway_matched") 
+# 
+# ## Matched background 2 - misc cis eQTLs with GTEx overlap
+# ciseqtl_matched <- filter(eb_all_hits, phenotype_id %in% overlap_egenes) %>%
+#   dplyr::rename(phenotype_id_hgnc=phenotype_id, variant_id_rsid=variant_id) %>%
+#   inner_join(all_tests, by=c("phenotype_id_hgnc", "variant_id_rsid")) %>%
+#   arrange(pval_nominal) %>%
+#   group_by(phenotype_id_hgnc) %>%
+#   slice_head(n=1) %>%
+#   ungroup() %>%
+#   select(c(variant_id, phenotype_id_ensg, MAF, dist2tss)) %>% 
+#   distinct() %>%
+#   unite(test, variant_id, phenotype_id_ensg, sep="-", remove=F) %>%
+#   filter(!variant_id %in% c(pathway_novel$variant_id, pathway_matched$variant_id)) %>%
+#   column_to_rownames("test")
+# 
+# ciseqtl_matcher <- matchRanges(focal=pathway_novel, 
+#                                pool=ciseqtl_matched, 
+#                                covar= ~ MAF + dist2tss,
+#                                method='stratified',
+#                                replace = FALSE)
+# 
+# ciseqtl_matched_candidates <- as_tibble(ciseqtl_matched[ciseqtl_matcher@matchedIndex,]) %>%
+#   mutate(group="ciseqtl_matched") 
+# 
+# ## Matched background 3 - misc variants (non-eQTLs)
+# covariate_matched <- select(all_tests, c(variant_id, phenotype_id_ensg, MAF, dist2tss)) %>%
+#   unite(test, variant_id, phenotype_id_ensg, sep="-", remove=F) %>%
+#   filter(!variant_id %in% c(pathway_novel$variant_id, pathway_matched$variant_id, ciseqtl_matched$variant_id)) %>%
+#   column_to_rownames("test")
+# 
+# covariate_matcher <- matchRanges(focal=pathway_novel, 
+#                                pool=covariate_matched, 
+#                                covar= ~ MAF + dist2tss,
+#                                method='stratified',
+#                                replace = FALSE)
+# 
+# covariate_matched_candidates <- as_tibble(covariate_matched[covariate_matcher@matchedIndex,]) %>%
+#   mutate(group="covariate_matched")
+# 
+# # Save all four sets of variants
+# trans_qtl_variant_candidates <- bind_rows(pathway_novel_candidates,
+#                                           pathway_matched_candidates,
+#                                           ciseqtl_matched_candidates,
+#                                           covariate_matched_candidates) %>%
+#   write_tsv(variant_candidates_info_loc)
+# 
+# trans_qtl_variant_candidates_ids <- trans_qtl_variant_candidates %>%
+#   select(variant_id) %>%
+#   write_tsv(variant_candidates_loc, col_names=F)
+# 
+# save(pathway_matcher, ciseqtl_matcher, covariate_matcher, file=matchers_loc)
+#   
+#   
