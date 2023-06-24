@@ -5,7 +5,7 @@
 import pandas as pd
 
 def map_tissue_to_str(t):
-    tissue_to_str_map = pd.read_csv("data/gtex/tissue_to_filename_map.csv")
+    tissue_to_str_map = pd.read_csv("data/trans_qtl_calling/gtex/tissue_to_filename_map.csv")
     s = tissue_to_str_map.loc[tissue_to_str_map['filenaming_str']==t]['tissue_str'].values[0]
     return s
 
