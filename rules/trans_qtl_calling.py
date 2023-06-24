@@ -70,6 +70,19 @@ rule list_trans_qtl_candidate_variants:
   script:
       "../code/trans_qtl_calling/list_trans_qtl_candidate_variants.R"
 
+rule list_trans_qtl_candidate_genes:
+  resources:
+      mem_mb=50000
+  input:
+      gtf="data/gencode/gencode.hg38.filtered.gtf",
+      gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
+  output:
+      gene_set="data/gene_sets/{gs}.ensg.tsv"
+  conda:
+      "../slurmy/r-mashr.yml"
+  script:
+      "../code/trans_qtl_calling/list_trans_qtl_candidate_genes.R"
+
 rule plink_genotype_reformat_trans:
     # This command requires GTEx data access, which is protected
     resources:
@@ -93,18 +106,17 @@ rule tensorqtl_trans_allgenes:
         gres="gpu:1",
         nodes=1
     input:
-        genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{gs}}.{out}", out=['bed', 'bim', 'fam']),
+        genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}.{out}", out=['bed', 'bim', 'fam']),
         exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
     output:
-        expand("results/trans_qtl_calling/{{annotation}}/pseudobulk_tmm/basic/{{type}}/tensorqtl.cis_qtl_pairs.chr{i}.parquet", i=range(1, 23))
+        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{tissue}.{candidate_gs}-variants.all-genes.tsv"
     params:
-        plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/genotypes_filtered_plink.{{tissue}}.{{gs}}",
-        output_prefix="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/tensorqtl"
+        plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/genotypes_filtered_plink.{{tissue}}.{{gs}}"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
-        "../code/static_qtl_calling/tensorqtl_nominal.py"
+        "../code/trans_qtl_calling/trans_qtl_calling_allgenes.py"
         
 rule tensorqtl_trans_pathwaygenes:
     resources:
@@ -113,29 +125,17 @@ rule tensorqtl_trans_pathwaygenes:
         gres="gpu:1",
         nodes=1
     input:
-        genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{gs}}.{out}", out=['bed', 'bim', 'fam']),
+        genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}.{out}", out=['bed', 'bim', 'fam']),
         exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
-        cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
+        cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt",
+        gs_genes="data/gene_sets/{affected_gs}.ensg.tsv"
     output:
-        expand("results/trans_qtl_calling/{{annotation}}/pseudobulk_tmm/basic/{{type}}/tensorqtl.cis_qtl_pairs.chr{i}.parquet", i=range(1, 23))
+        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{tissue}.{candidate_gs}-variants.{affected_gs}-genes.tsv"
     params:
-        plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{gs}}",
-        output_prefix="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/tensorqtl"
+        plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
-        "../code/static_qtl_calling/tensorqtl_nominal.py"
+        "../code/trans_qtl_calling/trans_qtl_calling_pathwaygenes.py"
 
-# rule list_trans_qtl_candidate_genes:
-#   resources:
-#       mem_mb=50000
-#   input:
-#       gtf="data/gencode/gencode.hg38.filtered.gtf",
-#       gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
-#   output:
-#       gene_set="data/gene_sets/{gs}.ensg.tsv"
-#   conda: 
-#       "../slurmy/r-mashr.yml"
-#   script:
-#       "../code/trans_qtl_calling/list_trans_qtl_candidate_genes.R"
 

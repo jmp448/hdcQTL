@@ -14,9 +14,7 @@ set.seed(1234)
   
 gtf_loc <- snakemake@input[['gtf']]
 gmt_file <- snakemake@input[['gmt']]
-
 go_geneset <- snakemake@wildcards[['gs']]
-
 output_loc <- snakemake@output[['gene_set']]
 
 ## List the genes in the gene set of interest
@@ -31,23 +29,7 @@ gmt_df <- as_tibble(do.call("rbind", gmt_list2)) %>%
   unnest(genes)
 
 ## Get a mapping from HGNC to ENSG
-pull_gene_type <- function(attr) {
-  str_split(attr, "\"")[[1]][11]
-}
-
-pull_gene_name <- function(attr) {
-  str_split(attr, "\"")[[1]][15]
-}
-
-pull_gene_ensg <- function(attr) {
-  str_split(attr, "\"")[[1]][3]
-}
-
-gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"), skip=5) %>%
-  filter(seqname %in% paste0("chr", seq(1, 22))) %>%
-  filter(feature == "gene") %>%
-  mutate(hgnc=map_chr(attribute, pull_gene_name)) %>%
-  mutate(ensg=map_chr(attribute, pull_gene_ensg))
+gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute", "ensg"))
 
 gs_genes <- inner_join(select(gmt_df, genes),
                        select(gencode, c(hgnc, ensg)),
