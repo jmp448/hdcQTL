@@ -5,7 +5,7 @@
 import pandas as pd
 
 def map_tissue_to_str(t):
-    tissue_to_str_map = pd.read_csv("temp/all_gtex_tissues.txt", sep="/t")
+    tissue_to_str_map = pd.read_csv("data/gtex/tissue_to_filename_map.csv")
     s = tissue_to_str_map.loc[tissue_to_str_map['filenaming_str']==t]['tissue_str'].values[0]
     return s
 
@@ -16,7 +16,7 @@ rule list_donors_gtex_tissue:
     output:
         "data/trans_qtl_calling/gtex/donors_per_tissue/donors-{tissue}.txt"
     params:
-        tissue_string=map_tissue_to_str(wildcards.tissue)
+        tissue_string=lambda wildcards: map_tissue_to_str(wildcards.tissue)
     shell:
         """
         cut -f1,14 {input} | grep '{params.tissue_string}' | cut -d: -f2 | cut -d- -f1,2 | sort -u | tail -n +2 > {output}
