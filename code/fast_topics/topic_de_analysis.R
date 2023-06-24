@@ -13,9 +13,8 @@ require(fastTopics)
 library(SingleCellExperiment)
 library(parallel)
 
-
 # Get inputs/ outputs from snakemake
-ncores <- min(as.integer(snakemake@threads), detectCores())
+ncores <- min(as.integer(snakemake@resources[['ntasks_per_node']]), detectCores())
 sce_loc <- snakemake@input[['pseudocells_sce']]
 fasttopics_fit_loc <- snakemake@input[['fasttopics_fit']]
 outfile <- snakemake@output[['de_analysis']]

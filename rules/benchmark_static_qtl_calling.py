@@ -37,6 +37,20 @@ def list_tensorqtl_outputs(wildcards):
     return [f"results/benchmark_specificity_methods/eb_cellid/pseudobulk_tmm/basic/{c}/8pcs/tensorqtl_permutations.tsv"
             for c in pb_clusters]
 
+rule process_gtf:
+    resources:
+        mem_mb=10000,
+        time="30:00"
+    input:
+        gtf_loc="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
+    output:
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf",
+        tss_loc="data/gencode/gencode.hg38.filtered.tss.tsv",
+        bed_loc="data/gencode/gencode.hg38.filtered.tss.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/benchmarking_static_qtl_calling/gene_locs.R"
+        
 ### PSEUDOBULK PREPROCESSING
 rule pseudobulk_qc_benchmark:
     resources:

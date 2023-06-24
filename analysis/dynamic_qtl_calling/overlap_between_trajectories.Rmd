@@ -56,6 +56,25 @@ head(cm_hits_classified, n=10)
 head(neur_hits_classified, n=10)
 ```
 
+Does regressing out more cell line PCs affect this ratio?
+```{r}
+cm_emt_10 <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+cm_hits_10 <- filter(cm_emt_10, pval_adj_bh <= 0.05)
+```
+
+```{r}
+cm_hits_10_classified <- cm_hits_10 %>%
+  mutate(qtl_class=map2_chr(.x=b_g, .y=b_gi, .f=classify_dynamics, pseudotime_range=cm_pseudotime_range, switch_cutoff=2)) %>%
+  arrange(pval_adj_bh)
+```
+
+```{r}
+ggplot(count(cm_hits_10_classified, qtl_class), aes(x=qtl_class, y=n)) +
+  geom_col() + ggtitle("Cardiomyocyte Dynamic eQTLs by Type")
+```
+
+
+
 Visualize some examples
 ```{r}
 cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%

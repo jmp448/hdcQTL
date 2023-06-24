@@ -15,16 +15,6 @@ include: "rules/trans_qtl_calling.py"
 
 HTTP = HTTPRemoteProvider()
 
-rule process_gtf:
-    input:
-        gtf_loc="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
-    output:
-        gtf_loc="data/gencode/gencode.hg38.filtered.gtf",
-        tss_loc="data/gencode/gencode.hg38.filtered.tss.tsv",
-        bed_loc="data/gencode/gencode.hg38.filtered.tss.bed"
-    script:
-        "code/mashr/gene_locs.R"
-
 rule make_conda: 
     input:
         "test.tmp"

@@ -57,8 +57,8 @@ rule fast_topics:
     resources:
         mem_mb=100000,
         partition="gilad",
-        time="50:00:00"
-    threads: 40
+        time="24:00:00",
+        ntasks_per_node=28
     input:
         pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce"
     output:
@@ -72,8 +72,8 @@ rule topic_de_analysis:
     resources:
         mem_mb=100000,
         partition="gilad",
-        time="36:00:00"
-    threads: 28
+        time="36:00:00",
+        ntasks_per_node=28
     input:
         pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce",
         fasttopics_fit="results/fast_topics/fasttopics_{k}topics_fit.rds"

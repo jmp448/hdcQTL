@@ -29,7 +29,9 @@ gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "
 # 4 HGNC symbols are duplicated here - these have overlapping loci, and will be removed from our analysis
 # TBCE, MATR3, HSPA14, GGT1
 hgnc.dup <- filter(gencode, hgnc %in% names(table(gencode$hgnc)[table(gencode$hgnc)>1]))
-gencode <- gencode %>% filter(!hgnc %in% hgnc.dup$hgnc)
+gencode <- gencode %>% 
+  filter(!hgnc %in% hgnc.dup$hgnc) %>%
+  write_tsv(filtered_gtf_loc)
 
 # save a tsv file of TSS for each gene with 1-indexing
 tss.filt <- gencode %>%
