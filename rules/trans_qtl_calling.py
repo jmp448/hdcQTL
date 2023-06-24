@@ -44,7 +44,7 @@ rule list_samples_gtex_tissue:
     output:
         "data/trans_qtl_calling/gtex/samples_per_tissue/samples-{tissue}.txt"
     params:
-        tissue_string=map_tissue_to_str(wildcards.tissue)
+        tissue_string=lambda wildcards: map_tissue_to_str(wildcards.tissue)
     shell:
         """
         cut -f1,14 {input} | grep '{params.tissue_string}' | cut -d: -f2 | cut -f1 | sort -u | tail -n +2 > {output}
