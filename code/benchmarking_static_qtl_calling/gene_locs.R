@@ -24,6 +24,7 @@ gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "
   filter(feature == "gene") %>%
   mutate(type=map_chr(attribute, pull_gene_type)) %>%
   mutate(hgnc=map_chr(attribute, pull_gene_name)) %>%
+  mutate(ensg=map_chr(attribute, pull_gene_ensg)) %>%
   filter(type=="protein_coding")
 
 # 4 HGNC symbols are duplicated here - these have overlapping loci, and will be removed from our analysis

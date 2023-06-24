@@ -79,29 +79,22 @@ all_tests <- all_tests %>%
 ## Assign distance to TSS for each test
 #### Again, for simplicity we're just going to pull gene locations for a 
 # get a mapping from HGNC to ENSG
-pull_gene_type <- function(attr) {
-  # str_split(attr, "\"")[[1]][11] for the online version
-  str_split(attr, "\"")[[1]][6] # for the kenneth version
-}
+# pull_gene_type <- function(attr) {
+#   # str_split(attr, "\"")[[1]][11] for the online version
+#   str_split(attr, "\"")[[1]][6] # for the kenneth version
+# }
+# 
+# pull_gene_name <- function(attr) {
+#   # str_split(attr, "\"")[[1]][15] for the online version
+#   str_split(attr, "\"")[[1]][8] # for the kenneth version
+# }
+# 
+# pull_gene_ensg <- function(attr) {
+#   # str_split(attr, "\"")[[1]][3] for the online version
+#   str_split(attr, "\"")[[1]][2] # for the kenneth version
+# }
 
-pull_gene_name <- function(attr) {
-  # str_split(attr, "\"")[[1]][15] for the online version
-  str_split(attr, "\"")[[1]][8] # for the kenneth version
-}
-
-pull_gene_ensg <- function(attr) {
-  # str_split(attr, "\"")[[1]][3] for the online version
-  str_split(attr, "\"")[[1]][2] # for the kenneth version
-}
-
-gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"), skip=5) %>%
-  filter(seqname %in% paste0("chr", seq(1, 22))) %>%
-  filter(feature == "gene") %>%
-  mutate(type=map_chr(attribute, pull_gene_type)) %>%
-  mutate(hgnc=map_chr(attribute, pull_gene_name)) %>%
-  mutate(ensg=map_chr(attribute, pull_gene_ensg)) %>%
-  filter(type=="protein_coding") %>%
-  rowwise() %>%
+gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "type", "hgnc", "ensg")) %>%
   mutate(tss=if_else(strand=="+", start, end))
 
 all_tests <- all_tests %>%
