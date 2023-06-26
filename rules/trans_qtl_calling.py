@@ -110,9 +110,9 @@ rule tensorqtl_trans_allgenes:
         exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
     output:
-        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{tissue}.{candidate_gs}-variants.all-genes.tsv"
+        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.all-genes.tsv"
     params:
-        plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/genotypes_filtered_plink.{{tissue}}.{{gs}}"
+        plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/genotypes_filtered/plink.{tissue}.{gs}"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
@@ -130,9 +130,9 @@ rule tensorqtl_trans_pathwaygenes:
         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt",
         gs_genes="data/gene_sets/{affected_gs}.ensg.tsv"
     output:
-        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{tissue}.{candidate_gs}-variants.{affected_gs}-genes.tsv"
+        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.{affected_gs}-genes.tsv"
     params:
-        plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}"
+        plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{tissue}.{candidate_gs}"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
