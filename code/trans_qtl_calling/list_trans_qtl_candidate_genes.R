@@ -29,7 +29,7 @@ gmt_df <- as_tibble(do.call("rbind", gmt_list2)) %>%
   unnest(genes)
 
 ## Get a mapping from HGNC to ENSG
-gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute", "ensg"))
+gencode <- vroom(gtf_loc, col_select=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute", "hgnc", "ensg"))
 
 gs_genes <- inner_join(select(gmt_df, genes),
                        select(gencode, c(hgnc, ensg)),

@@ -94,7 +94,7 @@ all_tests <- all_tests %>%
 #   str_split(attr, "\"")[[1]][2] # for the kenneth version
 # }
 
-gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "type", "hgnc", "ensg")) %>%
+gencode <- vroom(gtf_loc, col_select=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "type", "hgnc", "ensg")) %>%
   mutate(tss=if_else(strand=="+", start, end))
 
 all_tests <- all_tests %>%
