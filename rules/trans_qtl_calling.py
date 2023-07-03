@@ -11,11 +11,11 @@ def map_tissue_to_str(t):
 
 def list_transeqtl_allgenes_files(wildcards):
     tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
-    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.all-genes.tsv" for t in tissues]
+    return [f"results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.all-genes.tsv" for t in tissues]
 
 def list_transeqtl_pathwaygenes_files(wildcards):
     tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
-    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.{wildcards.affected_gs}-genes.tsv" for t in tissues]
+    return [f"results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.{wildcards.affected_gs}-genes.tsv" for t in tissues]
 
 ## LIST VARIANTS AND GENES FOR TRANS EQTL CALLING
 rule list_donors_gtex_tissue:
