@@ -23,30 +23,7 @@ rsid_snpinfo_map <- rsid_snpinfo_map %>%
 all_eb_tests <- all_eb_tests %>%
   left_join(rsid_snpinfo_map, by=c("variant_id_rsid")) 
 
-# Reformat EB phenotype (gene) IDs
-pull_gene_type <- function(attr) {
-  str_split(attr, "\"")[[1]][6]
-}
-
-pull_gene_name <- function(attr) {
-  str_split(attr, "\"")[[1]][8]
-}
-
-pull_gene_ensg <- function(attr) {
-  str_split(attr, "\"")[[1]][2]
-}
-
-gencode <- vroom(gtf_loc, col_names=c("seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"), skip=5) %>%
-  filter(seqname %in% paste0("chr", seq(1, 22))) %>%
-  filter(feature == "gene") %>%
-  mutate(type=map_chr(attribute, pull_gene_type)) %>%
-  mutate(hgnc=map_chr(attribute, pull_gene_name)) %>%
-  mutate(ensg=map_chr(attribute, pull_gene_ensg)) %>%
-  filter(type=="protein_coding")
-
-hgnc.dup <- filter(gencode, hgnc %in% names(table(gencode$hgnc)[table(gencode$hgnc)>1]))
-gencode <- gencode %>% filter(!hgnc %in% hgnc.dup$hgnc)
-hgnc_ensg_dict <- dplyr::select(gencode, c(hgnc, ensg))
+hgnc_ensg_dict <- vroom(gtf_loc, col_select=c("hgnc", "ensg"))
 
 all_eb_tests <- all_eb_tests %>%
   left_join(hgnc_ensg_dict, by=c("phenotype_id_hgnc"="hgnc")) %>%

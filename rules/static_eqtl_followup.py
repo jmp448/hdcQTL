@@ -10,6 +10,31 @@ def list_sigtest_overlap_files(wildcards):
     tissues = list(pd.read_csv("temp/all_gtex_tissues.txt", names=['tissue'])['tissue'])
     return [f"results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{wildcards.npcs}/{wildcards.snpset}_variant_gene_pairs.{t}.overlap.bed" for t in tissues]
     
+rule map_rsid_to_snpinfo:
+    input:
+        vcf_all="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
+    output:
+        rsid_snpinfo_map="data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.tsv"
+    shell:
+        """
+        module load bcftools
+        bcftools query -f '%ID\t%CHROM\t%POS\t%REF\t%ALT\n' {input.vcf_all} | awk -F'\t' '{{OFS="\t"; print $1, $2"_"$3"_"$4"_"$5"_b38"}}' > {output.rsid_snpinfo_map}
+        """
+
+rule harmonize_eb_to_gtex_alltests:
+    resources:
+        mem_mb=100000
+    input:
+        all_gtex="results/static_eqtl_followup/gtex/allpairs_filtered/gtex_all_tests.txt",
+        all_eb="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/tensorqtl_nominal.all.tsv",
+        gtf="data/gencode/gencode.hg38.filtered.gtf",
+        rsid_map="data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.tsv"
+    output:
+        harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/harmonize_ebs_to_gtex_all.R"
+
 rule tensorqtl_summary_to_bed_alltests:
     resources:
         mem_mb=10000,
@@ -37,7 +62,33 @@ rule tensorqtl_summary_to_bed_allsigtests:
     conda: "../slurmy/r-mashr.yml"
     script:
         "../code/static_eqtl_followup/tensorqtl_summary_to_bed_allsigtests.R"
-        
+
+rule mash_to_bed_tophits:
+    resources:
+        mem_mb=10000,
+        time="05:00"
+    input:
+        mash_model="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash_fitted_model.tophits.rds",
+        harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
+    output:
+        bedfile="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash-tophits_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/mash_to_bed_allsigtests.R"
+    
+rule mash_to_bed_allsigtests:
+    resources:
+        mem_mb=50000,
+        time="15:00"
+    input:
+        mash_model="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash_fitted_model.full.rds",
+        harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
+    output:
+        bedfile="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/mash_to_bed_allsigtests.R"
+
 rule list_background_snps_eb_hits_all:
     resources:
         mem_mb=50000,
@@ -156,31 +207,6 @@ rule filter_and_tidy_gtex_sigtests:
         """
         awk -F"\t" 'BEGIN {{OFS="\t"}} NR == 1 {{print; next}} {{gsub(/\\..*/,"",$2); if (sqrt($3^2) <= 50000) print}}' {input} > {output}
         """
-
-rule map_rsid_to_snpinfo:
-    input:
-        vcf_all="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz"
-    output:
-        rsid_snpinfo_map="data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.tsv"
-    shell:
-        """
-        module load bcftools
-        bcftools query -f '%ID\t%CHROM\t%POS\t%REF\t%ALT\n' {input.vcf_all} | awk -F'\t' '{{OFS="\t"; print $1, $2"_"$3"_"$4"_"$5"_b38"}}' > {output.rsid_snpinfo_map}
-        """
-
-rule harmonize_eb_to_gtex_alltests:
-    resources:
-        mem_mb=100000
-    input:
-        all_gtex="results/static_eqtl_followup/gtex/allpairs_filtered/gtex_all_tests.txt",
-        all_eb="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/tensorqtl_nominal.all.tsv",
-        gtf="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf",
-        rsid_map="data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.tsv"
-    output:
-        harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
-    conda: "../slurmy/r-mashr.yml"
-    script:
-        "../code/static_eqtl_followup/harmonize_ebs_to_gtex_all.R"
 
 rule list_variant_ids_for_gtex:
     input:

@@ -48,7 +48,7 @@ timing <- system.time(
 # SAVE RESULTS
 # ------------
 cat("Saving results.\n")
-save(list(fit = fit, fit_multinom=fit_multinom, counts = counts, dfa_out = dfa_out),
+save(fit, fit_multinom, counts, dfa_out,
      file = outfile)
 
 # SESSION INFO

@@ -32,7 +32,9 @@ rule pseudocell_aggregation:
         adata_raw="data/single_cell_objects/highpass/eb_raw.h5ad",
         pseudocell_mapping="data/fast_topics/cell_pseudocell_mapping.tsv"
     output:
-        adata_pseudocell="data/single_cell_objects/eb_pseudocells_raw.h5ad"
+        adata_pseudocell="data/single_cell_objects/eb_pseudocells_raw.h5ad",
+        adata_pseudocell_names = "data/fast_topics/eb_pseudocells_raw.pseudocell_names.tsv",
+        adata_gene_names = "data/fast_topics/eb_pseudocells_raw.gene_names.tsv"
     conda: 
       "../slurmy/scvi.yml"
     script:
@@ -60,7 +62,9 @@ rule fast_topics:
         time="24:00:00",
         ntasks_per_node=28
     input:
-        pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce"
+        pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce",
+        adata_pseudocell_names = "data/fast_topics/eb_pseudocells_raw.pseudocell_names.tsv",
+        adata_gene_names = "data/fast_topics/eb_pseudocells_raw.gene_names.tsv"
     output:
         fasttopics_fit="results/fast_topics/fasttopics_{k}topics_fit.rds"
     conda:
@@ -83,3 +87,16 @@ rule topic_de_analysis:
         "../slurmy/r-fasttopics.yml"
     script:
         "../code/fast_topics/topic_de_analysis.R"
+
+rule get_context_loading_file:
+    resources:
+        mem_mb=10000,
+        partition="gilad"
+    input:
+        de_result="results/fast_topics/fasttopics_{k}topics_de_analysis.Rdata"
+    output:
+        context_loading="results/fast_topics/fasttopics_{k}topics_loadings.tsv"
+    conda:
+        "../slurmy/r-fasttopics.yml"
+    script:
+        "../code/fast_topics/get_loadings.R"

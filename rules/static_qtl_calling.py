@@ -2,8 +2,9 @@
 #TODO move all finalized code to the static_qtl_calling folder
 #TODO address discrepancy with elorbany data getting SCT counts for dynamic, RNA counts for static
 #TODO look into whether identity matrix should actually be included with mash 
-#TODO include sex as a covariate everywhere
 #TODO use proper variant and phenotype ID format
+#TODO find a better way to track files through pseudobulk aggregation and qc
+#TODO find more stable software solution than installing flashier from github for mash https://github.com/willwerscheid/flashier
 
 import numpy as np
 import pandas as pd
@@ -14,25 +15,25 @@ def list_tensorqtl_nominal_outputs(wildcards):
     samples = list(pd.read_csv(pb_file, sep='\t', nrows=0).columns)[1:]
     celltypes = list(np.unique([s.split("_")[1] for s in samples]))
     chromosomes = list(range(1, 23))
-    return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{x[0]}/tensorqtl.cis_qtl_pairs.chr{x[1]}.parquet" for x in product(celltypes, chromosomes)]
+    return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{x[0]}/{wildcards.npcs}pcs/tensorqtl.cis_qtl_pairs.chr{x[1]}.parquet" for x in product(celltypes, chromosomes)]
 
 def list_tensorqtl_outputs(wildcards):
     pb_file = f'data/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/{wildcards.annotation}.pseudobulk_tmm.tsv'
     samples = list(pd.read_csv(pb_file, sep='\t', nrows=0).columns)[1:]
     pb_clusters = list(np.unique([s.split("_")[1] for s in samples]))
-    return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{c}/8pcs/tensorqtl_permutations.tsv" for c in pb_clusters]
+    return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{c}/{wildcards.npcs}pcs/tensorqtl_permutations.tsv" for c in pb_clusters]
 
 def list_tensorqtl_independent_outputs(wildcards):
     pb_file = f'data/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/{wildcards.annotation}.pseudobulk_tmm.tsv'
     samples = list(pd.read_csv(pb_file, sep='\t', nrows=0).columns)[1:]
     pb_clusters = list(np.unique([s.split("_")[1] for s in samples]))
-    return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{c}/8pcs/tensorqtl_independent.tsv" for c in pb_clusters]
+    return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{c}/{wildcards.npcs}pcs/tensorqtl_independent.tsv" for c in pb_clusters]
 
 ### PSEUDOBULK PREPROCESSING
 rule pseudobulk_qc:
     resources:
-        mem_mb=250000,
-        time="1:30:00"
+        mem_mb=10000,
+        time="30:00"
     input:
         pseudobulk="data/static_qtl_calling/{annotation}/pseudobulk_tmm/{annotation}.pseudobulk_tmm.tsv",
         sample_summary="data/static_qtl_calling/{annotation}/pseudobulk_tmm/sample_summary.tsv"
@@ -47,11 +48,12 @@ rule pseudobulk_qc:
         
 rule pseudobulk_agg:
     resources:
-        mem_mb=250000,
-        time="1:30:00"
+        mem_mb=10000,
+        time="30:00"
     input:
         pseudobulk="data/static_qtl_calling/{annotation}/pseudobulk_tmm/{annotation}.pseudobulk_tmm.tsv",
         sample_summary_manual="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/sample_summary_manual.tsv",
+        metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv",
         celltypes="data/static_qtl_calling/{annotation}/pseudobulk_tmm/{annotation}.pseudobulk_tmm.tsv"
     output:
         all_expression="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/pseudobulk_all.tsv"
@@ -175,7 +177,7 @@ rule plink_expression_reformat:
 ### TENSORQTL RULES
 rule tensorqtl_nominal:
     resources:
-        mem_mb=100000,
+        mem_mb=10000,
         partition="gpu2",
         gres="gpu:1",
         nodes=1
@@ -184,10 +186,10 @@ rule tensorqtl_nominal:
         exp="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/expression.bed.gz",
         cov="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/covariates.tsv"
     output:
-        expand("results/static_qtl_calling/{{annotation}}/pseudobulk_tmm/basic/{{type}}/tensorqtl.cis_qtl_pairs.chr{i}.parquet", i=range(1, 23))
+        expand("results/static_qtl_calling/{{annotation}}/pseudobulk_tmm/basic/{{type}}/{{npcs}}pcs/tensorqtl.cis_qtl_pairs.chr{i}.parquet", i=range(1, 23))
     params:
         plink_prefix="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/genotypes_filtered_plink",
-        output_prefix="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/tensorqtl"
+        output_prefix="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}pcs/tensorqtl"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
@@ -195,7 +197,7 @@ rule tensorqtl_nominal:
 
 rule tensorqtl_merge_nominal:
     resources:
-        mem_mb=200000,
+        mem_mb=25000,
         time="30:00"
     input:
         unpack(list_tensorqtl_nominal_outputs)
@@ -210,7 +212,7 @@ rule tensorqtl_merge_nominal:
         
 rule tensorqtl_permutations:
     resources:
-        mem_mb=100000,
+        mem_mb=10000,
         partition="gpu2",
         gres="gpu:1",
         nodes=1,
@@ -230,7 +232,7 @@ rule tensorqtl_permutations:
 
 rule tensorqtl_merge:
     resources:
-        mem_mb=100000,
+        mem_mb=25000,
         time="30:00"
     input:
         unpack(list_tensorqtl_outputs)
@@ -257,7 +259,7 @@ rule tensorqtl_fdr:
 
 rule tensorqtl_independent:
     resources:
-        mem_mb=100000,
+        mem_mb=10000,
         partition="gpu2",
         gres="gpu:1",
         nodes=1,
@@ -278,7 +280,7 @@ rule tensorqtl_independent:
         
 rule tensorqtl_merge_independent:
     resources:
-        mem_mb=100000,
+        mem_mb=25000,
         time="30:00"
     input:
         unpack(list_tensorqtl_independent_outputs)
@@ -302,12 +304,12 @@ rule list_significant_variant_gene_pairs:
         "../slurmy/r-mashr.yml"
     script:
         "../code/static_qtl_calling/list_significant_tests.R"
-
+        
 ### MASH
 rule mash_prep:
     resources:
-        mem_mb=250000,
-        time="06:00:00"
+        mem_mb=20000,
+        time="01:00:00"
     input:
         beta_df="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/tensorqtl_nominal.betas.tsv",
         se_df="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/tensorqtl_nominal.standard_errors.tsv",
@@ -323,8 +325,8 @@ rule mash_prep:
         
 rule mash:
     resources:
-        mem_mb=250000,
-        time="05:00:00"
+        mem_mb=10000,
+        time="01:00:00"
     input:
         mash_inputs="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_inputs.Rdata"
     output:
@@ -334,6 +336,33 @@ rule mash:
         "../slurmy/r-mashr.yml"
     script:
         "../code/mash/mash.R"
+
+rule mash_full:
+    resources:
+        mem_mb=100000,
+        time="06:00:00"
+    input:
+        mash_inputs="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_inputs.Rdata",
+        trained_model="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_trained_model.rds"
+    output:
+        full_fitted_model="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_fitted_model.full.rds"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/mash/mash_full.R"
+
+rule list_significant_variant_gene_pairs_mash:
+    resources:
+        mem_mb=100000,
+        time="30:00"
+    input:
+        full_fitted_model="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_fitted_model.full.rds"
+    output:
+        hit_list="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash-signif_variant_gene_pairs.tsv"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_qtl_calling/list_significant_tests_mash.R"
 
 rule tidy_mash_hits:
     resources:

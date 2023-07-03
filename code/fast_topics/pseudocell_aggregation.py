@@ -19,6 +19,8 @@ used in generate pseudobulk expression.
 adata_raw_loc = snakemake.input['adata_raw']
 pseudocell_mapping_loc = snakemake.input['pseudocell_mapping']
 adata_pseudocell_loc = snakemake.output['adata_pseudocell']
+pseudocell_names = snakemake.output['adata_pseudocell_names']
+gene_names = snakemake.output['adata_gene_names']
 
 adata = sc.read_h5ad(adata_raw_loc)
 pseudocell_mapping = pd.read_csv(pseudocell_mapping_loc, sep="\t")
@@ -48,6 +50,10 @@ assert np.array_equal(pseudocell_obs.index, adata.obs['pseudocell'].astype("cate
 adata_pseudocell = anndata.AnnData(X=pseudocell_exp, dtype=int, obs=pseudocell_obs, var=pseudocell_var)
                       
 adata_pseudocell.write_h5ad(adata_pseudocell_loc)
+
+# need to save cell and gene names to a tsv since they get disrupted during file conversion
+pd.DataFrame(adata_pseudocell.obs_names).to_csv(pseudocell_names, sep='\t', header=False, index=False)
+pd.DataFrame(adata_pseudocell.var_names).to_csv(gene_names, sep='\t', header=False, index=False)
 
 # def generate_sum_cluster_pseudobulk_expression(adata, ordered_pseudobulk_samples, cluster_assignments):
 #     # the adata should be counts data

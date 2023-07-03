@@ -6,40 +6,33 @@ from numpy import ones
 from numpy.linalg import cholesky
 from pandas_plink import read_plink1_bin
 from limix.qc import quantile_gaussianize
-
+from sklearn.preprocessing import StandardScaler 
 from cellregmap import run_interaction
 
-arg = {}
+# INPUT AND OUTPUT
+# Input: gene, test_eqtl_file, sample_mapping_file, genotype_file, kinship_file, phenotype_file, cell_context_file
+
+#covariates_file = snakemake.input['covariate_df']
+test_eqtl_file = snakemake.input['test_eqtl_file']
+sample_mapping_file = snakemake.input['sample_mapping_file']
+genotype_file = snakemake.input['genotype_file']
+kinship_file = snakemake.input['kinship_file']
+phenotype_file = snakemake.input['exp']
+cell_context_file = snakemake.input['cell_context_file']
+
+output_loc = snakemake.params['output_dir']
 
 # gene index
-# if isinstance(sys.argv[1], int): 
-#     arg["i"] = sys.argv[1] - 1
-# else:
-#     arg["i"] = int(sys.argv[1]) - 1
-# assert(isinstance( arg["i"], int))
-
-if isinstance(snakemake.params.param, int): 
-    arg["i"] = snakemake.params.param
+arg = {}
+if isinstance(snakemake.params.gene, int): 
+    arg["i"] = snakemake.params.gene
 else:
-    arg["i"] = int(snakemake.params.param)
+    arg["i"] = int(snakemake.params.gene)
 assert(isinstance( arg["i"], int))
 
-# input_files_dir=sys.argv[2]
-# folder = sys.argv[3]
+# input_files_dir=snakemake.params.input_dir
+# folder = snakemake.params.output_dir
 
-input_files_dir=snakemake.params.input_dir
-folder = snakemake.params.output_dir
-
-# 0 - test_eqtl_file path, 1 - genotype plink file
-snakemake_input = snakemake.input
-# snakemake_output = snakemake.output
-
-# # input files directory
-# input_files_dir = snakemake_input[0]
-# #Output folder
-# folder = snakemake_output[0]
-
-tests_loc = snakemake.input['tests']
 
 # ############################################
 # ############### Gene file ##################
@@ -48,8 +41,7 @@ tests_loc = snakemake.input['tests']
 
 ######################################
 #####Filter on specific gene-SNP pairs
-test_eqtl = pd.read_csv(tests_loc, sep="\t", index_col = False)
-
+test_eqtl = pd.read_csv(test_eqtl_file, sep="\t", index_col = False)
 # all candidate genes for interaction test
 genes = test_eqtl['gene'].unique()
 
@@ -58,22 +50,22 @@ gene_name = genes[arg["i"]]
 # chromosome of the gene
 chrm = test_eqtl.loc[test_eqtl['gene'] == gene_name, 'chrom'].values[0]
 
-outfilename = "{}{}_{}.tsv".format(folder, chrm,gene_name)
+outfilename = "{}{}_{}.tsv".format(output_loc, chrm,gene_name)
 print(outfilename)
 
-if os.path.exists(outfilename):
-    print("File already exists, exiting")
-    sys.exit()
+# if os.path.exists(outfilename):
+#     print("File already exists, exiting")
+#     sys.exit()
 
 
 ############################################
 ########## Sample mapping file #############
 ############################################
 
-## this file will map cells to donors 
-## it will also only include donors we have single-cell data for (a subset of all of HipSci donors)
-sample_mapping_file = input_files_dir+"sample_mapping_file.csv"
-sample_mapping = pd.read_csv(sample_mapping_file, sep = "\t")
+## this file will map pseudocells to donors 
+## it will also only include donors we have single-cell data for
+sample_mapping = pd.read_csv(sample_mapping_file, sep = "\t",header=0,
+                            names=["pseudo_cell","donor_id"])
 
 ## donor_id are donor IDs, as found in the genotype matrix (G) and GRM covariance (K)
 ## cell are cell IDs, as found in the scRNA-seq phenotype vector (y) and cell context covariance (C)
@@ -87,7 +79,7 @@ print("Number of unique donors: {}".format(len(donors)))
 ############################################
 
 ## read in GRM (genotype relationship matrix; kinship matrix)
-kinship_file=input_files_dir+"kinship_file.csv"
+#kinship_file=input_files_dir+"kinship_file.csv"
 K = pd.read_csv(kinship_file, sep = "\t", index_col = 0)
 assert all(K.columns == K.index) #symmetric matrix, donors x donors
 
@@ -123,10 +115,8 @@ assert all(hK_expanded.sample.values == sample_mapping["donor_id"].values)
 ############ Phenotypes #############
 #####################################
 
-# Phenotype (single-cell expression)
-phenotype_file = input_files_dir+"phenotype_binary.nc"
+# Phenotype (pseudocell expression)
 phenotype = xr.open_dataarray(phenotype_file, autoclose=True)
-
 assert all(phenotype.pseudo_cell.values == sample_mapping["pseudo_cell"].values)
 
 ######################################
@@ -135,17 +125,19 @@ assert all(phenotype.pseudo_cell.values == sample_mapping["pseudo_cell"].values)
 
 # cellular environments
 # cells by FastTopic loadings (10)
-C_file = input_files_dir+"k10_topic_byCell.csv"
-C = pd.read_csv(C_file, index_col = 0, sep = "\t")
+#C_file = input_files_dir+"k10_topic_byCell.csv"
+C = pd.read_csv(cell_context_file, index_col = 0, sep = "\t")
 
 # Select only k1 (Axoneme assembly), k2(embryonic skeletal dev), k3 (innate system dev), k4 (autonomic nervous system dev), k6 (neruon fate specification), k9 (mitosis) topics for context
 C = C[['k1','k2', 'k3','k4','k6', 'k9']]
 
-C = xr.DataArray(C.values, dims=["cell", "topic"], coords={"cell": C.index.values, "topic": C.columns.values})
-assert all(C.cell.values == sample_mapping["pseudo_cell"].values)
+C = xr.DataArray(C.values, dims=["pseudo_cell", "topic"], coords={"pseudo_cell": C.index.values, "topic": C.columns.values})
+assert all(C.pseudo_cell.values == sample_mapping["pseudo_cell"].values)
 
-# quantile normalise cell contexts
-C = quantile_gaussianize(C)
+# normalize cell contexts
+scaler = StandardScaler()
+scaler.fit(C.values)
+C.values = scaler.transform(C.values)
 
 ######################################
 ############ Covariates ##############
@@ -159,8 +151,8 @@ W = ones((n_cell, 1))
 #####################################
 
 ## read in genotype file (plink format)
-plink_file = snakemake_input[1]
-G = read_plink1_bin(plink_file)
+#plink_file = snakemake_input[1]
+G = read_plink1_bin(genotype_file)
 # Select the genotype from the input chromosome
 G_sel = G.where(G.chrom == chrm, drop=True)
 

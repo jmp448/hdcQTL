@@ -22,7 +22,8 @@ sample_summary_loc <- as.character(snakemake@input[["sample_summary_manual"]])
 sample_metadata_loc <- as.character(snakemake@input[["metadata"]])
 table_prefix <- snakemake@params[['table_prefix']]
 plot_prefix <- snakemake@params[['fig_prefix']]
-all_expression_loc <- snakemake@output[["all_expression"]]
+raw_expression_loc <- snakemake@output[["raw_expression"]]
+norm_expression_loc <- snakemake@output[["norm_expression"]]
 
 # Inverse normal function
 invnorm_transform <- function(x) {
@@ -59,7 +60,7 @@ samples <- colnames(expression.mat)
 expression.mat <- expression.mat[gene_keepers,]
 
 expression_raw <- as_tibble(expression.mat, rownames="gene") %>%
-  write_tsv(all_expression_loc)
+  write_tsv(raw_expression_loc)
 
 # expression normalization
 # 1. TMM normalization to get log TMM-normalized counts
@@ -70,7 +71,7 @@ expression.mat <- apply(expression.mat, 1, invnorm_transform) %>% t
 rownames(expression.mat) <- gene_keepers
 colnames(expression.mat) <- samples
 expression <- as_tibble(expression.mat, rownames="gene") %>%
-  write_tsv(paste0(table_prefix,"expression.tsv"))
+  write_tsv(norm_expression_loc)
 
 # expression PCs - produces a scree plot and a PC biplot, and saves the covariates
 pcomp <- regular.pca(expression)

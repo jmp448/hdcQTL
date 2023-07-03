@@ -18,6 +18,7 @@ source("/project2/gilad/jpopp/sc-dynamic-eqtl/code/cell_line_pca.R")
 # Read in the input files from Snakefile
 pseudobulk_loc <- snakemake@input[["pseudobulk"]]
 sample_summary_loc <- as.character(snakemake@input[["sample_summary_manual"]])
+sample_metadata_loc <- as.character(snakemake@input[["metadata"]])
 celltypes_loc <- as.character(snakemake@input[["celltypes"]])
 table_prefix <- snakemake@params[['table_prefix']]
 plot_prefix <- snakemake@params[['fig_prefix']]
@@ -33,6 +34,12 @@ cell.types <- read_tsv(celltypes_loc, n_max=0, col_select=-c(1)) %>%
 invnorm_transform <- function(x) {
   qqnorm(x, plot.it=F)$x
 }
+
+# Load metadata
+metadata <- read_csv(sample_metadata_loc) %>%
+  select(Line.True, sex) %>%
+  mutate(ind=paste0("NA", as.character(Line.True)), .keep="unused") %>%
+  distinct()
 
 # Read in pseudobulk data & ensure it's sorted by gene and sample
 pseudobulk <- read_tsv(pseudobulk_loc) %>% 
@@ -93,8 +100,12 @@ for (d in c(cell.types)) {
           las=2, xlab="Individual", ylab="Number of Cells")
   dev.off()
   
-  covariates <- pcomp$u %>% 
-    column_to_rownames("sample") %>% t %>% as_tibble(rownames="covariate") %>%
+  covariates <- pcomp$u %>%
+    left_join(metadata, by=c("sample"="ind")) %>%
+    relocate(sex, .after=sample) %>% 
+    mutate(sex = if_else(sex=="F", 0, 1)) %>%
+    column_to_rownames("sample") %>% t %>% 
+    as_tibble(rownames="covariate") %>%
     write_tsv(paste0(table_prefix, "/", d, "/covariates.tsv"))
   
   # NA prepended to sample names in accordance with genotype data

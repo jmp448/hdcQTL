@@ -48,7 +48,8 @@ rule pseudobulk_agg_dynamic:
         metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv",
         sample_summary_manual="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/sample_summary_manual.tsv"
     output:
-        all_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudobulk_all.tsv",
+        raw_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudobulk_raw.tsv",
+        norm_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/expression.tsv",
         covariates="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/covariates.tsv",
         pseudotime="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudotime.tsv"
     params:
@@ -98,7 +99,7 @@ rule tensorqtl_interaction_prep:
         genotypes=expand("data/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/genotypes_filtered_plink.{out}", out=['bed', 'bim', 'fam']),
         exp="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/expression.bed.gz",
         cov="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/covariates.tsv",
-        metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv"
+        pseudotime="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/pseudotime.tsv"
     output:
         covariate_df="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/covariate_df.tsv",
         genotype_df="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{n_cl_pcs}clpcs/genotype_df.tsv",

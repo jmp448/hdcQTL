@@ -29,6 +29,8 @@ library(parallel)
 # Get inputs/ outputs from snakemake
 ncores <- min(as.integer(snakemake@threads), detectCores())
 sce_loc <- snakemake@input[['pseudocells_sce']]
+pseudocell_names_loc <- snakemake@input[['adata_pseudocell_names']]
+gene_names_loc <- snakemake@input[['adata_gene_names']]
 k <- as.integer(snakemake@wildcards[['k']])
 fasttopics_fit_loc <- snakemake@output[['fasttopics_fit']]
 
@@ -41,6 +43,9 @@ set.seed(1)
 cat("Loading data.\n")
 pseudocell_exp <- readRDS(sce_loc)
 counts <- t(as(assay(pseudocell_exp), "sparseMatrix")) # cells x genes after transpose
+rownames(counts) <- read_tsv(pseudocell_names_loc, col_names="pseudocell")$pseudocell
+colnames(counts) <- read_tsv(gene_names_loc, col_names="gene")$gene
+
 cat(sprintf("Loaded %d x %d counts matrix.\n", nrow(counts), ncol(counts)))
 
 # PRE-FIT POISSON NON-NEGATIVE MATRIX FACTORIZATION

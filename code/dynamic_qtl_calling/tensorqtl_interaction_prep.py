@@ -9,6 +9,7 @@ from sklearn import preprocessing
 # define paths to data
 expression_bed = snakemake.input['exp']
 covariates_file = snakemake.input['cov']
+pseudotime_file = snakemake.input['pseudotime']
 plink_prefix_path = snakemake.params['plink_prefix']
 covariate_output_file = snakemake.output['covariate_df']
 genotype_output_file = snakemake.output['genotype_df']
@@ -24,7 +25,7 @@ if not os.path.exists(output_loc.rsplit('/', 1)[0]):
 phenotype_df, phenotype_pos_df = tensorqtl.read_phenotype_bed(expression_bed)
 
 # Load and wrangle cell line PC covariates
-cell_line_pc_df = pd.read_csv(covariates_file, sep='\t', usecols=range(n_clpcs + 2)) #+2 for one-indexing, and to additionally include sex
+cell_line_pc_df = pd.read_csv(covariates_file, sep='\t', usecols=range(n_clpcs + 2)) #0 is ind, 1 is sex, 2:n_clpcs+1 are clpcs
 
 cell_line_pc_long = pd.melt(cell_line_pc_df, id_vars=['ind'], var_name='covariate', value_name='value')
 cell_line_pc_long = cell_line_pc_long.astype({'covariate': 'string', 'ind': 'string'})
@@ -34,6 +35,13 @@ sample_map['ind'] = sample_map['sample'].str.slice(0, 5)
 
 covariate_map = pd.merge(cell_line_pc_long, sample_map, on='ind', how='right').drop(columns='ind')
 covariates_df = covariate_map.pivot(index='sample', columns='covariate', values='value')
+
+# Add interaction terms between cell line PCs and pseudotime
+pseudotime = pd.read_csv(pseudotime_file, sep='\t').set_index('ind_type')
+assert pseudotime.index.equals(covariates_df.index)
+
+for k in range(1, n_clpcs+1):
+  covariates_df['CLPC_' + str(k) + '_pseudotime'] = covariates_df['CLPC_' + str(k)] * pseudotime['pseudotime']
 
 # Load and wrangle genotype files
 pr = genotypeio.PlinkReader(plink_prefix_path)

@@ -44,6 +44,11 @@ p2z = function(pval, Bhat) {
 z.adj = p2z(2 * pt(-abs(beta.hat/se.hat), degf.hat), beta.hat)
 se.hat = beta.hat / z.adj
 
+# Subset to tests conducted in at least 5 contexts, with same missingness between contexts
+same_missingness = rowSums(is.na(beta.hat) != is.na(se.hat)) == 0
+atleast5 <- rowSums(!is.na(beta.hat) & !is.na(se.hat)) >= 5
+data.full = mash_set_data(beta.hat[atleast5 & same_missingness,], se.hat[atleast5 & same_missingness,])
+
 # Find the strongest test per gene
 strongest_context_per_test <- tibble(gv=rownames(z.adj), 
                           max_value=apply(abs(z.adj), 1, max, na.rm=T),
@@ -94,6 +99,7 @@ Vhat = V.em.full$V
 # data.random = mash_set_data(beta.hat[random.hits,], se.hat[random.hits,], V=Vhat, df=degf.hat[random.hits,])
 # data.strong = mash_set_data(beta.hat[top.hits,], se.hat[top.hits,], V=Vhat, df=degf.hat[top.hits,])
 
+data.full = mash_update_data(data.full, V=Vhat)
 data.strong = mash_update_data(data.strong, V=Vhat)
 data.random = mash_update_data(data.random, V=Vhat)
 data.strong.nonmissing = mash_update_data(data.strong.nonmissing, V=Vhat)
@@ -107,6 +113,6 @@ U.flash = cov_flash(data.strong.nonmissing, factors="nonneg", remove_singleton=T
 # fit mash model
 U.c = cov_canonical(data.random, cov_methods = c("singletons", "equal_effects"))
 
-save(data.temp, data.random, data.strong, data.strong.nonmissing, 
+save(data.full, data.temp, data.random, data.strong, data.strong.nonmissing, 
      strongest_test_per_gene, Vhat, V.em.full, U.flash, U.c, 
      file=mash_input_data_loc)

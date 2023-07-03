@@ -1,0 +1,147 @@
+---
+title: "Cell-ID Evaluation (EB Side)"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(Matrix.utils)
+library(fgsea)
+library(susieR)
+library(pathways)
+library(vroom)
+library(gseasusie)
+library(nullranges)
+set.seed(1)
+```
+
+```{r}
+eb_sighits_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.tsv"
+eb_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.full_gtex_overlap.bed"
+gtf_loc <- "/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filtered.gtf"
+```
+
+Load the genes with and without eQTL overlap in GTEx
+```{r}
+gtex_overlap <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+eb_all <- vroom(eb_sighits_loc)
+
+overlap_egenes <- unique(gtex_overlap$EB_HGNC)
+all_egenes <- unique(eb_all$EB_HGNC)
+novel_egenes <- setdiff(all_egenes, overlap_egenes)
+```
+
+QTL overlap numbers 
+54780 of 84864 tests (65% overlap) - background is ~53%
+3522 of 5587 (63% overlap)
+Genes show similar enrichments
+
+Wrangle GO BP gene sets
+```{r}
+gmt_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
+
+gmt_lines <- readLines(gmt_file)
+
+gmt_list <- lapply(gmt_lines, function(x) unlist(strsplit(x, "\t")))
+gmt_list2 <- lapply(gmt_list, function(x) list(x[1], x[2], x[3:length(x)]))
+
+gmt_df <- as_tibble(do.call("rbind", gmt_list2)) %>%
+  mutate(across(V1:V2, unlist)) %>%
+  dplyr::rename(geneset=V1, link=V2, genes=V3)
+
+gmt_mat <- gmt_df %>%
+  select(-c(link)) %>%
+  unnest(genes) %>%
+  filter(genes %in% all_egenes) %>%
+  pivot_wider(names_from = genes, values_from = genes, values_fn = length, values_fill = 0) %>%
+  column_to_rownames("geneset")
+
+# subset to genesets with between 10 and 500 genes
+valid_genesets <- (10 <= rowSums(gmt_mat)) & (rowSums(gmt_mat) < 500)
+gmt_mat <- t(as.matrix(gmt_mat[which(valid_genesets),]))
+```
+
+# GSEA
+### Pathway Analysis
+```{r}
+is_novel <- !rownames(gmt_mat) %in% overlap_egenes
+logistic.fit <- gseasusie::fit_logistic_susie(X=gmt_mat, y=is_novel, L=5)
+ora <- gseasusie::fit_ora(X=gmt_mat, y=is_novel)
+
+if (!is.null(logistic.fit$sets$cs)) {
+  cs <- pivot_longer(as_tibble(logistic.fit$sets$cs), everything(), names_to="component", values_to="index")
+} else {
+  cs <- tibble(component=character(), index=numeric())
+}
+```
+Look at enrichment of the other genes
+```{r}
+is_discovered <- rownames(gmt_mat) %in% overlap_egenes
+ora.overlap <- gseasusie::fit_ora(X=gmt_mat, y=is_discovered)
+```
+
+The connective tissue development enrichment is exciting, see which cell types that came from
+```{r}
+connective_tissue_genes <- rownames(gmt_mat)[which(gmt_mat[,"GOBP_CONNECTIVE_TISSUE_DEVELOPMENT"]==1)]
+novel_egenes_connective_tissue <- intersect(connective_tissue_genes, setdiff(all_egenes, overlap_egenes))
+
+novel_connective_tissue_qtls <- filter(eb_all, phenotype_id %in% novel_egenes_connective_tissue)
+```
+
+How about tissue development?
+```{r}
+tissue_dev_genes <- rownames(gmt_mat)[which(gmt_mat[,"GOBP_TISSUE_DEVELOPMENT"]==1)]
+novel_egenes_tissue_dev <- intersect(tissue_dev_genes, setdiff(all_egenes, overlap_egenes))
+
+novel_tissue_dev_qtls <- filter(eb_all, phenotype_id %in% novel_egenes_tissue_dev)
+```
+
+## Does this hold up when comparing to a background set?
+```{r}
+matched_hits_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif-matched_variant_gene_pairs.bed"
+matched_hits_overlap_loc <- "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/signif-matched_variant_gene_pairs.full_gtex_overlap.bed"
+
+matched_background_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/background-matched_variant_gene_pairs.bed"
+matched_background_overlap_loc <- "results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/background-matched_variant_gene_pairs.full_gtex_overlap.bed"
+
+matched_hits_overlap <- vroom(matched_hits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+hits_all <- vroom(matched_hits_loc)
+
+matched_background_overlap <- vroom(matched_background_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+background_all <- vroom(matched_background_loc)
+```
+
+Yes, it does hold up. 85% (24987 of 29466) of our EB eQTLs show up as an eQTL somewhere in GTEx, 
+compared to 54% (16012 of 29466) of SNP-gene pairs matched for MAF and distance to TSS.
+
+And we can assess whether this set was appropriately matched
+```{r}
+matcher <- readRDS("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif-hits-matcher.rds")
+plotCovariate(matcher)
+plotCovariate(matcher, "dist2tss")
+```
+
+## Overlap with trans-eQTLs
+First, we need our translator for between EB and GTEx
+```{r}
+translator <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/eb_gtex_harmonized_tests.txt")
+
+eb_all_harmonized <- eb_all %>%
+  dplyr::rename(phenotype_id_hgnc=phenotype_id, variant_id_rsid=variant_id) %>%
+  left_join(translator, by=c("phenotype_id_hgnc", "variant_id_rsid"))
+```
+
+```{r}
+gtex_trans <- vroom("/project2/gilad/jpopp/GTEx_Analysis_v8_eQTL/all_tissues.v8.trans_eQTL_associations.txt") %>%
+  mutate(phenotype_id_ensg=str_extract(gene_id, "[^.]+"), .keep="unused") 
+
+eb_trans_overlap <- inner_join(eb_all_harmonized, gtex_trans, by=c("phenotype_id_ensg", "variant_id")) # no overlap
+```
+There's no overlap between the 162 GTEx genome-wide trans eQTLs and the eQTLs we discovered in our EBs
+

@@ -16,7 +16,7 @@ cis_df_loc = snakemake.output['cis_df']
 
 # load phenotypes and covariates
 phenotype_df, phenotype_pos_df = tensorqtl.read_phenotype_bed(expression_bed)
-covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0, nrows=int(npcs)).T
+covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0, nrows=int(npcs)+1).T
 
 # PLINK reader for genotypes
 pr = genotypeio.PlinkReader(plink_prefix_path)

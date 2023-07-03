@@ -9,6 +9,14 @@ def map_tissue_to_str(t):
     s = tissue_to_str_map.loc[tissue_to_str_map['filenaming_str']==t]['tissue_str'].values[0]
     return s
 
+def list_transeqtl_allgenes_files(wildcards):
+    tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
+    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.all-genes.tsv" for t in tissues]
+
+def list_transeqtl_pathwaygenes_files(wildcards):
+    tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
+    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.{wildcards.affected_gs}-genes.tsv" for t in tissues]
+
 ## LIST VARIANTS AND GENES FOR TRANS EQTL CALLING
 rule list_donors_gtex_tissue:
     input:
@@ -116,6 +124,21 @@ rule tensorqtl_trans_allgenes:
     script:
         "../code/trans_qtl_calling/trans_qtl_calling_allgenes.py"
         
+rule merge_trans_allgenes:
+    resources:
+        mem_mb=200000,
+        time="30:00"
+    input:
+        unpack(list_transeqtl_allgenes_files)
+    output:
+        "temp/gotta_do_merge.tsv"
+        #"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/all-tissues.{wildcards.candidate_gs}-variants.all-genes.tsv"
+    shell:
+        """
+        # Combine input files into a single file
+        echo `gotta do this` > {output}
+        """
+
 rule tensorqtl_trans_pathwaygenes:
     resources:
         mem_mb=100000,
@@ -133,6 +156,21 @@ rule tensorqtl_trans_pathwaygenes:
         "../slurmy/tensorqtl.yml"
     script:
         "../code/trans_qtl_calling/trans_qtl_calling_pathwaygenes.py"
+
+rule merge_trans_pathwaygenes:
+    resources:
+        mem_mb=200000,
+        time="30:00"
+    input:
+        unpack(list_transeqtl_pathwaygenes_files)
+    output:
+        "temp/gotta_do_merge_pathway.tsv"
+        #"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/all-tissues.{wildcards.candidate_gs}-variants.all-genes.tsv"
+    shell:
+        """
+        # Combine input files into a single file
+        echo `gotta do this` > {output}
+        """
 
 ## CELL TYPE PROPORTION QTL CALLING
 rule wrangle_ctprops_per_tissue:
