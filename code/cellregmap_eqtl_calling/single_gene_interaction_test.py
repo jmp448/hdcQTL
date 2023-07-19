@@ -18,21 +18,11 @@ sample_mapping_file = snakemake.input['sample_mapping_file']
 genotype_file = snakemake.input['genotype_file']
 kinship_file = snakemake.input['kinship_file']
 phenotype_file = snakemake.input['exp']
-cell_context_file = snakemake.input['cell_context_file']
+cell_context_file = snakemake.input['cell_contexts']
 
-output_loc = snakemake.params['output_dir']
+g = str(snakemake.wildcards['g'])
 
-# gene index
-arg = {}
-if isinstance(snakemake.params.gene, int): 
-    arg["i"] = snakemake.params.gene
-else:
-    arg["i"] = int(snakemake.params.gene)
-assert(isinstance( arg["i"], int))
-
-# input_files_dir=snakemake.params.input_dir
-# folder = snakemake.params.output_dir
-
+output_loc = snakemake.output['out']
 
 # ############################################
 # ############### Gene file ##################
@@ -41,22 +31,7 @@ assert(isinstance( arg["i"], int))
 
 ######################################
 #####Filter on specific gene-SNP pairs
-test_eqtl = pd.read_csv(test_eqtl_file, sep="\t", index_col = False)
-# all candidate genes for interaction test
-genes = test_eqtl['gene'].unique()
-
-# gene name (feature_id) for the input gene
-gene_name = genes[arg["i"]]
-# chromosome of the gene
-chrm = test_eqtl.loc[test_eqtl['gene'] == gene_name, 'chrom'].values[0]
-
-outfilename = "{}{}_{}.tsv".format(output_loc, chrm,gene_name)
-print(outfilename)
-
-# if os.path.exists(outfilename):
-#     print("File already exists, exiting")
-#     sys.exit()
-
+all_tests = pd.read_csv(test_eqtl_file, sep="\t")
 
 ############################################
 ########## Sample mapping file #############
@@ -64,8 +39,7 @@ print(outfilename)
 
 ## this file will map pseudocells to donors 
 ## it will also only include donors we have single-cell data for
-sample_mapping = pd.read_csv(sample_mapping_file, sep = "\t",header=0,
-                            names=["pseudo_cell","donor_id"])
+sample_mapping = pd.read_csv(sample_mapping_file, sep="\t").sort_values(by=['donor_id', 'pseudocell'])
 
 ## donor_id are donor IDs, as found in the genotype matrix (G) and GRM covariance (K)
 ## cell are cell IDs, as found in the scRNA-seq phenotype vector (y) and cell context covariance (C)
@@ -117,8 +91,7 @@ assert all(hK_expanded.sample.values == sample_mapping["donor_id"].values)
 
 # Phenotype (pseudocell expression)
 phenotype = xr.open_dataarray(phenotype_file, autoclose=True)
-assert all(phenotype.pseudo_cell.values == sample_mapping["pseudo_cell"].values)
-
+assert all(phenotype.pseudo_cell.values == sample_mapping["pseudocell"].values)
 ######################################
 ########## Cell contexts #############
 ######################################
@@ -131,8 +104,8 @@ C = pd.read_csv(cell_context_file, index_col = 0, sep = "\t")
 # Select only k1 (Axoneme assembly), k2(embryonic skeletal dev), k3 (innate system dev), k4 (autonomic nervous system dev), k6 (neruon fate specification), k9 (mitosis) topics for context
 C = C[['k1','k2', 'k3','k4','k6', 'k9']]
 
-C = xr.DataArray(C.values, dims=["pseudo_cell", "topic"], coords={"pseudo_cell": C.index.values, "topic": C.columns.values})
-assert all(C.pseudo_cell.values == sample_mapping["pseudo_cell"].values)
+C = xr.DataArray(C.values, dims=["pseudocell", "topic"], coords={"pseudocell": C.index.values, "topic": C.columns.values})
+assert all(C.pseudocell.values == sample_mapping["pseudocell"].values)
 
 # normalize cell contexts
 scaler = StandardScaler()
@@ -143,8 +116,8 @@ C.values = scaler.transform(C.values)
 ############ Covariates ##############
 ######################################
 
-n_cell = phenotype.shape[0]
-W = ones((n_cell, 1))
+cov = sample_mapping[['pseudocell', 'sex']].set_index('pseudocell')
+cov['intercept'] = 1
 
 #####################################
 ############ Genotypes ##############
@@ -153,14 +126,10 @@ W = ones((n_cell, 1))
 ## read in genotype file (plink format)
 #plink_file = snakemake_input[1]
 G = read_plink1_bin(genotype_file)
-# Select the genotype from the input chromosome
-G_sel = G.where(G.chrom == chrm, drop=True)
+# Select snps appearing for that gene
+test_snp = all_tests[all_tests['EB_HGNC']==g]['EB_VARIANT_ID'].values[0]
 
-# # Select snps appearing for that gene
-leads = test_eqtl[test_eqtl['gene']==gene_name]['snpID'].unique()
-G_sel = G_sel[:,G_sel['snp'].isin(leads)]
-
-G_expanded = G_sel.sel(sample=sample_mapping["donor_id"].values)
+G_expanded = G[:,G['snp']==test_snp].sel(sample=sample_mapping["donor_id"].values)
 assert all(hK_expanded.sample.values == G_expanded.sample.values)
 
 print("G_tested shape is {}".format(G_expanded.shape))
@@ -179,26 +148,26 @@ print("G_tested shape is {}".format(G_expanded.shape))
 """
 
 # expression for each gene
-y = phenotype.sel(gene=gene_name)
+y = phenotype.sel(gene=g)
 y = quantile_gaussianize(y)
 y = y.values.reshape(y.shape[0],1)
 
-W = W
+W = cov.values
 C_val = C.values
 G_val = G_expanded.values
 hK_val = hK_expanded.values
 
-print("Running for gene {}".format(gene_name))
+print("Running for gene {}".format(g))
 
 # run interaction test using CellRegMap
 pvals = run_interaction(y=y, W=W, G=G_val, E=C_val, hK=hK_val)[0]
 
-pv = pd.DataFrame({"chrom":G_expanded.chrom.values,
-            "pv":pvals,
-            "variant":G_expanded.snp.values})
+pv = pd.DataFrame({"EB_HGNC":g,
+                  "EB_VARIANT_ID":test_snp,
+                  "pv":pvals})
 pv.head()
 
-pv.to_csv(outfilename, sep="\t")
+pv.to_csv(output_loc, sep="\t", header=False, index=False)
 
 
 # Adapted from https://github.com/annacuomo/CellRegMap_analyses/blob/df01d14de6813d2d7e9f701313af608336b841e5/endodiff/usage/scripts/association_test_for_one_gene.py#L103

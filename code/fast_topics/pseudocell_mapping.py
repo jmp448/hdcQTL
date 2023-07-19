@@ -10,34 +10,37 @@ adata_input_loc = snakemake.input['adata_subsampled']
 cell_pseudocell_mapping_loc = snakemake.output['pseudocell_mapping']
 
 # adapted from Ben Strober
-def perform_leiden_clustering_in_each_individual(adata, cluster_resolution):
-    unique_individuals = sorted(np.unique(adata.obs['donor_id']))
-    num_cells = len(adata.obs['donor_id'])
+def assign_pseudocells_inplace(adata, cluster_resolution, batch_label):
+    adata.obs['donor_batch']= adata.obs['donor_id'].astype(str)+'_'+adata.obs[batch_label].astype(str)
+    unique_donor_batches = sorted(np.unique(adata.obs['donor_batch']))
+    num_cells = len(adata.obs['donor_batch'])
     # Initialize vector to keep track of cluster assignments
     cluster_assignments = np.asarray(['unassigned']*num_cells,dtype='<U40')
 
     # Loop through individuals
-    for individual in unique_individuals:
+    for db in unique_donor_batches:
         # Get cell indices corresponding to this individual
-        cell_indices = adata.obs['donor_id'] == individual
+        cell_indices = adata.obs['donor_batch'] == db
         # Number of cells in this indiviudal
-        num_cells_per_indi = sum(cell_indices)
+        num_cells_per_indi_batch = sum(cell_indices)
         # Make anndata object for just this individual
-        adata_indi = adata[cell_indices, :]
+        adata_db = adata[cell_indices, :]
         # Construct neighborhood graph for cells from this indivudal
-        sc.pp.neighbors(adata_indi, use_rep="X_scVI")
+        sc.pp.neighbors(adata_db, use_rep="X_scVI")
         # Perform leiden clustering
-        sc.tl.leiden(adata_indi, resolution=cluster_resolution)
+        sc.tl.leiden(adata_db, resolution=cluster_resolution)
         # Get leiden cluster assignemnts
-        leiden_cluster_assignments = adata_indi.obs['leiden']
+        leiden_cluster_assignments = adata_db.obs['leiden']
         # Add to global vector of assignments
-        cluster_assignments[cell_indices] = np.char.add(individual + '_', leiden_cluster_assignments.astype(str))
+        cluster_assignments[cell_indices] = np.char.add(db + '_', leiden_cluster_assignments.astype(str))
         # Delete adata_indi from memory
-        del adata_indi
-    adata.obs['individual_leiden_clusters_' + str(cluster_resolution)] = cluster_assignments
-    return adata
+        del adata_db
+    adata.obs['pseudocell_' + str(cluster_resolution)] = cluster_assignments
 
 adata = sc.read_h5ad(adata_input_loc)
-perform_leiden_clustering_in_each_individual(adata, cluster_resolution=15)
-cluster_assignments = adata.obs[["individual_leiden_clusters_15"]]
+assign_pseudocells_inplace(adata, cluster_resolution=15, batch_label='collection.date')
+
+cluster_assignments = adata.obs[["pseudocell_15"]]
 cluster_assignments.to_csv(cell_pseudocell_mapping_loc, sep='\t')
+
+

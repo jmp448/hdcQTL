@@ -2,6 +2,76 @@
 library(tidyverse)
 ```
 
+## Overview of single-cell data
+Load the UMAP embedding and cell type assignments
+```{r}
+umap <- vroom("data/single_cell_objects/eb_pflog1ppfnorm.hvg.umap_embedding.txt", col_names=c("UMAP_1", "UMAP_2"))
+celltypes <- vroom("data/fca/eb_cellid_labels.tsv")
+
+sc_annotated <- celltypes %>%
+  mutate(umap1=umap$UMAP_1, umap2=umap$UMAP_2)
+```
+
+Stratify by germ layer
+```{r}
+dropped <- c("STC2_TLX1 positive cells","Lymphatic endothelial cells",
+             "Intestinal epithelial cells","Endocardial cells")
+ecto <- c("Retinal cells","CNS neurons","PNS glia","CNS glia","PNS neurons",
+          "Adrenocortical cells","Neuroendocrine cells")
+immune <- c("Erythroblasts","Megakaryocytes","Lymphoid cells")
+meso <- c("Vascular endothelial cells","Stromal cells","Epicardial fat cells",
+          "Skeletal muscle cells","Mesangial cells","Mesothelial cells",
+          "Cardiomyocytes","Smooth muscle cells","Stellate cells")
+epi <- c("Ductal cells", "Metanephric cells","Ciliated epithelial cells",
+         "Ureteric bud cells","Acinar cells",
+         "Parietal and chief cells")
+endo <- c("Hepatoblasts","Goblet cells","Bronchiolar and alveolar epithelial cells",
+          "Squamous epithelial cells")
+
+sc_annotated <- sc_annotated %>%
+  mutate(ecto_type=if_else(value %in% ecto, value, NA_character_)) %>%
+  mutate(endo_type=if_else(value %in% endo, value, NA_character_)) %>%
+  mutate(meso_type=if_else(value %in% meso, value, NA_character_)) %>%
+  mutate(epi_type=if_else(value %in% epi, value, NA_character_)) %>%
+  mutate(immune_type=if_else(value %in% immune, value, NA_character_))
+```
+
+Ectoderm cells
+```{r}
+ggplot(sc_annotated, aes(x=umap1, y=umap2, color=ecto_type)) +
+  geom_point(pch=".") +
+  theme_classic()
+```
+
+Mesoderm cells
+```{r}
+ggplot(sc_annotated, aes(x=umap1, y=umap2, color=meso_type)) +
+  geom_point(pch=".") +
+  theme_classic(base_size=12) +
+  guides(color=guide_legend(override.aes=list(size=10)))
+```
+
+Endoderm cells
+```{r}
+ggplot(sc_annotated, aes(x=umap1, y=umap2, color=endo_type)) +
+  geom_point(pch=".") +
+  theme_classic()
+```
+
+Epithelial cells
+```{r}
+ggplot(sc_annotated, aes(x=umap1, y=umap2, color=epi_type)) +
+  geom_point(pch=".") +
+  theme_classic()
+```
+
+Immune cells
+```{r}
+ggplot(sc_annotated, aes(x=umap1, y=umap2, color=immune_type)) +
+  geom_point(pch=".") +
+  theme_classic()
+```
+
 ## Overview of Pseudobulk Data
 First, which cell types are included in this analysis (after filtering out samples with too few cells)?
 ```{r, warning=FALSE, message=FALSE}

@@ -25,6 +25,7 @@ library(Matrix)
 library(SingleCellExperiment)
 library(fastTopics)
 library(parallel)
+library(tidyverse)
 
 # Get inputs/ outputs from snakemake
 ncores <- min(as.integer(snakemake@threads), detectCores())

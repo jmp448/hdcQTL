@@ -22,9 +22,9 @@ snpstats2geno <- function(s) {
 
 ## Static eQTL examples
 ```{r}
-snp_rsid <- "rs13015615"
-gene_hgnc <- "FRZB"
-celltype <- "Cardiomyocytes"
+snp_rsid <- "rs2693698"
+gene_hgnc <- "BCL11B"
+celltype <- "PNS-glia"
 ```
 
 
@@ -48,7 +48,8 @@ expression_df <- vroom(paste0("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/
 ```{r}
 inner_join(genotypes_df, expression_df, by="sample") %>%
   ggplot(aes(x=genotype, y=.data[[gene_hgnc]], fill=genotype)) +
-  geom_boxplot(alpha = 0.5) +
+  #geom_violin(alpha = 0.5) +
+  geom_boxplot(alpha=0.5) +
   geom_jitter(position = position_jitter(seed = 1, width = 0.1)) +
   theme_classic(base_size=15) +
   scale_fill_discrete(name=snp_rsid) +

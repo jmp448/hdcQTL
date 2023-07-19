@@ -15,7 +15,8 @@ metadata['sex'] = np.where(metadata['sex'] == 'F', 0, 1)
 
 cell_map = pd.read_csv(pseudocell_mapping_loc, sep="\t").rename(columns={'individual_leiden_clusters_15': 'pseudocell'})
 cell_map['donor_id'] = cell_map['pseudocell'].str.split('_').str[0]
+pseudocell_map = cell_map[['donor_id', 'pseudocell']].drop_duplicates()
 
-metadata = metadata.merge(cell_map, on='donor_id', how='left')
+pseudocell_map = pseudocell_map.merge(metadata, on='donor_id', how='inner').sort_values(by=["donor_id", "pseudocell"])
 
-metadata.to_csv(pseudocell_metadata_loc, sep = "\t")
+pseudocell_map.to_csv(pseudocell_metadata_loc, sep = "\t")

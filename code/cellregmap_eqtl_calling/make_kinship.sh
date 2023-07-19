@@ -23,10 +23,10 @@ plink --make-bed \
     --bp-space 1 \
     --aec \
     --keep-allele-order \
-    --indep-pairwise 250 50 0.2 \
+    --indep-pairwise 5000 50 0.15 \
     --vcf $all_genotypes \
     --output-chr chrM \
     --out $pruned_bed
 
 # Make IBD matrix: 
-plink --make-rel square --bfile $pruned_bed --out $prefix
+plink --make-rel square --bfile $pruned_bed --extract ${pruned_bed}.prune.in --out $prefix

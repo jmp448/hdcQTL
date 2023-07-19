@@ -30,6 +30,17 @@ type_levels <- c(ectoderm_types, epithelial_types, mesoderm_types,
                  endoderm_types, immune_types)
 ```
 
+Map each germ layer to its own color
+```{r}
+ecto <- tibble(type=ectoderm_types, layer="ectoderm", color="#0076BA")
+epi <- tibble(type=epithelial_types, layer="epithelium", color="#16E7CF")
+meso <- tibble(type=mesoderm_types, layer="mesoderm", color="#B51700")
+endo <- tibble(type=endoderm_types, layer="endoderm", color="#FEAE00")
+immune <- tibble(type=immune_types, layer="immune", color="#970E53")
+color_map <- bind_rows(ecto, epi, meso, endo, immune)
+```
+
+
 FLASH factors
 ```{r}
 U.flash$tFLASH_nonneg %>%
@@ -47,61 +58,119 @@ U.flash$tFLASH_nonneg %>%
 
 Component 1 - dense factor
 ```{r}
-U.flash$FLASH_nonneg_1 %>%
+factor_1 <- U.flash$FLASH_nonneg_1 %>%
   princomp %>%
   .$loadings %>%
   .[,1] %>%
   as_tibble(rownames="type") %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
-  ggplot(aes(x=type, y=value, fill=type)) +
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+ 
+factor_1  %>%
+  ggplot(aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
-  xlab("Cell Type") + ylab("Weight")
+  xlab("Cell Type") + ylab("Weight") +
+  scale_fill_identity() +
+  coord_flip() +
+  lims(x = rev(levels(factor_1$type)))
 ```
+
 Component 2 - mesoderm/ endoderm
-```{r}
-U.flash$FLASH_nonneg_2 %>%
+```{r, fig.height=4, fig.width=4}
+factor_2 <- U.flash$FLASH_nonneg_2 %>%
   princomp %>%
   .$loadings %>%
   .[,1] %>%
   as_tibble(rownames="type") %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
-  ggplot(aes(x=type, y=value, fill=type)) +
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+ 
+factor_2  %>%
+  ggplot(aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
-  xlab("Cell Type") + ylab("Weight")
+  xlab("Cell Type") + ylab("Weight") +
+  scale_fill_identity() +
+  coord_flip() +
+  lims(x = rev(levels(factor_2$type)))
 ```
 
-FLASH 3 - epithelial cells 
+FLASH 3 - Most differentiated cell types
 ```{r}
-U.flash$FLASH_nonneg_3 %>%
+factor_3 <- U.flash$FLASH_nonneg_3 %>%
   princomp %>%
   .$loadings %>%
   .[,1] %>%
   as_tibble(rownames="type") %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
-  ggplot(aes(x=type, y=value, fill=type)) +
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+ 
+factor_3  %>%
+  ggplot(aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
-  xlab("Cell Type") + ylab("Weight")
+  xlab("Cell Type") + ylab("Weight") +
+  scale_fill_identity() +
+  coord_flip() +
+  lims(x = rev(levels(factor_3$type)))
 ```
 
-FLASH 4 - Definitive ectoderm
-```{r}
-U.flash$FLASH_nonneg_4 %>%
+FLASH 4 - Neuroepithelium
+```{r, fig.height=4, fig.width=4}
+factor_4 <- U.flash$FLASH_nonneg_4 %>%
   princomp %>%
   .$loadings %>%
   .[,1] %>%
   as_tibble(rownames="type") %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
-  ggplot(aes(x=type, y=value, fill=type)) +
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+ 
+factor_4  %>%
+  ggplot(aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
-  xlab("Cell Type") + ylab("Weight")
+  xlab("Cell Type") + ylab("Weight") +
+  scale_fill_identity() +
+  coord_flip() +
+  lims(x = rev(levels(factor_4$type)))
+```
+
+```{r fig.height=4, fig.width=4}
+factor_shared_boilerplate <- factor_1 %>%
+  mutate(value=1)
+
+factor_shared_boilerplate  %>%
+  ggplot(aes(x=type, y=value, fill=color)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight") +
+  scale_fill_identity() +
+  coord_flip() +
+  lims(x = rev(levels(factor_shared_boilerplate$type)))
+```
+```{r fig.height=4, fig.width=4}
+factor_1_boilerplate <- factor_1 %>%
+  mutate(value=c(1, rep(0.01, nrow(.)-1)))
+
+factor_1_boilerplate  %>%
+  ggplot(aes(x=type, y=value, fill=color)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=15) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight") +
+  scale_fill_identity() +
+  coord_flip() +
+  lims(x = rev(levels(factor_1_boilerplate$type)))
 ```
 
 Which of these patterns does mash actually rely on the heaviest?
@@ -167,14 +236,28 @@ mash_hits_comparison <- qtls_by_type %>%
   replace_na(list(n=0)) %>%
   mutate(type=factor(type, levels=type_levels))
 ```
+Permutation eGenes
+```{r fig.width=3, fig.height=4}
+permutation_egenes  %>%
+  mutate(type=factor(type, levels=color_map$type)) %>%
+  ggplot(aes(x=type, y=permutations)) +
+  geom_col(fill="#0076BA") +
+  ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") +
+  coord_flip() +
+  theme_classic(base_size=12) +
+  lims(x = rev(levels(factor_3$type)))
+```
+
 
 ```{r fig.width=5, fig.height=4}
 mash_hits_comparison  %>%
+  mutate(type=factor(type, levels=color_map$type)) %>%
   ggplot(aes(x=type, y=n, fill=method)) +
   geom_bar(position="dodge", stat="identity") +
   ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") +
   coord_flip() +
-  theme_classic(base_size=12)
+  theme_classic(base_size=12) +
+  lims(x = rev(levels(factor_3$type)))
 ```
 
 See if any of our novel eGenes have interesting patterns

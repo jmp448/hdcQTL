@@ -1,3 +1,9 @@
+import pandas as pd
+
+def list_cellregmap_output_files(wildcards):
+    test_genes = list(pd.read_csv("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-tophits_variant_gene_pairs.bed", sep="\t")['EB_HGNC'])
+    return [f"results/cellregmap_eqtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{wildcards.variant_group}.fasttopics_{wildcards.k}topics.{g}.cellregmap.tsv" for g in test_genes]
+
 rule make_genotype_bed:
     resources:
         mem_mb=100000
@@ -68,6 +74,45 @@ rule make_pseudocell_metadata:
     script:
         "../code/cellregmap_eqtl_calling/make_pseudocell_metadata.py"
 
-
-# rule run_interaction_test:
+rule run_interaction_test_fasttopics:
+    resources:
+        partition = "gilad",
+        mem_mb = 5000,
+        time = "10:00"
+    input:
+        test_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.bed",
+        sample_mapping_file = "data/cellregmap/pseudocell_metadata.tsv",
+        genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed" ,
+        kinship_file = "data/genotypes/yri_kinship.tsv",
+        exp = "data/single_cell_objects/eb_pseudocells_normalized.nc", 
+        cell_contexts = "results/fast_topics/fasttopics_{k}topics_loadings.tsv"
+    output:
+        out="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/{variant_group}.fasttopics_{k}topics.{g}.cellregmap.tsv"
+    conda:
+        "../slurmy/cellregmap.yml"
+    script:
+        "../code/cellregmap_eqtl_calling/single_gene_interaction_test.py"
+        
+rule merge_interaction_test_fasttopics:
+    resources:
+        partition = "gilad",
+        mem_mb = 10000,
+        time = "01:00:00"
+    input:
+        unpack(list_cellregmap_output_files)
+    output:
+        "results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.tsv"
+    params:
+        tempfile="temp/cellregmap_tempfile.txt"
+    shell:
+        """
+        # Combine input files into a single file
+        cat {input} > {params.tempfile}
+        
+        # Filter lines to unique rows
+        sort -u {params.tempfile} > {output}
+        
+        # Remove temporary file
+        rm {params.tempfile}
+        """
   
