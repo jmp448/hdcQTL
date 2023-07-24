@@ -11,11 +11,16 @@ def map_tissue_to_str(t):
 
 def list_transeqtl_allgenes_files(wildcards):
     tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
-    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.all-genes.tsv" for t in tissues]
+    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.tsv" for t in tissues]
 
 def list_transeqtl_pathwaygenes_files(wildcards):
     tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
     return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.{wildcards.affected_gs}-genes.tsv" for t in tissues]
+
+def list_ctprop_files(wildcards):
+    tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
+    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.celltype-proportions.tsv" for t in tissues]
+
 
 ## LIST VARIANTS AND GENES FOR TRANS EQTL CALLING
 rule list_donors_gtex_tissue:
@@ -107,6 +112,14 @@ rule plink_genotype_reformat_trans:
     shell:
         "code/static_eqtl_followup/plink_genotype_reformat_trans.sh {input.genotypes} {input.inds} {input.trans_candidates} {params.prefix}.{wildcards.tissue}.{wildcards.gs}"
 
+rule compress_bed_bugfix:
+    # one version of tensorqtl requires expression to be compressed
+    input:
+        "data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed",
+    output:
+        "data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz"
+    shell: "gzip -f {input} > {output}"
+
 rule tensorqtl_trans_allgenes:
     resources:
         mem_mb=100000,
@@ -116,29 +129,27 @@ rule tensorqtl_trans_allgenes:
         exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
     output:
-        output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.all-genes.tsv"
+        output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.tsv"
     params:
-        plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/genotypes_filtered/plink.{tissue}.{gs}"
+        plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/genotypes_filtered/plink.{tissue}.{candidate_gs}"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
         "../code/trans_qtl_calling/trans_qtl_calling_allgenes.py"
-        
+    
 rule merge_trans_allgenes:
     resources:
-        mem_mb=200000,
+        mem_mb=250000,
         time="30:00"
     input:
         unpack(list_transeqtl_allgenes_files)
     output:
-        "temp/gotta_do_merge_{wildcards.annotation}_{wildcards.candidate_gs}.tsv"
-        #"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/all-tissues.{wildcards.candidate_gs}-variants.all-genes.tsv"
-    shell:
-        """
-        # Combine input files into a single file
-        echo `gotta do this` > {output}
-        """
-
+        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged/{candidate_gs}-variants.gtex_all_tissues.tsv"
+    conda:
+        "../slurmy/tensorqtl.yml"
+    script:
+        "../code/trans_qtl_calling/merge_trans.py"
+        
 rule tensorqtl_trans_pathwaygenes:
     resources:
         mem_mb=100000,
@@ -159,18 +170,16 @@ rule tensorqtl_trans_pathwaygenes:
 
 rule merge_trans_pathwaygenes:
     resources:
-        mem_mb=200000,
+        mem_mb=50000,
         time="30:00"
     input:
         unpack(list_transeqtl_pathwaygenes_files)
     output:
-        "temp/gotta_do_merge_pathway.tsv"
-        #"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/all-tissues.{wildcards.candidate_gs}-variants.all-genes.tsv"
-    shell:
-        """
-        # Combine input files into a single file
-        echo `gotta do this` > {output}
-        """
+        merged_df="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{affected_gs}-genes_merged/{candidate_gs}-variants.gtex_all_tissues.tsv"
+    conda:
+        "../slurmy/tensorqtl.yml"
+    script:
+        "../code/trans_qtl_calling/merge_trans.py"
 
 ## CELL TYPE PROPORTION QTL CALLING
 rule wrangle_ctprops_per_tissue:
@@ -200,3 +209,17 @@ rule tensorqtl_ctprops:
         "../slurmy/tensorqtl.yml"
     script:
         "../code/trans_qtl_calling/ctprop_qtl_calling.py"
+        
+rule merge_ctprops:
+    resources:
+        mem_mb=50000,
+        time="30:00"
+    input:
+        unpack(list_ctprop_files)
+    output:
+        merged_df="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/all-celltype-proportions/{candidate_gs}-variants.gtex_all_tissues.tsv"
+    conda:
+        "../slurmy/tensorqtl.yml"
+    script:
+        "../code/trans_qtl_calling/merge_trans.py"
+
