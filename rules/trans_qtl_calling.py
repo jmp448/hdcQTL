@@ -1,4 +1,4 @@
-#TODO update listing of candidate variants to be based on GTEx MAF, not just YRI
+#TODO update liisting of candidate variants to be based on GTEx MAF, not just YRI
 #TODO update the snakemake environment so that it has the right conda version without manually installing 4.11.0
 #TODO note bandaid - manually changed read_phenotype_bed in tensorqtl
 
@@ -20,6 +20,11 @@ def list_transeqtl_pathwaygenes_files(wildcards):
 def list_ctprop_files(wildcards):
     tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
     return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.celltype-proportions.tsv" for t in tissues]
+
+def list_ctprop_files_sva(wildcards):
+    tissues = list(pd.read_csv("data/trans_qtl_calling/gtex/all_gtex_tissues.txt", names=['tissue'])['tissue'])
+    tissues.remove('Testis')
+    return [f"results/trans_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{t}.{wildcards.candidate_gs}-variants.celltype-proportions.sva.tsv" for t in tissues]
 
 
 ## LIST VARIANTS AND GENES FOR TRANS EQTL CALLING
@@ -223,3 +228,64 @@ rule merge_ctprops:
     script:
         "../code/trans_qtl_calling/merge_trans.py"
 
+rule prep_gtex_inputs:
+    resources:
+        mem_mb=10000,
+        time="10:00"
+    input:
+        genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}.{out}", out=['bed', 'bim', 'fam']),
+        exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
+        cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
+    output:
+        genotypes_filtered="data/trans_qtl_calling/gtex/genotypes_filtered/{tissue}.{candidate_gs}.tsv.gz",
+        exp_filtered="data/trans_qtl_calling/gtex/expression/{tissue}.{candidate_gs}.standardized_expression.tsv.gz",
+        cov_filtered="data/trans_qtl_calling/gtex/covariates/{tissue}.{candidate_gs}.covariates_filtered.txt"
+    params:
+        plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{tissue}.{candidate_gs}"
+    conda:
+        "../slurmy/tensorqtl.yml"
+    script:
+        "../code/trans_qtl_calling/prep_gtex_inputs.py"
+
+rule sva:
+    resources:
+        mem_mb=50000,
+        time="1:30:00"
+    input:
+        genotypes="data/trans_qtl_calling/gtex/genotypes_filtered/{tissue}.{candidate_gs}.tsv.gz",
+        exp="data/trans_qtl_calling/gtex/expression/{tissue}.{candidate_gs}.standardized_expression.tsv.gz",
+        cov="data/trans_qtl_calling/gtex/covariates/{tissue}.{candidate_gs}.covariates_filtered.txt"
+    output:
+        svs="data/trans_qtl_calling/gtex/covariates/{tissue}.{candidate_gs}.supervised_surrogate_variables.txt"
+    conda:
+        "../slurmy/r-sva.yml"
+    script:
+        "../code/trans_qtl_calling/sva.R"
+        
+rule tensorqtl_ctprops_sva:
+    resources:
+        mem_mb=100000,
+        time="01:00:00"
+    input:
+        genotypes="data/trans_qtl_calling/gtex/genotypes_filtered/{tissue}.{candidate_gs}.tsv.gz",
+        ctprops="data/trans_qtl_calling/gtex/celltype_proportions/proportions-{tissue}.txt",
+        cov="data/trans_qtl_calling/gtex/covariates/{tissue}.{candidate_gs}.supervised_surrogate_variables.txt"
+    output:
+        output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.celltype-proportions.sva.tsv"
+    conda:
+        "../slurmy/tensorqtl.yml"
+    script:
+        "../code/trans_qtl_calling/ctprop_qtl_calling_sva.py"
+        
+rule merge_ctprops_sva:
+    resources:
+        mem_mb=50000,
+        time="30:00"
+    input:
+        unpack(list_ctprop_files_sva)
+    output:
+        merged_df="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/all-celltype-proportions-sva/{candidate_gs}-variants.gtex_all_tissues.tsv"
+    conda:
+        "../slurmy/tensorqtl.yml"
+    script:
+        "../code/trans_qtl_calling/merge_trans.py"
