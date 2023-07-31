@@ -1,0 +1,11 @@
+name: r-sva
+channels:
+  - r
+  - bioconda
+  - conda-forge
+dependencies:
+  - r-tidyverse
+  - r-vroom
+  - r-matrixstats
+  - bioconductor-sva
+  
