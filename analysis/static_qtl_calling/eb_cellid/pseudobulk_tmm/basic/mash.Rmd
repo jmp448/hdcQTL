@@ -282,4 +282,3 @@ novel_overlap_posteriors <- as_tibble(tophits_m$posterior_weights) %>%
 ```{r}
 mash_plot_meta(tophits_m, "ADAMTS12_rs7713279", labels=colnames(tophits_m$result$lfsr))
 ```
-

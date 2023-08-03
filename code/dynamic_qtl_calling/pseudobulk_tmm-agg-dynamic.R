@@ -11,7 +11,7 @@ library(Matrix)
 library(matrixStats)
 library(edgeR)
 set.seed(2021)
-source("/project2/gilad/jpopp/sc-dynamic-eqtl/code/cell_line_pca.R")
+source("/project2/gilad/jpopp/ebQTL/code/dynamic_qtl_calling/clpca.R")
 
 # sample_metadata_loc <- "/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv"
 # pseudobulk_loc <- "data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/eb-cm_15binstrimmed.pseudobulk_tmm.tsv"
@@ -22,6 +22,7 @@ sample_summary_loc <- as.character(snakemake@input[["sample_summary_manual"]])
 sample_metadata_loc <- as.character(snakemake@input[["metadata"]])
 table_prefix <- snakemake@params[['table_prefix']]
 plot_prefix <- snakemake@params[['fig_prefix']]
+pca_method <- as.character(snakemake@wildcards[['pca']])
 raw_expression_loc <- snakemake@output[["raw_expression"]]
 norm_expression_loc <- snakemake@output[["norm_expression"]]
 
@@ -94,7 +95,11 @@ metadata <- read_csv(sample_metadata_loc) %>%
   select(Line.True, sex) %>%
   mutate(ind=as.character(Line.True), .keep="unused") %>%
   distinct()
-cell_line_pcs <- cell.line.pca(expression,npc=15)
+if (pca_method == "svd") {
+  cell_line_pcs <- cell.line.pca(expression,npc=15)
+} else {
+  cell_line_pcs <- prob.cell.line.pca(expression,npc=15,pca_method)
+}
 covariates <- cell_line_pcs$cell.line.pcs %>%
   rename_with(str_replace, pattern="PC", replacement="CLPC") %>%
   left_join(metadata, by="ind") %>%

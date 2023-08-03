@@ -80,3 +80,17 @@ rule tensorqtl_merge_nominal_subset:
         "../slurmy/tensorqtl.yml"
     script:
         "../code/subset_qtl_calling/tensorqtl_merge_nominal_subset.py"
+        
+rule list_significant_variant_gene_pairs_subset:
+    resources:
+        mem_mb=100000,
+        time="30:00"
+    input:
+        permutations="results/subset_qtl_calling/permutations/{npcs}pcs/merged/tensorqtl_permutations.all.tsv",
+        nominal="results/subset_qtl_calling/nominal/{npcs}pcs/merged/tensorqtl_nominal.all.tsv"
+    output:
+        hit_list="results/subset_qtl_calling/significant_hits/{npcs}pcs/signif_variant_gene_pairs.tsv"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/subset_qtl_calling/list_significant_tests_subset.R"

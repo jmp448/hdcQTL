@@ -3,7 +3,7 @@ library(vroom)
 library(qvalue) 
 library(TreeBH)
 
-ctprops_combined <- vroom("results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all-celltype-proportions/GOBP_TISSUE_DEVELOPMENT-variants.gtex_all_tissues.tsv") %>%
+ctprops_combined <- vroom("results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all-celltype-proportions-sva/GOBP_TISSUE_DEVELOPMENT-variants.gtex_all_tissues.tsv") %>%
   mutate(tissue=str_extract(tissue, "[^.]+"))
 variant_info <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/trans_eqtl_variant_candidate_info.GOBP_TISSUE_DEVELOPMENT.Artery-Tibial.tsv")
 

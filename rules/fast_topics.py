@@ -59,7 +59,7 @@ rule fast_topics:
     resources:
         mem_mb=100000,
         partition="gilad",
-        time="24:00:00",
+        time="48:00:00",
         ntasks_per_node=28
     input:
         pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce",
@@ -76,7 +76,7 @@ rule topic_de_analysis:
     resources:
         mem_mb=100000,
         partition="gilad",
-        time="36:00:00",
+        time="48:00:00",
         ntasks_per_node=28
     input:
         pseudocells_sce="data/single_cell_objects/eb_pseudocells_raw.sce",

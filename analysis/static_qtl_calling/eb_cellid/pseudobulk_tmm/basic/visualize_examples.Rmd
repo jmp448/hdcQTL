@@ -21,11 +21,20 @@ snpstats2geno <- function(s) {
 
 
 ## Static eQTL examples
+SCZ example
 ```{r}
 snp_rsid <- "rs2693698"
 gene_hgnc <- "BCL11B"
 celltype <- "PNS-glia"
 ```
+
+FAM20C (cell type proportion)
+```{r}
+snp_rsid <- "rs28731441"
+gene_hgnc <- "FAM20C"
+celltype <- "PNS-glia"
+```
+
 
 
 ```{r}

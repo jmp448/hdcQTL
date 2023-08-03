@@ -21,16 +21,52 @@ eb_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_follo
 gtf_loc <- "/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filtered.gtf"
 ```
 
-Load the genes with and without eQTL overlap in GTEx
+## Overview of eQTLs Identified
+How many eQTLs do we find per cell type?
+```{r}
+eb_all <- vroom(eb_sighits_loc)
+
+eb_all %>%
+  count(celltype) %>%
+  ggplot(aes(x=celltype, y=n)) +
+  geom_bar(stat="identity") +
+  coord_flip()
+```
+
+How many eGenes do we find per cell type?
+```{r fig.height=4, fig.width=3}
+eb_tophits_loc <- "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_permutations.sighits.tsv"
+
+eb_top_per_gene <- vroom(eb_tophits_loc)
+
+egenes_per_celltype <- eb_top_per_gene %>%
+  count(context) 
+
+ggplot(egenes_per_celltype, aes(x=context, y=n)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  theme_classic(base_size=15)
+```
+
+
+## Exploring GTEx Overlap
+How many of the eQTLs that we identify have previously been identified as an eQTL?
 ```{r}
 gtex_overlap <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
                                                           "RSID", "CELLTYPE", "CHR1", "START1", 
                                                           "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
-eb_all <- vroom(eb_sighits_loc)
 
+nrow(gtex_overlap) / nrow(eb_all)
+```
+
+
+How many of the eGenes that we identify have some eQTL overlap with GTEx?
+```{r}
 overlap_egenes <- unique(gtex_overlap$EB_HGNC)
 all_egenes <- unique(eb_all$phenotype_id)
 novel_egenes <- setdiff(all_egenes, overlap_egenes)
+
+length(overlap_egenes) / length(all_egenes)
 ```
 
 Wrangle GO BP gene sets
@@ -66,10 +102,11 @@ logistic.fit <- gseasusie::fit_logistic_susie(X=gmt_mat, y=is_novel, L=5)
 ora <- gseasusie::fit_ora(X=gmt_mat, y=is_novel)
 
 if (!is.null(logistic.fit$sets$cs)) {
-  cs <- pivot_longer(as_tibble(logistic.fit$sets$cs), everything(), names_to="component", values_to="index")
-} else {
-  cs <- tibble(component=character(), index=numeric())
+  pivot_longer(as_tibble(logistic.fit$sets$cs), everything(), names_to="component", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
 }
+
+ora %>% arrange(pFishersExact) %>% head(n=5)
 ```
 
 The connective tissue development enrichment is exciting, see which cell types that came from

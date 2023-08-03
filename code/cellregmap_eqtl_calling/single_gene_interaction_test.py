@@ -97,12 +97,10 @@ assert all(phenotype.pseudo_cell.values == sample_mapping["pseudocell"].values)
 ######################################
 
 # cellular environments
-# cells by FastTopic loadings (10)
-#C_file = input_files_dir+"k10_topic_byCell.csv"
 C = pd.read_csv(cell_context_file, index_col = 0, sep = "\t")
 
-# Select only k1 (Axoneme assembly), k2(embryonic skeletal dev), k3 (innate system dev), k4 (autonomic nervous system dev), k6 (neruon fate specification), k9 (mitosis) topics for context
-C = C[['k1','k2', 'k3','k4','k6', 'k9']]
+# filter to the more interpretable topics
+C = C[['k1','k2', 'k4','k5','k6', 'k7', 'k8', 'k10']]
 
 C = xr.DataArray(C.values, dims=["pseudocell", "topic"], coords={"pseudocell": C.index.values, "topic": C.columns.values})
 assert all(C.pseudocell.values == sample_mapping["pseudocell"].values)
@@ -116,7 +114,7 @@ C.values = scaler.transform(C.values)
 ############ Covariates ##############
 ######################################
 
-cov = sample_mapping[['pseudocell', 'sex']].set_index('pseudocell')
+cov = sample_mapping.drop(columns='donor_id').set_index('pseudocell')
 cov['intercept'] = 1
 
 #####################################
@@ -127,9 +125,9 @@ cov['intercept'] = 1
 #plink_file = snakemake_input[1]
 G = read_plink1_bin(genotype_file)
 # Select snps appearing for that gene
-test_snp = all_tests[all_tests['EB_HGNC']==g]['EB_VARIANT_ID'].values[0]
+test_snps = all_tests[all_tests['EB_HGNC']==g]['EB_VARIANT_ID'].unique()
 
-G_expanded = G[:,G['snp']==test_snp].sel(sample=sample_mapping["donor_id"].values)
+G_expanded = G[:,G['snp'].isin(test_snps)].sel(sample=sample_mapping["donor_id"].values)
 assert all(hK_expanded.sample.values == G_expanded.sample.values)
 
 print("G_tested shape is {}".format(G_expanded.shape))
@@ -160,12 +158,11 @@ hK_val = hK_expanded.values
 print("Running for gene {}".format(g))
 
 # run interaction test using CellRegMap
-pvals = run_interaction(y=y, W=W, G=G_val, E=C_val, hK=hK_val)[0]
+pvals = run_interaction(y=y, W=W, G=G_val, E=C_val, hK=hK_val)
 
-pv = pd.DataFrame({"EB_HGNC":g,
-                  "EB_VARIANT_ID":test_snp,
-                  "pv":pvals})
-pv.head()
+pv = pd.DataFrame({"EB_HGNC":[g for _ in test_snps],
+                  "EB_VARIANT_ID":test_snps,
+                  "P_CELLREGMAP":pvals[0]})
 
 pv.to_csv(output_loc, sep="\t", header=False, index=False)
 

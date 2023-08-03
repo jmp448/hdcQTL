@@ -24,7 +24,8 @@ snp_map <- vroom("data/genotypes/human.YRI.hg38.all.AF.gencode.rsid_snpinfo_map.
 
 ## Visualize an example
 ```{r}
-gene <- "BCL11B"
+# gene <- "BCL11B" #SCZ
+gene <- "FAM20C" #Cell Type Proportions
 tss <- filter(gencode, hgnc==gene) %>%
   mutate(tss=if_else(strand=="+", start, end)) %>%
   pull(tss)

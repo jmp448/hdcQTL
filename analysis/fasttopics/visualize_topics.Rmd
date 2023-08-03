@@ -1,0 +1,265 @@
+---
+title: "Check DE result and gsea"
+output: html_document
+---
+
+##### Use the eb data of pseudocell samples
+```{r setup, include=FALSE}
+# load necessary packages
+library(gseasusie)
+library(pathways)
+library(dplyr)
+library(tidyverse)
+library(fastTopics)
+library(susieR)
+library(data.table)
+library(qvalue)
+library(RColorBrewer)
+```
+
+# Load Model from Topic DE Analysis
+Load the following objects from the topic DE Analysis
+- counts
+- dfa_out
+- fit
+- fit_multinom
+```{r}
+de_fitted_model_loc <- "results/fast_topics/fasttopics_10topics_de_analysis.Rdata"
+load(de_fitted_model_loc)
+```
+
+# Structure Plot
+```{r}
+structure_plot(fit_multinom, colors=brewer.pal(10, "Paired"), topics = 1:10,gap = 50, perplexity=4, num_threads = 4, verbose = F) 
+```
+
+## Topic Characterization
+### Load GO BP pathways and filter to genes in the EB dataset
+```{r}
+eb_genes <- rownames(dfa_out$lfsr)
+```
+
+
+```{r}
+gmt_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
+
+gmt_lines <- readLines(gmt_file)
+
+gmt_list <- lapply(gmt_lines, function(x) unlist(strsplit(x, "\t")))
+gmt_list2 <- lapply(gmt_list, function(x) list(x[1], x[2], x[3:length(x)]))
+
+gmt_df <- as_tibble(do.call("rbind", gmt_list2)) %>%
+  mutate(across(V1:V2, unlist)) %>%
+  dplyr::rename(geneset=V1, link=V2, genes=V3)
+
+gmt_mat <- gmt_df %>%
+  select(-c(link)) %>%
+  unnest(genes) %>%
+  filter(genes %in% eb_genes) %>%
+  pivot_wider(names_from = genes, values_from = genes, values_fn = length, values_fill = 0) %>%
+  column_to_rownames("geneset")
+
+# subset to genesets with between 10 and 400 genes
+valid_genesets <- (10 <= rowSums(gmt_mat)) & (rowSums(gmt_mat) <= 400)
+gmt_mat <- t(as.matrix(gmt_mat[which(valid_genesets),]))
+go_genes <- rownames(gmt_mat)
+```
+
+### Filter to genes in GO BP database & get the DE genes per topic
+```{r}
+list_de_genes <- function(lfsrs, postmeans, k, lfsr_cutoff=0.01, post_lfc_cutoff=2, post_lfc_topn=NA) {
+  sig_genes_lfsr <- na.omit(rownames(lfsrs)[lfsrs[,k] <= lfsr_cutoff])
+  if (is.na(post_lfc_topn)) {
+    top_genes_postlfc <- na.omit(rownames(postmeans)[postmeans[,k] >= post_lfc_cutoff])
+  } else {
+    top_genes_postlfc <- na.omit(rownames(postmeans)[head(order(as.numeric(postmeans[,k]), decreasing=T), n=post_lfc_topn)])
+  }
+  top_de_genes <- intersect(sig_genes_lfsr, top_genes_postlfc)
+}
+```
+
+```{r}
+postmeans <- dfa_out$postmean[go_genes,]
+lfsrs <- dfa_out$lfsr[go_genes,]
+
+topic_1_genes <- list_de_genes(lfsrs, postmeans, 1, lfsr_cutoff=0.01)
+topic_2_genes <- list_de_genes(lfsrs, postmeans, 2, lfsr_cutoff=0.01)
+topic_3_genes <- list_de_genes(lfsrs, postmeans, 3, lfsr_cutoff=0.01)
+topic_4_genes <- list_de_genes(lfsrs, postmeans, 4, lfsr_cutoff=0.01)
+topic_5_genes <- list_de_genes(lfsrs, postmeans, 5, lfsr_cutoff=0.01)
+topic_6_genes <- list_de_genes(lfsrs, postmeans, 6, lfsr_cutoff=0.01)
+topic_7_genes <- list_de_genes(lfsrs, postmeans, 7, lfsr_cutoff=0.01)
+topic_8_genes <- list_de_genes(lfsrs, postmeans, 8, lfsr_cutoff=0.01)
+topic_9_genes <- list_de_genes(lfsrs, postmeans, 9, lfsr_cutoff=0.01)
+topic_10_genes <- list_de_genes(lfsrs, postmeans, 10, lfsr_cutoff=0.01)
+
+de_genes <- unique(c(topic_1_genes,
+              topic_2_genes,
+              topic_3_genes,
+              topic_4_genes,
+              topic_5_genes,
+              topic_6_genes,
+              topic_7_genes,
+              topic_8_genes,
+              topic_9_genes,
+              topic_10_genes))
+```
+
+### Run GSEA
+Topic 1
+```{r}
+topic_1_binary <- rownames(gmt_mat) %in% topic_1_genes
+logistic.fit.1 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_1_binary, L=10)
+ora.1 <- gseasusie::fit_ora(X=gmt_mat, y=topic_1_binary)
+
+if (!is.null(logistic.fit.1$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.1$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.1 %>% arrange(pFishersExact) %>% head(n=5)
+```
+
+Topic 2
+```{r}
+topic_2_binary <- rownames(gmt_mat) %in% topic_2_genes
+logistic.fit.2 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_2_binary, L=10)
+ora.2 <- gseasusie::fit_ora(X=gmt_mat, y=topic_2_binary)
+
+if (!is.null(logistic.fit.2$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.2$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.2 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+
+Topic 3
+```{r}
+topic_3_binary <- rownames(gmt_mat) %in% topic_3_genes
+logistic.fit.3 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_3_binary, L=10)
+ora.3 <- gseasusie::fit_ora(X=gmt_mat, y=topic_3_binary)
+
+if (!is.null(logistic.fit.3$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.3$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.3 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+Topic 4
+```{r}
+topic_4_binary <- rownames(gmt_mat) %in% topic_4_genes
+logistic.fit.4 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_4_binary, L=10)
+ora.4 <- gseasusie::fit_ora(X=gmt_mat, y=topic_4_binary)
+
+if (!is.null(logistic.fit.4$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.4$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.4 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+Topic 5
+```{r}
+topic_5_binary <- rownames(gmt_mat) %in% topic_5_genes
+logistic.fit.5 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_5_binary, L=10)
+ora.5 <- gseasusie::fit_ora(X=gmt_mat, y=topic_5_binary)
+
+if (!is.null(logistic.fit.5$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.5$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.5 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+Topic 6
+```{r}
+topic_6_binary <- rownames(gmt_mat) %in% topic_6_genes
+logistic.fit.6 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_6_binary, L=10)
+ora.6 <- gseasusie::fit_ora(X=gmt_mat, y=topic_6_binary)
+
+if (!is.null(logistic.fit.6$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.6$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.6 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+Topic 7
+```{r}
+topic_7_binary <- rownames(gmt_mat) %in% topic_7_genes
+logistic.fit.7 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_7_binary, L=10)
+ora.7 <- gseasusie::fit_ora(X=gmt_mat, y=topic_7_binary)
+
+if (!is.null(logistic.fit.7$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.7$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.7 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+Topic 8
+```{r}
+topic_8_binary <- rownames(gmt_mat) %in% topic_8_genes
+logistic.fit.8 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_8_binary, L=10)
+ora.8 <- gseasusie::fit_ora(X=gmt_mat, y=topic_8_binary)
+
+if (!is.null(logistic.fit.8$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.8$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.8 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+Topic 9
+```{r}
+topic_9_binary <- rownames(gmt_mat) %in% topic_9_genes
+logistic.fit.9 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_9_binary, L=10)
+ora.9 <- gseasusie::fit_ora(X=gmt_mat, y=topic_9_binary)
+
+if (!is.null(logistic.fit.9$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.9$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.9 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+Topic 10
+```{r}
+topic_10_binary <- rownames(gmt_mat) %in% topic_10_genes
+logistic.fit.10 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_10_binary, L=10)
+ora.10 <- gseasusie::fit_ora(X=gmt_mat, y=topic_10_binary)
+
+if (!is.null(logistic.fit.10$sets$cs)) {
+  pivot_longer(as_tibble(logistic.fit.10$sets$cs), everything(), names_to="component_id", values_to="index") %>%
+    mutate(component=colnames(gmt_mat)[.$index]) 
+}
+
+ora.10 %>% arrange(pHypergeometric) %>% head(n=5)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

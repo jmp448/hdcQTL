@@ -1,8 +1,8 @@
 library(tidyverse)
 library(vroom)
 
-# permutation_results_loc <- "results/static_qtl_calling/eb_cmstages/pseudobulk_tmm/basic/8pcs/tensorqtl_permutations.all.tsv"
-# nominal_loc <- "results/static_qtl_calling/eb_cmstages/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.all.tsv"
+# permutation_results_loc <- "results/subset_qtl_calling/permutations/8pcs/merged/tensorqtl_permutations.all.tsv"
+# nominal_loc <- "results/subset_qtl_calling/nominal/8pcs/merged/tensorqtl_nominal.all.tsv"
 
 permutation_results_loc <- snakemake@input[['permutations']]
 nominal_loc <- snakemake@input[['nominal']]
@@ -28,6 +28,6 @@ per_gene_cutoffs <- permutations %>%
 
 # Finally, list all variant-gene pairs which fall below this threshold
 significant_tests <- nominal %>%
-  left_join(per_gene_cutoffs, by=c("celltype"="context", "phenotype_id"="phenotype_id")) %>%
+  left_join(per_gene_cutoffs, by=c("tissue"="context", "phenotype_id"="phenotype_id")) %>%
   filter(pval_nominal <= gene_cutoff) %>%
   write_tsv(significant_variant_gene_pairs_loc)

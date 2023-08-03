@@ -89,84 +89,144 @@ cell.types <- sample_summary  %>%
 cell.types
 ```
 
-How many samples do we have per cell type?
-```{r}
-sample_summary  %>%
-  filter(!dropped) %>%
-  select(individual, type, dropped) %>%
-  pivot_wider(names_from=type, values_from=dropped)
-  ggplot(aes(x=type, y=n, fill=type)) +
-  geom_bar(stat="identity") +
-  ylab("n samples") +
+We see that the proportion of cells mapping to each cell type varies widely between donors
+```{r, fig.height=8, fig.width=8}
+cell_metadata <- vroom("data/single_cell_objects/highpass/eb_metadata.tsv")
+
+donor_celltype <- select(cell_metadata, c("cell", "donor_id")) %>%
+  inner_join(select(sc_annotated, c("cell", "value"))) %>%
+  mutate(type=if_else(value=="unassigned", NA_character_, value))
+
+proportions_per_celltype <- donor_celltype %>%
+  add_count(donor_id, name="donor_n") %>%
+  add_count(donor_id, type, name="donor_type_n") %>%
+  mutate(proportion=donor_type_n / donor_n) %>%
+  select(type, donor_id, proportion) %>%
+  distinct
+
+ggplot(proportions_per_celltype, aes(x=factor(type), y=proportion, fill=factor(type))) +
+  geom_violin(scale="width") +
+  coord_flip() +
   theme_classic(base_size=15) +
-  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
-  geom_abline(slope=0, intercept=25, linetype="dashed")
+  theme(legend.position = "none")
+
+ggplot(proportions_per_celltype, aes(x=factor(donor_id), y=proportion, fill=factor(type))) +
+  geom_bar(stat="identity", color="black") +
+  coord_flip() +
+  theme_classic(base_size=15)
 ```
 
-To emphasize that we do see most cell types in most donors, we can visualize this differently
-```{r, fig.width=8, fig.height=4}
-read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/sample_summary.tsv") %>%
-  mutate(individual=factor(individual), type=factor(type))  %>%
-  #filter(!dropped) %>%
-  select(individual, type, dropped) %>%
-  pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>%
-  pivot_longer(!individual, names_to="type", values_to="dropped") %>%
-  mutate(individual=paste0("NA", individual)) %>%
-  mutate(observed=!dropped) %>%
-  ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) +
-    geom_point(shape = 1, size = 1, stroke=2) +
-    scale_color_manual(values = c("#1DB100", "#D5D5D5")) +
-    theme_classic(base_size=15) +
-    labs(title = "Cell Type Observations",
-         x = "Donor",
-         y = "Cell Type",
-         color = "Cell Type Observed") +
-    theme(axis.text.x = element_text(angle = 45, hjust=1))
-```
+But on the flip side, most donors to generate most cell types!
 
-After manual pruning of outlier samples
-```{r, fig.width=8, fig.height=4}
-read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv") %>%
-  mutate(individual=factor(individual), type=factor(type))  %>%
-  #filter(!dropped) %>%
-  select(individual, type, dropped) %>%
-  pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>%
-  pivot_longer(!individual, names_to="type", values_to="dropped") %>%
-  mutate(individual=paste0("NA", individual)) %>%
-  mutate(observed=!dropped) %>%
-  ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) +
-    geom_point(shape = 1, size = 1, stroke=2) +
-    scale_color_manual(values = c("#1DB100", "#D5D5D5")) +
-    theme_classic(base_size=15) +
-    labs(title = "Cell Type Observations",
-         x = "Donor",
-         y = "Cell Type",
-         color = "Cell Type Observed") +
-    theme(axis.text.x = element_text(angle = 45, hjust=1))
-```
-
-How many cells do we have (median) per cell type?
+Here's what it looks like for different cutoffs on the number of cells req'd for a 
+pseudobulk sample
 ```{r}
-sample_summary %>%
-  filter(!dropped) %>%
-  filter(type %in% cell.types) %>%
-  group_by(type) %>%
-  summarize(n_cells_median=median(n_cells_filtered)) %>%
-  arrange(n_cells_median) %>%
-  ggplot(aes(x=type, y=n_cells_median)) +
-  geom_bar(stat="identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust=1))
+thresholds <- seq(10) * 5
+all_donors <- unique(donor_celltype$donor_id)
+
+count_celltypes <- function(df, thresh, d) {
+  count(df, donor_id, type) %>% filter((n>=thresh) & (donor_id==d)) %>% nrow
+}
+
+n_types <- expand_grid(thresholds, all_donors) %>%
+  mutate(n_types=map2_dbl(thresholds, all_donors, count_celltypes, df=donor_celltype))
+
+ggplot(n_types, aes(x=thresholds, y=n_types, color=all_donors)) +
+  geom_line()
 ```
 
-And how many cell types per individual?
-```{r}
-sample_summary  %>%
-  filter(!dropped) %>%
-  dplyr::count(individual) %>%
-  ggplot(aes(x=individual, y=n, fill=individual)) +
+And for clarity, here's the slice at a cutoff of 5 (the value we actually chose)
+```{r fig.height=8, fig.width=6}
+filter(n_types, thresholds==5) %>%
+  ggplot(aes(x=all_donors, y=n_types)) +
   geom_bar(stat="identity") +
-  ylab("n samples") +
-  theme_classic(base_size=15) +
-  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="none") +
-  geom_abline(slope=0, intercept=25, linetype="dashed")
+  coord_flip() +
+  theme_classic(base_size=15)
 ```
+
+On the flip side, how many samples are there per cell type at various threhsolds?
+```{r}
+thresholds <- seq(10) * 5
+all_types <- na.omit(unique(donor_celltype$type))
+
+count_samples <- function(df, thresh, ct) {
+  count(df, donor_id, type) %>% filter((n>=thresh) & (type==ct)) %>% nrow
+}
+
+sample_sizes <- expand_grid(thresholds, all_types) %>%
+  mutate(n=map2_dbl(thresholds, all_types, count_samples, df=donor_celltype))
+
+ggplot(sample_sizes, aes(x=thresholds, y=n, color=all_types)) +
+  geom_line()
+```
+
+We can also look at 
+```{r}
+n_cell_types <- sample_sizes %>%
+  group_by(thresholds) %>%
+  mutate(`20`=sum(n >= 20)) %>%
+  mutate(`30`=sum(n >= 30)) %>%
+  mutate(`40`=sum(n >= 40)) %>%
+  pivot_longer(c(`20`, `30`, `40`), names_to="sample_size_threshold", values_to="n_types")
+
+ggplot(n_cell_types, aes(x=thresholds, y=n_types, color=sample_size_threshold)) +
+  geom_line()
+```
+
+
+
+
+<!-- To emphasize that we do see most cell types in most donors, we can visualize this differently -->
+<!-- ```{r, fig.width=8, fig.height=4} -->
+<!-- read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/sample_summary.tsv") %>% -->
+<!--   mutate(individual=factor(individual), type=factor(type))  %>% -->
+<!--   #filter(!dropped) %>% -->
+<!--   select(individual, type, dropped) %>% -->
+<!--   pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>% -->
+<!--   pivot_longer(!individual, names_to="type", values_to="dropped") %>% -->
+<!--   mutate(individual=paste0("NA", individual)) %>% -->
+<!--   mutate(observed=!dropped) %>% -->
+<!--   ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) + -->
+<!--     geom_point(shape = 1, size = 1, stroke=2) + -->
+<!--     scale_color_manual(values = c("#1DB100", "#D5D5D5")) + -->
+<!--     theme_classic(base_size=15) + -->
+<!--     labs(title = "Cell Type Observations", -->
+<!--          x = "Donor", -->
+<!--          y = "Cell Type", -->
+<!--          color = "Cell Type Observed") + -->
+<!--     theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
+<!-- ``` -->
+
+<!-- After manual pruning of outlier samples -->
+<!-- ```{r, fig.width=8, fig.height=4} -->
+<!-- read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv") %>% -->
+<!--   mutate(individual=factor(individual), type=factor(type))  %>% -->
+<!--   #filter(!dropped) %>% -->
+<!--   select(individual, type, dropped) %>% -->
+<!--   pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>% -->
+<!--   pivot_longer(!individual, names_to="type", values_to="dropped") %>% -->
+<!--   mutate(individual=paste0("NA", individual)) %>% -->
+<!--   mutate(observed=!dropped) %>% -->
+<!--   ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) + -->
+<!--     geom_point(shape = 1, size = 1, stroke=2) + -->
+<!--     scale_color_manual(values = c("#1DB100", "#D5D5D5")) + -->
+<!--     theme_classic(base_size=15) + -->
+<!--     labs(title = "Cell Type Observations", -->
+<!--          x = "Donor", -->
+<!--          y = "Cell Type", -->
+<!--          color = "Cell Type Observed") + -->
+<!--     theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
+<!-- ``` -->
+
+<!-- How many cells do we have (median) per cell type? -->
+<!-- ```{r} -->
+<!-- sample_summary %>% -->
+<!--   filter(!dropped) %>% -->
+<!--   filter(type %in% cell.types) %>% -->
+<!--   group_by(type) %>% -->
+<!--   summarize(n_cells_median=median(n_cells_filtered)) %>% -->
+<!--   arrange(n_cells_median) %>% -->
+<!--   ggplot(aes(x=type, y=n_cells_median)) + -->
+<!--   geom_bar(stat="identity") + -->
+<!--   theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
+<!-- ``` -->

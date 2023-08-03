@@ -28,7 +28,7 @@ library(parallel)
 library(tidyverse)
 
 # Get inputs/ outputs from snakemake
-ncores <- min(as.integer(snakemake@threads), detectCores())
+ncores <- min(as.integer(snakemake@resources[['ntasks_per_node']]), detectCores())
 sce_loc <- snakemake@input[['pseudocells_sce']]
 pseudocell_names_loc <- snakemake@input[['adata_pseudocell_names']]
 gene_names_loc <- snakemake@input[['adata_gene_names']]

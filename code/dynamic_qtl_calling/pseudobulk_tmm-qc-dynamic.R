@@ -11,13 +11,14 @@ library(Matrix)
 library(matrixStats)
 library(edgeR)
 set.seed(2021)
-source("/project2/gilad/jpopp/sc-dynamic-eqtl/code/cell_line_pca.R")
+source("/project2/gilad/jpopp/ebQTL/code/dynamic_qtl_calling/clpca.R")
 
 pseudobulk_loc <- snakemake@input[["pseudobulk"]]
 sample_summary_loc <- as.character(snakemake@input[["sample_summary"]])
 sample_summary_manual_loc <- as.character(snakemake@output[["sample_summary_manual"]])
 table_prefix <- snakemake@params[['table_prefix']]
 plot_prefix <- snakemake@params[['fig_prefix']]
+pca_method <- as.character(snakemake@wildcards[['pca']])
 
 # Inverse normal function
 invnorm_transform <- function(x) {
@@ -99,7 +100,11 @@ plot(pcomp$u$PC1, pcomp$u$PC2,
 dev.off()
 
 # Cell line PCs - covariates for QTL calling
-cell_line_pcs <- cell.line.pca(expression,npc=12)
+if (pca_method == "svd") {
+  cell_line_pcs <- cell.line.pca(expression,npc=12)
+} else {
+  cell_line_pcs <- prob.cell.line.pca(expression,npc=12,pca_method)
+}
 cell_line_pcs$cell.line.pcs %>% 
   write_tsv(paste0(table_prefix,'all_cell_line_pcs.tsv'))
 

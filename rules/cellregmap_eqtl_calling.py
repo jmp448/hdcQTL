@@ -1,7 +1,7 @@
 import pandas as pd
 
 def list_cellregmap_output_files(wildcards):
-    test_genes = list(pd.read_csv("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-tophits_variant_gene_pairs.bed", sep="\t")['EB_HGNC'])
+    test_genes = set(pd.read_csv(f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/8pcs/{wildcards.variant_group}_variant_gene_pairs.bed", sep="\t")['EB_HGNC'])
     return [f"results/cellregmap_eqtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{wildcards.variant_group}.fasttopics_{wildcards.k}topics.{g}.cellregmap.tsv" for g in test_genes]
 
 rule make_genotype_bed:
@@ -74,13 +74,27 @@ rule make_pseudocell_metadata:
     script:
         "../code/cellregmap_eqtl_calling/make_pseudocell_metadata.py"
 
+rule filter_tests:
+    resources:
+        mem_mb=50000,
+        time="3:00:00"
+    input:
+        test_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.bed",
+        genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed"
+    output:
+        filtered_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.maf0.1.bed"
+    conda: 
+        "../slurmy/cellregmap.yml"
+    script:
+        "../code/cellregmap_eqtl_calling/filter_tests_fullpanel_maf_0.1.py"
+
 rule run_interaction_test_fasttopics:
     resources:
         partition = "gilad",
-        mem_mb = 5000,
-        time = "10:00"
+        mem_mb = 20000,
+        time = "1:00:00"
     input:
-        test_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.bed",
+        test_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.maf0.1.bed",
         sample_mapping_file = "data/cellregmap/pseudocell_metadata.tsv",
         genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed" ,
         kinship_file = "data/genotypes/yri_kinship.tsv",
@@ -109,10 +123,11 @@ rule merge_interaction_test_fasttopics:
         # Combine input files into a single file
         cat {input} > {params.tempfile}
         
-        # Filter lines to unique rows
-        sort -u {params.tempfile} > {output}
+        # Filter lines to unique rows and save to output
+        echo -e "EB_HGNC\tEB_VARIANT_ID\tP_CELLREGMAP" > {output}
+        sort -u {params.tempfile} >> {output}
         
-        # Remove temporary file
+        # Remove temp file
         rm {params.tempfile}
         """
   
