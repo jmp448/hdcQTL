@@ -40,6 +40,24 @@ immune <- tibble(type=immune_types, layer="immune", color="#970E53")
 color_map <- bind_rows(ecto, epi, meso, endo, immune)
 ```
 
+OR (this is based on the clustering in `annotations/tidy_celltype_names.Rmd`)
+```{r}
+type_levels <- c("Vascular-endothelial-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Parietal-and-chief-cells", "Adrenocortical-cells", "Ureteric-bud-cells", "Acinar-cells", "Ductal-cells", "Lymphoid-cells", "Megakaryocytes", "Skeletal-muscle-cells", "Neuroendocrine-cells", "PNS-neurons", "PNS-glia", "Erythroblasts", "Ciliated-epithelial-cells", "CNS-neurons", "Retinal-cells", "CNS-glia", "Metanephric-cells", "Goblet-cells", "Hepatoblasts", "Squamous-epithelial-cells", "Mesangial-cells", "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells", "Cardiomyocytes", "Epicardial-fat-cells", "Mesothelial-cells") 
+
+vasc <- tibble(type="Vascular-endothelial-cells", layer="Vasc_Endo", color="#863108")
+epi <- tibble(type=c("Bronchiolar-and-alveolar-epithelial-cells", "Parietal-and-chief-cells", "Adrenocortical-cells", "Ureteric-bud-cells", "Acinar-cells", "Ductal-cells"), layer="epithelium", color="#16E7CF")
+immune <- tibble(type=c("Lymphoid-cells", "Megakaryocytes"), layer="immune", color="#970E53")
+ecto_1 <- tibble(type=c("Skeletal-muscle-cells", "Neuroendocrine-cells", "PNS-neurons"), layer="ecto_1", color="#004D80")
+ecto_2 <- tibble(type=c("PNS-glia", "Erythroblasts", "Ciliated-epithelial-cells", "CNS-neurons", "Retinal-cells", "CNS-glia", "Metanephric-cells"), layer="ecto_2", color="#0076BA")
+endo <- tibble(type=c("Goblet-cells", "Hepatoblasts"), layer="endoderm", color="#FEAE00")
+squa <- tibble(type="Squamous-epithelial-cells", layer="Squa_Epi", color="#FE7000")
+meso <- tibble(type=c("Mesangial-cells", "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells", "Cardiomyocytes", "Epicardial-fat-cells", "Mesothelial-cells"), layer="mesoderm", color="#B51700")
+color_map <- bind_rows(vasc, epi, immune, ecto_1, ecto_2, endo, squa, meso)
+```
+
+
+
+
 
 FLASH factors
 ```{r}
@@ -79,7 +97,7 @@ factor_1  %>%
 ```
 
 Component 2 - mesoderm/ endoderm
-```{r, fig.height=4, fig.width=4}
+```{r}
 factor_2 <- U.flash$FLASH_nonneg_2 %>%
   princomp %>%
   .$loadings %>%
@@ -236,49 +254,114 @@ mash_hits_comparison <- qtls_by_type %>%
   replace_na(list(n=0)) %>%
   mutate(type=factor(type, levels=type_levels))
 ```
+
 Permutation eGenes
 ```{r fig.width=3, fig.height=4}
 permutation_egenes  %>%
-  mutate(type=factor(type, levels=color_map$type)) %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
   ggplot(aes(x=type, y=permutations)) +
   geom_col(fill="#0076BA") +
   ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") +
   coord_flip() +
   theme_classic(base_size=12) +
-  lims(x = rev(levels(factor_3$type)))
+  lims(x = rev(levels(type_levels)))
 ```
 
 
 ```{r fig.width=5, fig.height=4}
 mash_hits_comparison  %>%
-  mutate(type=factor(type, levels=color_map$type)) %>%
+  mutate(type=factor(type, levels=type_levels)) %>%
   ggplot(aes(x=type, y=n, fill=method)) +
   geom_bar(position="dodge", stat="identity") +
   ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") +
   coord_flip() +
-  theme_classic(base_size=12) +
-  lims(x = rev(levels(factor_3$type)))
+  theme_classic(base_size=12) 
+#+
+#  lims(x = rev(levels(type_levels)))
 ```
 
-See if any of our novel eGenes have interesting patterns
+## Exploring Specific Examples
 ```{r}
-sig_contexts <- as_tibble(get_n_significant_conditions(tophits_m), rownames="gv") %>%
-  separate(gv, into=c("gene", "variant"), sep="_", remove=F) %>%
-  filter(value >= 1)
+eb_sighits_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.tsv"
+eb_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.full_gtex_overlap.bed"
 
-novel_overlap <- sig_contexts %>%
+gtex_overlap <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+eb_all <- vroom(eb_sighits_loc)
+
+overlap_egenes <- unique(gtex_overlap$EB_HGNC)
+all_egenes <- unique(eb_all$EB_HGNC)
+novel_egenes <- setdiff(all_egenes, overlap_egenes)
+```
+
+See if any of our novel eQTLs have interesting patterns
+```{r}
+full_m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_fitted_model.full.rds")
+
+n_contexts <- as_tibble(get_n_significant_contexts(full_m), rownames="gv")
+
+novel_overlap_posteriors <- as_tibble(full_m$posterior_weights) %>%
+  mutate(gv=rownames(full_m$result$lfsr), .before=1) %>%
+  left_join(n_contexts, by="gv") %>%
+  filter(value >= 1) %>%
+  separate(gv, into=c("gene", "variant"), sep="_", remove=F) %>%
   filter(gene %in% novel_egenes)
 ```
 
-To hunt for an interesting example, I'll look at the posterior weights
+Ideally, an example will not only not be found in GTEx, but it will have been missed by our previous analysis
 ```{r}
-novel_overlap_posteriors <- as_tibble(tophits_m$posterior_weights) %>%
-  mutate(gv=rownames(tophits_m$result$lfsr), .before=1) %>%
-  separate(gv, into=c("gene", "variant"), sep="_", remove=F) %>%
-  right_join(select(novel_overlap, c(gene, value)), by="gene")
+permutation_ehits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.tsv")
+
+doubly_novel_overlap_posteriors <- filter(novel_overlap_posteriors, !gene %in% permutation_ehits$phenotype_id)
 ```
 
+Are any of these effects significant in some-but-not-all contexts?
+```{r}
+highly_variable_effects <- filter(doubly_novel_overlap_posteriors,(value >= 3) & (value <= 15))
+```
+
+Now for the sake of visualization, winnow those down to the ones that were tested in most EB contexts 
+in the celltype-by-celltype analysis
+```{r}
+nonmash_effects <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.all.tsv")
+
+measured_contexts <- unite(nonmash_effects, col="gv", phenotype_id, variant_id, sep="_", remove=F) %>%
+  dplyr::count(gv) %>%
+  filter(n >= 20)
+
+highly_variable_effects_measured <- inner_join(highly_variable_effects, measured_contexts, by="gv")
+```
 
 ```{r}
-mash_plot_meta(tophits_m, "ADAMTS12_rs7713279", labels=colnames(tophits_m$result$lfsr))
+mash_colors <- color_map %>%
+  arrange(type) %>%
+  pull(color)
 ```
+
+```{r}
+mash_plot_meta(full_m, "SH3PXD2B_rs10042482", labels=colnames(full_m$result$lfsr),
+               colors=meta.colors(box=mash_colors))
+```
+
+How does this compare to the effects we learned in the celltype-by-celltype analysis?
+```{r fig.width=4, fig.height=5}
+nonmash_viz <- filter(nonmash_effects, (variant_id=="rs10042482") & (phenotype_id=="SH3PXD2B"))
+
+nonmash_colors <- color_map %>%
+  right_join(nonmash_viz, by=c("type"="celltype")) %>%
+  arrange(type) %>%
+  pull(color)
+
+metaplot(nonmash_viz$slope, nonmash_viz$slope_se, labels=nonmash_viz$celltype,
+         colors=meta.colors(box=nonmash_colors), xlab="Effect Size",
+         ylab="Celltype")
+```
+
+Redo mash plot with expanded x limits
+```{r fig.width=4, fig.height=5}
+mash_plot_meta(full_m, "SH3PXD2B_rs10042482", labels=colnames(full_m$result$lfsr),
+               xlim=c(-0.8, 0.6),
+               colors=meta.colors(box=mash_colors))
+```
+

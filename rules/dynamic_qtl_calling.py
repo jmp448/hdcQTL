@@ -97,7 +97,7 @@ rule plink_expression_reformat_dynamic:
 rule tensorqtl_interaction_prep:
     resources:
         mem_mb=250000,
-        time="01:30:00"
+        time="02:30:00"
     input:
         genotypes=expand("data/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/{{pca}}/genotypes_filtered_plink.{out}", out=['bed', 'bim', 'fam']),
         exp="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/expression.bed.gz",

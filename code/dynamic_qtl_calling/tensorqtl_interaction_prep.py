@@ -43,6 +43,9 @@ assert pseudotime.index.equals(covariates_df.index)
 for k in range(1, n_clpcs+1):
   covariates_df['CLPC_' + str(k) + '_pseudotime'] = covariates_df['CLPC_' + str(k)] * pseudotime['pseudotime']
 
+# Add interaction term between sex and pseudotime
+covariates_df['sex_pseudotime'] = covariates_df['sex'] * pseudotime['pseudotime']
+
 # Load and wrangle genotype files
 pr = genotypeio.PlinkReader(plink_prefix_path)
 genotypes = pr.load_genotypes()

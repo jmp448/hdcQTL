@@ -1,0 +1,34 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+ctprop_df <- vroom("temp/ctqtl_df.tsv")
+```
+
+```{r}
+m <- lm(myocyte_props ~ ., ctprop_df)
+plot(m)
+summary(m)
+```
+
+After outlier removal
+```{r}
+maybe_outliers <- c(57, 416, 426)
+ctprop_inliers <- ctprop_df[!seq(nrow(ctprop_df)) %in% maybe_outliers,]
+m_inliers <- lm(myocyte_props ~ ., ctprop_inliers) 
+plot(m_inliers)
+summary(m_inliers)
+```
+
+Look for any outliers specifically influencing our main effect
+```{r}
+prop_residuals <- residuals(lm(myocyte_props ~ .-chr7_232170_C_T_b38, ctprop_inliers))
+genotype_residuals <- residuals(lm(chr7_232170_C_T_b38 ~ .-myocyte_props, ctprop_inliers))
+residuals_df <- tibble(partial_genotype=genotype_residuals, partial_props=prop_residuals)
+
+m_partial <- lm(partial_props ~ partial_genotype, residuals_df)
+plot(m_partial)
+summary(m_partial)
+```
+

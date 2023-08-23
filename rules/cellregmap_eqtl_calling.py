@@ -4,6 +4,10 @@ def list_cellregmap_output_files(wildcards):
     test_genes = set(pd.read_csv(f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/8pcs/{wildcards.variant_group}_variant_gene_pairs.bed", sep="\t")['EB_HGNC'])
     return [f"results/cellregmap_eqtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{wildcards.variant_group}.fasttopics_{wildcards.k}topics.{g}.cellregmap.tsv" for g in test_genes]
 
+def list_cellregmap_beta_files(wildcards):
+    iqtl_genes = set(pd.read_csv(f"results/cellregmap_eqtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/all_genes_merged.{wildcards.variant_group}.fasttopics_{wildcards.k}topics.cellregmap.sighits.tsv", sep="\t")['EB_HGNC'])
+    return [f"results/cellregmap_eqtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{wildcards.variant_group}.fasttopics_{wildcards.k}topics.{g}.cellregmap.betas.tsv" for g in iqtl_genes]
+
 rule make_genotype_bed:
     resources:
         mem_mb=100000
@@ -54,7 +58,8 @@ rule compress_expression:
     input:
         pseudocell_adata="data/single_cell_objects/eb_pseudocells_raw.h5ad"
     output:
-        exp="data/single_cell_objects/eb_pseudocells_normalized.nc"
+        exp="data/single_cell_objects/eb_pseudocells_normalized.nc",
+        tabular_exp="data/single_cell_objects/eb_pseudocells_normalized.tsv"
     conda: 
         "../slurmy/cellregmap.yml"
     script:
@@ -92,7 +97,7 @@ rule run_interaction_test_fasttopics:
     resources:
         partition = "gilad",
         mem_mb = 20000,
-        time = "1:00:00"
+        time = "24:00:00"
     input:
         test_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.maf0.1.bed",
         sample_mapping_file = "data/cellregmap/pseudocell_metadata.tsv",
@@ -111,7 +116,7 @@ rule merge_interaction_test_fasttopics:
     resources:
         partition = "gilad",
         mem_mb = 10000,
-        time = "01:00:00"
+        time = "10:00:00"
     input:
         unpack(list_cellregmap_output_files)
     output:
@@ -130,4 +135,52 @@ rule merge_interaction_test_fasttopics:
         # Remove temp file
         rm {params.tempfile}
         """
-  
+
+rule cellregmap_mtc:
+    resources:
+        mem_mb = 10000,
+        time = "10:00"
+    input:
+        eqtls="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.tsv"
+    output:
+        all_tests="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.mtc.tsv",
+        top_tests="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.tophits.tsv",
+        sig_hits="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.sighits.tsv"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/cellregmap_eqtl_calling/cellregmap_mtc.R"
+
+rule estimate_effect_sizes:
+    resources:
+        partition = "gilad",
+        mem_mb = 20000,
+        time = "24:00:00"
+    input:
+        interaction_eqtl_file="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.sighits.tsv",
+        sample_mapping_file = "data/cellregmap/pseudocell_metadata.tsv",
+        genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed" ,
+        kinship_file = "data/genotypes/yri_kinship.tsv",
+        exp = "data/single_cell_objects/eb_pseudocells_normalized.nc", 
+        cell_contexts = "results/fast_topics/fasttopics_{k}topics_loadings.tsv"
+    output:
+        out="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/{variant_group}.fasttopics_{k}topics.{g}.cellregmap.betas.tsv"
+    conda:
+        "../slurmy/cellregmap.yml"
+    script:
+        "../code/cellregmap_eqtl_calling/single_gene_effect_estimates.py"
+
+rule merge_effect_size_estimates:
+    resources:
+        partition = "gilad",
+        mem_mb = 10000,
+        time = "10:00:00"
+    input:
+        unpack(list_cellregmap_beta_files)
+    output:
+        "temp/cellregmap_eqtl_calling.{annotation}.pseudobulk_tmm.basic.all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.DUMMYDONEFILE.tsv"
+    shell:
+        """
+        echo done > {output}
+        """
+        

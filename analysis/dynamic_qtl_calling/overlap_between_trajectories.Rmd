@@ -6,13 +6,13 @@ library(qvalue)
 
 Load the hits in the cardiomyocyte and neuronal trajectories
 ```{r}
-cm_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+cm_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
 cm_hits <- filter(cm_emt, pval_adj_bh <= 0.05)
-cm_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.all.tsv")
+cm_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
 
-neur_emt <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+neur_emt <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
 neur_hits <- filter(neur_emt, pval_adj_bh <= 0.05)
-neur_all <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.all.tsv")
+neur_all <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
 ```
 
 ```{r}

@@ -63,187 +63,129 @@ eb_pseudobulk_standardized <- t(apply(eb_pseudobulk_norm, 1, scale))
 colnames(eb_pseudobulk_standardized) <- colnames(eb_pseudobulk_norm)
 ```
 
-
-eb_pseudobulk_sparse <- eb_pseudobulk %>%
-  filter(gene %in% fca_pseudobulk$gene) %>%
-  column_to_rownames("gene") %>% t %>% as("dgCMatrix")
-celltypes <- str_extract(rownames(eb_pseudobulk_sparse), "[^_]+$")
-
-eb_medians <- aggregate.Matrix(eb_pseudobulk_sparse, celltypes, fun="sum") %>%
-  t %>% as.matrix()
-
-Look at overlap
+Compare expression among *all genes*, with only *sample-level normalization* (no scaling)
 ```{r, fig.height=10, fig.width=10}
 overlap_genes <- intersect(rownames(fca_pseudobulk_norm), rownames(eb_pseudobulk_norm))
 hvg_genes <- intersect(overlap_genes, hvgs$gene)
 
 eb_fca_cor <- cor(eb_pseudobulk_norm[overlap_genes,], fca_pseudobulk_norm[overlap_genes,], 
                   method="pearson", use="everything")
-     
-eb_fca_cor <- cor(eb_pseudobulk_standardized[hvg_genes,], fca_pseudobulk_standardized[hvg_genes,], 
-                  method="pearson", use="everything")
-
 heatmap.2(eb_fca_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
           col=bluered, trace="none", cexRow=1.5, cexCol=1.5)
 ```
-eb_fca_cor <- cor(eb_medians[overlap_genes,], fca_pseudobulk[overlap_genes,], 
-                  method="pearson", use="everything")
 
-
-There are some trends that I am really surprised to see, with the fetal cell atlas's metanephric cells looking a lot like *all* EB cell types.
-
-Does this effect persist if we're only looking at a particular cell type's signature genes?
-```{r, fig.height=8, fig.width=8}
-neuronal_signature_genes <- intersect(overlap_genes, fca_signatures$`CNS neurons`)
-
-neuro_cor <- cor(eb_pseudobulk_norm[neuronal_signature_genes,], 
-                 fca_pseudobulk_norm[neuronal_signature_genes,], 
-                  method="pearson", use="everything")
-                  
-heatmap.2(neuro_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(15,15))
-```
-
-It certainly looks different here. Maybe cell types should be ordered differently, 
-according to similarity among their own dataset.
-```{r, fig.height=8, fig.width=8}
-eb_dend <- as.dendrogram(hclust(dist(t(eb_pseudobulk_norm[neuronal_signature_genes,]))))
-fca_dend <- as.dendrogram(hclust(dist(t(fca_pseudobulk_norm[neuronal_signature_genes,]))))
-
-heatmap.2(neuro_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=eb_dend, Colv = fca_dend,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(15,15))
-```
-
-That does seem to work a bit better. What happens if we do something like this, looking across all HVGs?
-```{r, fig.height=8, fig.width=8}
-eb_dend_hvg <- as.dendrogram(hclust(dist(t(eb_pseudobulk_norm[hvg_genes,])), method="complete"))
-fca_dend_hvg <- as.dendrogram(hclust(dist(t(fca_pseudobulk_norm[hvg_genes,])), method="complete"))
-
-hvg_cor <- cor(eb_pseudobulk_norm[hvg_genes,], 
-               fca_pseudobulk_norm[hvg_genes,],
-               method="pearson", use="everything")
-heatmap.2(hvg_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=eb_dend_hvg, Colv = fca_dend_hvg,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
-```
-
-Ok, not bad, just for comparison, is looking across all signature genes any different? 
-```{r, fig.height=8, fig.width=8}
-signature_genes <- as_tibble(fca_signatures) %>%
-  pivot_longer(everything(), names_to="type", values_to="gene") %>%
-  pull(gene) %>%
-  unique() %>%
-  intersect(overlap_genes)
-
-eb_dend_sig <- as.dendrogram(hclust(dist(t(eb_pseudobulk_norm[signature_genes,]))))
-fca_dend_sig <- as.dendrogram(hclust(dist(t(fca_pseudobulk_norm[signature_genes,]))))
-
-sig_cor <- cor(eb_pseudobulk_norm[signature_genes,], 
-               fca_pseudobulk_norm[signature_genes,],
-               method="pearson", use="everything")
-heatmap.2(sig_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=eb_dend_sig, Colv = fca_dend_sig,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
-```
-
-Still though, the comparison to FCA isn't doing much. It's cleaner just to view the auto-correlation
-```{r, fig.width=8, fig.height=8}
-hvg_cor_eb <- cor(eb_pseudobulk_norm[hvg_genes,],
-               method="pearson", use="everything")
-heatmap.2(hvg_cor_eb, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=eb_dend_hvg, Colv=eb_dend_hvg,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
-```
-```{r, fig.width=8, fig.height=8}
-hvg_cor_fca <- cor(fca_pseudobulk_norm[hvg_genes,],
-               method="pearson", use="everything")
-heatmap.2(hvg_cor_fca, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=fca_dend_hvg, Colv=fca_dend_hvg,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
-```
-
-Now going to try with standardization
-```{r, fig.width=8, fig.height=8}
-eb_dend_sig <- as.dendrogram(hclust(dist(t(eb_pseudobulk_standardized[signature_genes,]))))
-fca_dend_sig <- as.dendrogram(hclust(dist(t(fca_pseudobulk_standardized[signature_genes,]))))
-
-sig_cor <- cor(eb_pseudobulk_standardized[signature_genes,], 
-               fca_pseudobulk_standardized[signature_genes,],
-               method="pearson", use="everything")
-heatmap.2(sig_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
-heatmap.2(sig_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=eb_dend_sig, Colv = fca_dend_sig,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
-```
-To determine higher-confidence annotations
+This seems strange - why would all of our cell types look most like PNS glia? 
 ```{r}
-cors <- as_tibble(sig_cor, rownames="EB_type") %>%
-  pivot_longer(!EB_type, names_to="FCA_type", values_to="cor") %>%
-  mutate(FCA_type=str_replace_all(FCA_type, pattern=" ", replacement="-")) %>%
-  filter(FCA_type %in% EB_type) %>% 
-  arrange(EB_type, desc(cor))
+plot(eb_pseudobulk_norm[overlap_genes,"PNS-glia"], fca_pseudobulk_norm[overlap_genes,"PNS glia"])
+plot(eb_pseudobulk_norm[overlap_genes,"Cardiomyocytes"], fca_pseudobulk_norm[overlap_genes,"PNS glia"])
+plot(eb_pseudobulk_norm[overlap_genes,"Cardiomyocytes"], fca_pseudobulk_norm[overlap_genes,"Cardiomyocytes"])
 ```
-
+Look at this same set of plots in the raw counts space
 ```{r}
-divider <- function(a, b) {
-  return(a/b)
-}
-
-subtractor <- function(a, b) {
-  return(a - b)
-}
-
-confidence <- cors %>%
-  group_by(EB_type) %>%
-  slice_head(n=2) %>%
-  mutate(rank=row_number()) %>%
-  select(EB_type, cor, rank) %>%
-  pivot_wider(id_cols=EB_type, names_from="rank", values_from="cor") %>%
-  mutate(factor_diff=map2_dbl(`1`, `2`, divider)) %>%
-  mutate(mag_diff=map2_dbl(`1`, `2`, subtractor))
+plot(eb_pseudobulk_counts_agg["PNS-glia",overlap_genes], fca_pseudobulk["PNS glia",overlap_genes])
+plot(eb_pseudobulk_counts_agg["Cardiomyocytes",overlap_genes], fca_pseudobulk["PNS glia",overlap_genes])
+plot(eb_pseudobulk_counts_agg["Cardiomyocytes",overlap_genes], fca_pseudobulk["Cardiomyocytes", overlap_genes])
 ```
 
+The genes that are highly expressed in FCA but not in EB, look like they should be expressed in EB
+```{r}
+fca_cm_eb_cm <- tibble("gene"=overlap_genes, 
+                         "fca_cm"=fca_pseudobulk_norm[overlap_genes,"Cardiomyocytes"],
+                         "eb_cm"=eb_pseudobulk_norm[overlap_genes,"Cardiomyocytes"])
 
-
-```{r, fig.width=8, fig.height=8}
-eb_dend_hvg <- as.dendrogram(hclust(dist(t(eb_pseudobulk_standardized[hvg_genes,])), method="average"))
-fca_dend_hvg <- as.dendrogram(hclust(dist(t(fca_pseudobulk_standardized[hvg_genes,])), method="average"))
-
-hvg_cor <- cor(eb_pseudobulk_standardized[hvg_genes,], 
-               fca_pseudobulk_standardized[hvg_genes,],
-               method="pearson", use="everything")
-heatmap.2(hvg_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
-heatmap.2(hvg_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=eb_dend_sig, Colv = fca_dend_sig,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
+filter(fca_cm_eb_cm, (fca_cm >= 10) & (eb_cm <= 0))
 ```
 
-```{r, fig.width=8, fig.height=8}
-hvg_cor_ebonly <- cor(eb_pseudobulk_standardized[hvg_genes,],
-                      method="pearson", use="everything")
-heatmap.2(hvg_cor_ebonly, xlab="FCA Cell Type", ylab="EB Cell Type",
-          Rowv=eb_dend_sig, Colv = eb_dend_sig,
-          col=bluered, trace="none", cexRow=1.5, cexCol=1.5, margins=c(20,20))
+Next thing to check is just to rule out that the discrepancy has to do with normalization - does 
+TMM fall short with so many unexpressed genes? 
+
+It looks like the distributions across all genes differ quite a bit from cell type to cell type in the FCA
+```{r}
+hist(fca_pseudobulk_norm[overlap_genes,"PNS glia"])
+hist(fca_pseudobulk_norm[overlap_genes,"Cardiomyocytes"])
+hist(fca_pseudobulk_norm[overlap_genes,"Metanephric cells"])
 ```
+Cardiomyocytes appear to have more zeros, and PNS glia/ Metanephric cells have relatively few - this could be influencing the normalization. 
+```{r}
+n_zeros <- tibble(celltype=rownames(fca_pseudobulk), nzeros=rowSums(fca_pseudobulk[,overlap_genes]==0))
+median_cor <- tibble(celltype=colnames(eb_fca_cor), medcor=colMedians(eb_fca_cor))
+
+ggplot(inner_join(n_zeros, median_cor, by="celltype"), aes(x=nzeros, y=medcor)) +
+  geom_point()
+```
+It looks possible that the number of zeros is really affecting the correlation with the EB data. Is the same true on the EB side?
+```{r}
+n_zeros_eb <- tibble(celltype=rownames(eb_pseudobulk_counts_agg), nzeros=rowSums(eb_pseudobulk_counts_agg[,overlap_genes]==0))
+median_cor_eb <- tibble(celltype=rownames(eb_fca_cor), medcor=rowMedians(eb_fca_cor))
+
+ggplot(inner_join(n_zeros_eb, median_cor_eb, by="celltype"), aes(x=nzeros, y=medcor)) +
+  geom_point()
+```
+
+So our approach to normalization and comparison doesn't appear to be working right here, where we have variable amounts of 'dropout' (or whatever we want to call these zeros)
+
+## Extreme Digression
+Let's say we take this to an impractical extreme, and discount all zero values from either matrix - do the trends appear?
+```{r}
+fca_pseudobulk_dropout <- fca_pseudobulk
+fca_pseudobulk_dropout[fca_pseudobulk == 0] = NA
+fca_pseudobulk_nodropout <- fca_pseudobulk_dropout[,colSums(is.na(fca_pseudobulk_dropout)) == 0]
+
+fca_pseudobulk_dropout_norm <- DGEList(counts=t(fca_pseudobulk_nodropout)) %>%
+  calcNormFactors(method="TMM") %>%
+  edgeR::cpm(log=T)
+
+eb_pseudobulk_dropout <- eb_pseudobulk_counts_agg
+eb_pseudobulk_dropout[eb_pseudobulk_dropout == 0] = NA
+eb_pseudobulk_nodropout <- eb_pseudobulk_dropout[,colSums(is.na(eb_pseudobulk_dropout)) == 0]
+
+eb_pseudobulk_dropout_norm <- DGEList(counts=t(eb_pseudobulk_nodropout)) %>%
+  calcNormFactors(method="TMM") %>% 
+  edgeR::cpm(log=T)
+
+super_overlap_genes <- intersect(rownames(fca_pseudobulk_dropout_norm), rownames(eb_pseudobulk_dropout_norm))
+```
+
+```{r, fig.height=10, fig.width=10}
+eb_fca_dropout_cor <- cor(eb_pseudobulk_dropout_norm[super_overlap_genes,], fca_pseudobulk_dropout_norm[super_overlap_genes,], 
+                  method="spearman", use="everything")
+heatmap.2(eb_fca_dropout_cor, xlab="FCA Cell Type", ylab="EB Cell Type",
+          col=bluered, trace="none", cexRow=1.5, cexCol=1.5)
+```
+```{r}
+plot(eb_pseudobulk_dropout_norm[super_overlap_genes,"PNS-glia"], fca_pseudobulk_dropout_norm[super_overlap_genes,"PNS glia"])
+plot(eb_pseudobulk_dropout_norm[super_overlap_genes,"Hepatoblasts"], fca_pseudobulk_dropout_norm[super_overlap_genes,"PNS glia"])
+plot(eb_pseudobulk_dropout_norm[super_overlap_genes,"Hepatoblasts"], fca_pseudobulk_dropout_norm[super_overlap_genes,"Hepatoblasts"])
+```
+
+How do these plots look when just focusing on the relevant gene sets?
+```{r}
+troubleshooter <- tibble(gene=super_overlap_genes,
+       fca_pns_glia=fca_pseudobulk_dropout_norm[super_overlap_genes,"PNS glia"],
+       eb_pns_glia=eb_pseudobulk_dropout_norm[super_overlap_genes,"PNS-glia"],
+       fca_hep=fca_pseudobulk_dropout_norm[super_overlap_genes,"Hepatoblasts"],
+       eb_hep=eb_pseudobulk_dropout_norm[super_overlap_genes,"Hepatoblasts"]) %>%
+  mutate(glia_gs = super_overlap_genes %in% fca_signatures[['PNS glia']]) %>%
+  mutate(hep_gs = super_overlap_genes %in% fca_signatures[['Hepatoblasts']]) 
+
+ggplot(arrange(troubleshooter, glia_gs), aes(x=fca_pns_glia, y=eb_pns_glia, color=glia_gs)) + 
+  geom_point()+
+  scale_color_manual(values=c("#BBBBBB", "#B51700"))
+
+ggplot(arrange(troubleshooter, hep_gs), aes(x=fca_pns_glia, y=eb_hep, color=hep_gs)) + 
+  geom_point()+
+  scale_color_manual(values=c("#BBBBBB", "#B51700"))
+
+ggplot(arrange(troubleshooter, hep_gs), aes(x=fca_hep, y=eb_hep, color=hep_gs)) + 
+  geom_point()+
+  scale_color_manual(values=c("#BBBBBB", "#B51700"))
+```
+
 
 ```{r}
-cors_hvg <- as_tibble(hvg_cor, rownames="EB_type") %>%
-  pivot_longer(!EB_type, names_to="FCA_type", values_to="cor") %>%
-  mutate(FCA_type=str_replace_all(FCA_type, pattern=" ", replacement="-")) %>%
-  filter(FCA_type %in% EB_type) %>% 
-  arrange(EB_type, desc(cor))
-
-confidence_hvg <- cors_hvg %>%
-  group_by(EB_type) %>%
-  slice_head(n=2) %>%
-  mutate(rank=row_number()) %>%
-  select(EB_type, cor, rank) %>%
-  pivot_wider(id_cols=EB_type, names_from="rank", values_from="cor") %>%
-  mutate(factor_diff=map2_dbl(`1`, `2`, divider)) %>%
-  mutate(mag_diff=map2_dbl(`1`, `2`, subtractor))
+hist(fca_pseudobulk_dropout_norm[super_overlap_genes,"PNS glia"])
+hist(fca_pseudobulk_dropout_norm[super_overlap_genes,"Metanephric cells"])
+hist(fca_pseudobulk_dropout_norm[super_overlap_genes,"Cardiomyocytes"])
+hist(fca_pseudobulk_dropout_norm[super_overlap_genes,"CNS neurons"])
 ```
-
 

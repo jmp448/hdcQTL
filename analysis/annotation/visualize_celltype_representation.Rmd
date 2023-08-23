@@ -107,13 +107,13 @@ proportions_per_celltype <- donor_celltype %>%
 ggplot(proportions_per_celltype, aes(x=factor(type), y=proportion, fill=factor(type))) +
   geom_violin(scale="width") +
   coord_flip() +
-  theme_classic(base_size=15) +
+  theme_classic(base_size=25) +
   theme(legend.position = "none")
 
 ggplot(proportions_per_celltype, aes(x=factor(donor_id), y=proportion, fill=factor(type))) +
   geom_bar(stat="identity", color="black") +
   coord_flip() +
-  theme_classic(base_size=15)
+  theme_classic(base_size=25)
 ```
 
 But on the flip side, most donors to generate most cell types!
@@ -137,11 +137,14 @@ ggplot(n_types, aes(x=thresholds, y=n_types, color=all_donors)) +
 
 And for clarity, here's the slice at a cutoff of 5 (the value we actually chose)
 ```{r fig.height=8, fig.width=6}
-filter(n_types, thresholds==5) %>%
-  ggplot(aes(x=all_donors, y=n_types)) +
+atleast_5cells <- filter(n_types, thresholds==5) 
+
+ggplot(atleast_5cells, aes(x=factor(all_donors, levels=pull(arrange(atleast_5cells, n_types), all_donors)), y=n_types)) +
   geom_bar(stat="identity") +
+  geom_hline(linetype="dashed", color="red", yintercept=median(atleast_5cells$n_types)) +
   coord_flip() +
-  theme_classic(base_size=15)
+  theme_classic(base_size=25) +
+  xlab("Donor") + ylab("Number of Cell Types")
 ```
 
 On the flip side, how many samples are there per cell type at various threhsolds?
