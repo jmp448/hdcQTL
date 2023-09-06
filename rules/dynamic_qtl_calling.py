@@ -150,3 +150,17 @@ rule tensorqtl_merge_interaction:
         "../slurmy/tensorqtl.yml"
     script:
         "../code/dynamic_qtl_calling/tensorqtl_merge_interaction.py"
+
+rule list_all_dynamic_eqtls:
+    resources:
+        mem_mb=200000,
+        time="30:00"
+    input:
+        egenes="results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/{n_cl_pcs}clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz",
+        alltests="results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/{n_cl_pcs}clpcs/tensorqtl_interactions.all.tsv"
+    output:
+        sighits="results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/{n_cl_pcs}clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr{fdr}.tsv"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/dynamic_qtl_calling/list_all_dynamic_eqtls.R"

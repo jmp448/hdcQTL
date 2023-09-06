@@ -32,14 +32,14 @@ min_cells = int(snakemake.params['min_cells_per_bin'])
 
 # Load data (then dump it to avoid overusing memory)
 adata_full = sc.read_h5ad(raw_loc)
-adata_cmlineage = sc.read_h5ad(pseudotime_annotated)
+adata_lineage = sc.read_h5ad(pseudotime_annotated)
 
-adata = adata_full[adata_cmlineage.obs_names]
-adata.obs['stage'] = adata_cmlineage.obs['stage']
-adata.obs['pseudotime'] = adata_cmlineage.obs['pseudotime']
+adata = adata_full[adata_lineage.obs_names]
+adata.obs['stage'] = adata_lineage.obs['stage']
+adata.obs['pseudotime'] = adata_lineage.obs['pseudotime']
 
 del adata_full
-del adata_cmlineage
+del adata_lineage
 
 ## Create summary table
 cell_counts = adata.obs[['donor_id', 'stage']]

@@ -1,0 +1,72 @@
+Show how topics and trajectories relate
+
+```{r}
+cell_pseudocell_map <- vroom("/project2/gilad/jpopp/ebQTL/data/fast_topics/cell_pseudocell_mapping.tsv")
+topic_loadings_pseudocell <- vroom("/project2/gilad/jpopp/ebQTL/results/fast_topics/fasttopics_10topics_loadings.tsv")
+pseudotime_neur <- vroom("/project2/gilad/jpopp/ebQTL/temp/neur_pseudotime.tsv")
+pseudotime_cm <- vroom("/project2/gilad/jpopp/ebQTL/temp/cm_pseudotime.tsv")
+# I pulled pseudotime in analysis/dynamic_qtl_calling/Untitled
+```
+
+Look at CM pseudotime compared to topics 2 (cm) and 4 (ipsc)
+```{r}
+cm_pseudotime_topics <- left_join(cell_pseudocell_map, pseudotime_cm, by="cell") %>%
+  drop_na() %>%
+  group_by(pseudocell_15) %>%
+  summarize(pseudocell_cm_pseudotime=median(pseudotime)) %>%
+  left_join(topic_loadings_pseudocell, by=c("pseudocell_15" = "pseudocell")) %>%
+  select(c(pseudocell_cm_pseudotime, k2, k4)) %>%
+  pivot_longer(!pseudocell_cm_pseudotime, names_to="topic", values_to="loading") %>%
+  mutate(topic=factor(topic, levels=c("k2", "k4")))
+
+ggplot(cm_pseudotime_topics, aes(x=pseudocell_cm_pseudotime, y=loading, fill=topic)) +
+  geom_col(width=0.05) +
+  theme_classic(base_size=15) +
+  scale_fill_manual(values=brewer.pal(10, 'Set1')[c(2,3)])
+```
+
+```{r}
+ggplot(cm_pseudotime_topics, aes(x=pseudocell_cm_pseudotime, y=loading, color=topic)) +
+  geom_smooth(width=0.05) +
+  theme_classic(base_size=15) +
+  scale_color_manual(values=brewer.pal(10, 'Set1')[c(2,3)]) +
+  xlab("Pseudotime (Cardiomyocyte Trajectory)") +
+  ylab("Topic Loading")
+```
+
+
+```{r}
+neur_pseudotime_topics <- left_join(cell_pseudocell_map, pseudotime_neur, by="cell") %>%
+  drop_na() %>%
+  group_by(pseudocell_15) %>%
+  summarize(pseudocell_neur_pseudotime=median(pseudotime)) %>%
+  left_join(topic_loadings_pseudocell, by=c("pseudocell_15" = "pseudocell")) %>%
+  select(-c(pseudocell_15)) %>%
+  pivot_longer(!pseudocell_neur_pseudotime, names_to="topic", values_to="loading")
+
+ggplot(neur_pseudotime_topics, aes(x=pseudocell_neur_pseudotime, y=loading, fill=topic)) +
+  geom_col(width=0.05) +
+  theme_classic(base_size=15) +
+  scale_fill_manual(values=c(brewer.pal(10, "Paired")))
+
+ggplot(neur_pseudotime_topics, aes(x=pseudocell_neur_pseudotime, y=loading, color=topic)) +
+  geom_smooth() +
+  theme_classic(base_size=15) +
+  scale_color_manual(values=brewer.pal(10, 'Set1')[c(3,5,6,8)])
+```
+Some don't really vary with pseudotime
+```{r}
+neur_pseudotime_topics <- left_join(cell_pseudocell_map, pseudotime_neur, by="cell") %>%
+  drop_na() %>%
+  group_by(pseudocell_15) %>%
+  summarize(pseudocell_neur_pseudotime=median(pseudotime)) %>%
+  left_join(topic_loadings_pseudocell, by=c("pseudocell_15" = "pseudocell")) %>%
+  select(c(pseudocell_neur_pseudotime, k4, k7, k6, k10)) %>%
+  pivot_longer(!pseudocell_neur_pseudotime, names_to="topic", values_to="loading")
+
+ggplot(neur_pseudotime_topics, aes(x=pseudocell_neur_pseudotime, y=loading, color=topic)) +
+  geom_smooth(width=0.05) +
+  theme_classic(base_size=15) +
+  scale_color_manual(values=brewer.pal(10, 'Set1')[c(3,5,6, 8)])
+```
+

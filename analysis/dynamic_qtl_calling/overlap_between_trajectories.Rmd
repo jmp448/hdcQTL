@@ -4,50 +4,80 @@ library(vroom)
 library(qvalue)
 ```
 
-Load the hits in the cardiomyocyte and neuronal trajectories
 ```{r}
-cm_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
-cm_hits <- filter(cm_emt, pval_adj_bh <= 0.05)
-cm_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
-
-neur_emt <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
-neur_hits <- filter(neur_emt, pval_adj_bh <= 0.05)
-neur_all <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
-```
-
-```{r}
-classify_dynamics <- function(main_effect, interaction_effect, pseudotime_range, switch_cutoff=1.5) {
-  if (sign(main_effect) == sign(interaction_effect)) {
-    effect = "late"
-  } else if (abs(interaction_effect * pseudotime_range) > switch_cutoff * abs(main_effect)) {
-    effect = "switch"
+classify_dynamics <- function(b_g, b_i, b_gi, tmin, tmax, gmin, gmax, threshold=1) {
+  early_effect = (gmin*b_g + tmin*b_i + gmin*tmin*b_gi) - (gmax*b_g + tmin*b_i + gmax*tmin*b_gi)
+  late_effect = (gmin*b_g + tmax*b_i + gmin*tmax*b_gi) - (gmax*b_g + tmax*b_i + gmax*tmax*b_gi)
+  
+  if (sign(early_effect) == sign(late_effect)) {
+    if (abs(early_effect) >= abs(late_effect)) {
+      class = "early"
+    } else {
+      class = "late"
+    }
+    # QTL switching signs
   } else {
-    effect = "early"
+    if ((abs(early_effect) >= abs(late_effect)) & (abs(late_effect) < threshold)) {
+      class = "early"
+    } else if ((abs(early_effect) < abs(late_effect)) & (abs(early_effect) < threshold)) {
+      class = "late"
+      # Switch magnitude is greater than or equal to threshold - is this switching behavior significant enough
+    } else if ((abs(early_effect) >= threshold) & (abs(late_effect) >= threshold)) {
+      class = "switch"
+    } 
+    else {
+      class = "unassigned"
+    }
   }
+  class
 }
 ```
 
-Figure out the pseudotime range for the neuronal trajectory
-```{r}
-cm_pseudotime_range <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
-  pull(pseudotime) %>%
-  range %>% diff
 
-neur_pseudotime_range <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
-  pull(pseudotime) %>%
-  range %>% diff
+Load the cardiomyocyte trajectory data
+```{r}
+cm_genotypes <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>%
+  column_to_rownames("snp")
+cm_gmins <- rowMins(as.matrix(cm_genotypes))
+cm_gmaxs <- rowMaxs(as.matrix(cm_genotypes))
+cm_granges <- tibble(variant_id=rownames(cm_genotypes), gmin=cm_gmins, gmax=cm_gmaxs) 
+cm_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
+cm_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv")
+cm_hits <- filter(cm_emt, pval_adj_bh <= 0.1) %>%
+  left_join(cm_granges, by="variant_id") %>%
+  mutate(tmin=min(cm_pseudotime$pseudotime), tmax=max(cm_pseudotime$pseudotime)) %>%
+  mutate(class=pmap_chr(.l=list(b_g, b_i, b_gi, tmin, tmax, gmin, gmax), .f=classify_dynamics))
+
+neur_genotypes <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>%
+  column_to_rownames("snp")
+neur_gmins <- rowMins(as.matrix(neur_genotypes))
+neur_gmaxs <- rowMaxs(as.matrix(neur_genotypes))
+neur_granges <- tibble(variant_id=rownames(neur_genotypes), gmin=neur_gmins, gmax=neur_gmaxs) 
+neur_all <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
+neur_emt <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+neur_pseudotime <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/pseudotime.tsv")
+neur_hits <- filter(neur_emt, pval_adj_bh <= 0.1) %>%
+  left_join(neur_granges, by="variant_id") %>%
+  mutate(tmin=min(neur_pseudotime$pseudotime), tmax=max(neur_pseudotime$pseudotime)) %>%
+  mutate(class=pmap_chr(.l=list(b_g, b_i, b_gi, tmin, tmax, gmin, gmax), .f=classify_dynamics))
+
+hep_genotypes <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>%
+  column_to_rownames("snp")
+hep_gmins <- rowMins(as.matrix(hep_genotypes))
+hep_gmaxs <- rowMaxs(as.matrix(hep_genotypes))
+hep_granges <- tibble(variant_id=rownames(hep_genotypes), gmin=hep_gmins, gmax=hep_gmaxs) 
+hep_all <- vroom("results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
+hep_emt <- vroom("results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+hep_pseudotime <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/pseudotime.tsv")
+hep_hits <- filter(hep_emt, pval_adj_bh <= 0.1) %>%
+  left_join(hep_granges, by="variant_id") %>%
+  mutate(tmin=min(hep_pseudotime$pseudotime), tmax=max(hep_pseudotime$pseudotime)) %>%
+  mutate(class=pmap_chr(.l=list(b_g, b_i, b_gi, tmin, tmax, gmin, gmax), .f=classify_dynamics))
+
 ```
 
-Classify the dynamic eQTLs
 ```{r}
-cm_hits_classified <- cm_hits %>%
-  mutate(qtl_class=map2_chr(.x=b_g, .y=b_gi, .f=classify_dynamics, pseudotime_range=cm_pseudotime_range, switch_cutoff=2)) %>%
-  arrange(pval_adj_bh)
-
-neur_hits_classified <- neur_hits %>%
-  mutate(qtl_class=map2_chr(.x=b_g, .y=b_gi, .f=classify_dynamics, pseudotime_range=neur_pseudotime_range, switch_cutoff=2)) %>%
-  arrange(pval_adj_bh)
-
 ggplot(count(cm_hits_classified, qtl_class), aes(x=qtl_class, y=n)) +
   geom_col() + ggtitle("Cardiomyocyte Dynamic eQTLs by Type")
 ggplot(count(neur_hits_classified, qtl_class), aes(x=qtl_class, y=n)) +
@@ -55,25 +85,6 @@ ggplot(count(neur_hits_classified, qtl_class), aes(x=qtl_class, y=n)) +
 head(cm_hits_classified, n=10)
 head(neur_hits_classified, n=10)
 ```
-
-Does regressing out more cell line PCs affect this ratio?
-```{r}
-cm_emt_10 <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
-cm_hits_10 <- filter(cm_emt_10, pval_adj_bh <= 0.05)
-```
-
-```{r}
-cm_hits_10_classified <- cm_hits_10 %>%
-  mutate(qtl_class=map2_chr(.x=b_g, .y=b_gi, .f=classify_dynamics, pseudotime_range=cm_pseudotime_range, switch_cutoff=2)) %>%
-  arrange(pval_adj_bh)
-```
-
-```{r}
-ggplot(count(cm_hits_10_classified, qtl_class), aes(x=qtl_class, y=n)) +
-  geom_col() + ggtitle("Cardiomyocyte Dynamic eQTLs by Type")
-```
-
-
 
 Visualize some examples
 ```{r}

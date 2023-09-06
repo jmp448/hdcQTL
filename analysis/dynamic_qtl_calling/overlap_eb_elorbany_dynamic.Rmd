@@ -6,29 +6,31 @@ library(vroom)
 
 Load the EB dynamic eQTLs 
 ```{r}
-eb_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
+eb_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
 elorbany_emt <- vroom("results/dynamic_qtl_calling/elorbany-cm_16bins/pseudobulk_tmm/5clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
 
 elorbany_all <- vroom("results/dynamic_qtl_calling/elorbany-cm_16bins/pseudobulk_tmm/5clpcs/tensorqtl_interactions.all.tsv")
-eb_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/tensorqtl_interactions.all.tsv")
+eb_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
 ```
 
 Look at replication of EB hits in Elorbany
 ```{r}
-eb_hits <- filter(eb_emt, pval_adj_bh <= 0.05)
+eb_hits <- filter(eb_emt, pval_adj_bh <= 0.1)
 
 elorbany_rep_of_eb <- elorbany_all %>%
   inner_join(select(eb_hits, c(phenotype_id, variant_id)), by=c("phenotype_id", "variant_id"))
 
-plot(qvalue(elorbany_rep_of_eb$pval_gi))
-hist(qvalue(elorbany_rep_of_eb$pval_gi, lambda=0.5))
+rep_eb_in_elo <- qvalue(elorbany_rep_of_eb$pval_gi, lambda=0.85)
+plot(rep_eb_in_elo)
+hist(rep_eb_in_elo)
+print(1-rep_eb_in_elo$pi0)
 ```
 ```{r}
-elorbany_hits <- filter(elorbany_emt, pval_adj_bh <= 0.05)
+elorbany_hits <- filter(elorbany_emt, pval_adj_bh <= 0.1)
 
 eb_rep_of_elorbany <- eb_all %>%
   inner_join(select(elorbany_hits, c(phenotype_id, variant_id)), by=c("phenotype_id", "variant_id"))
 
-plot(qvalue(eb_rep_of_elorbany$pval_gi))
-hist(qvalue(eb_rep_of_elorbany$pval_gi))
+plot(qvalue(eb_rep_of_elorbany$pval_gi, lambda=0.85))
+hist(qvalue(eb_rep_of_elorbany$pval_gi, lambda=0.85))
 ```

@@ -1830,12 +1830,21 @@ dbl (4): slope, slope_se, pval_nominal, gene_cutoff
 identified as an eQTL?</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxubnJvdyhndGV4X292ZXJsYXApIC8gbnJvdyhlYl9hbGwpXG5cbmBgYCJ9 -->
-<pre class="r"><code>nrow(gtex_overlap) / nrow(eb_all)
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuZ3RleF9vdmVybGFwIDwtIHZyb29tKGViX3NpZ2hpdHNfb3ZlcmxhcF9sb2MsIGNvbF9uYW1lcz1jKFwiQ0hSXCIsIFwiU1RBUlRcIiwgXCJTVE9QXCIsIFwiRUJfRU5TR1wiLCBcIkVCX0hHTkNcIiwgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXCJSU0lEXCIsIFwiQ0VMTFRZUEVcIiwgXCJDSFIxXCIsIFwiU1RBUlQxXCIsIFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFwiU1RPUDFcIiwgXCJHVEVYX0VOU0dcIiwgXCJHVEVYX1JFRlwiLCBcIkdURVhfQUxUXCIpKVxuXG5gYGAifQ== -->
+<pre class="r"><code>gtex_overlap &lt;- vroom(eb_sighits_overlap_loc, col_names=c(&quot;CHR&quot;, &quot;START&quot;, &quot;STOP&quot;, &quot;EB_ENSG&quot;, &quot;EB_HGNC&quot;, 
+                                                          &quot;RSID&quot;, &quot;CELLTYPE&quot;, &quot;CHR1&quot;, &quot;START1&quot;, 
+                                                          &quot;STOP1&quot;, &quot;GTEX_ENSG&quot;, &quot;GTEX_REF&quot;, &quot;GTEX_ALT&quot;))
 </code></pre>
 <!-- rnb-source-end -->
-<!-- rnb-output-begin eyJkYXRhIjoiWzFdIDAuODQ2NjY3MlxuIn0= -->
-<pre><code>[1] 0.8466672</code></pre>
+<!-- rnb-output-begin eyJkYXRhIjoiUm93czogODEyMDMgQ29sdW1uczogMTNcbuKUgOKUgCBDb2x1bW4gc3BlY2lmaWNhdGlvbiDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIDilIBcbkRlbGltaXRlcjogXCJcXHRcIlxuY2hyICg5KTogQ0hSLCBFQl9FTlNHLCBFQl9IR05DLCBSU0lELCBDRUxMVFlQRSwgQ0hSMSwgR1RFWF9FTlNHLCBHVEVYX1JFRiwgR1RFWF9BTFRcbmRibCAoNCk6IFNUQVJULCBTVE9QLCBTVEFSVDEsIFNUT1AxXG5cbuKEuSBVc2UgYHNwZWMoKWAgdG8gcmV0cmlldmUgdGhlIGZ1bGwgY29sdW1uIHNwZWNpZmljYXRpb24gZm9yIHRoaXMgZGF0YS5cbuKEuSBTcGVjaWZ5IHRoZSBjb2x1bW4gdHlwZXMgb3Igc2V0IGBzaG93X2NvbF90eXBlcyA9IEZBTFNFYCB0byBxdWlldCB0aGlzIG1lc3NhZ2UuXG4ifQ== -->
+<pre><code>Rows: 81203 Columns: 13
+── Column specification ──────────────────────────────────────────────────────────────────────────────────
+Delimiter: &quot;\t&quot;
+chr (9): CHR, EB_ENSG, EB_HGNC, RSID, CELLTYPE, CHR1, GTEX_ENSG, GTEX_REF, GTEX_ALT
+dbl (4): START, STOP, START1, STOP1
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
 <!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
