@@ -1,5 +1,14 @@
 library(tidyverse)
-source("/project2/gilad/jpopp/sc-dynamic-eqtl/code/helpers.R")
+
+center.scale <- function(g) {
+  # center and scale within a gene's expression vector
+  if (sd(g) == 0) {
+    g - g
+  } else {
+    (g-mean(g))/sd(g)
+  }
+}
+
 cell.line.pca <- function(x, npc=5) {
   if (!is_tibble(x)) {
     x <- as_tibble(x)

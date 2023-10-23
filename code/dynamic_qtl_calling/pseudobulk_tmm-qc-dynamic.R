@@ -11,7 +11,7 @@ library(Matrix)
 library(matrixStats)
 library(edgeR)
 set.seed(2021)
-source("/project2/gilad/jpopp/ebQTL/code/dynamic_qtl_calling/clpca.R")
+source("code/dynamic_qtl_calling/clpca.R")
 
 pseudobulk_loc <- snakemake@input[["pseudobulk"]]
 sample_summary_loc <- as.character(snakemake@input[["sample_summary"]])

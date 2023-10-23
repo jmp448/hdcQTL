@@ -44,6 +44,21 @@ rule preprocess_fca:
     script:
         "../code/annotation/preprocess_fca.R"
 
+rule learn_fca_signatures:
+    resources:
+        mem_mb=200000,
+        partition="bigmem2"
+    input:
+        fca="data/fca/counts.subsampled.lognorm.sce",
+        hvg="data/fca/fca_subsampled_hvg.tsv"
+    output:
+        fca_embedded="data/fca/counts.subsampled.lognorm.mca.sce",
+        signatures="data/fca/fca_signatures.rds"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/learn_fca_signatures.R"
+
 rule subset_ebs:
     resources:
         mem_mb=450000,
@@ -74,21 +89,6 @@ rule h5ad_to_sce:
     script:
         "../code/annotation/convert_h5ad_to_sce.R"
         
-rule learn_fca_signatures:
-    resources:
-        mem_mb=200000,
-        partition="bigmem2"
-    input:
-        fca="data/fca/counts.subsampled.lognorm.sce",
-        hvg="data/fca/fca_subsampled_hvg.tsv"
-    output:
-        fca_embedded="data/fca/counts.subsampled.lognorm.mca.sce",
-        signatures="data/fca/fca_signatures.rds"
-    conda:
-        "../slurmy/r-fca.yml"
-    script:
-        "../code/annotation/learn_fca_signatures.R"
-    
 rule classify_ebs:
     resources:
         mem_mb=250000,

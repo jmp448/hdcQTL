@@ -11,7 +11,7 @@ library(Matrix)
 library(matrixStats)
 library(edgeR)
 set.seed(2021)
-source("/project2/gilad/jpopp/ebQTL/code/dynamic_qtl_calling/clpca.R")
+source("code/dynamic_qtl_calling/clpca.R")
 
 # sample_metadata_loc <- "/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv"
 # pseudobulk_loc <- "data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/eb-cm_15binstrimmed.pseudobulk_tmm.tsv"

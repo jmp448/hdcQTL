@@ -1,5 +1,3 @@
-#TODO analyze different weighting options
-
 rule scdrs_preprocessing:
     resources:
         mem_mb=500000,
