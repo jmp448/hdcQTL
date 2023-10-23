@@ -56,14 +56,16 @@ expression_df <- vroom(paste0("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/
 
 ```{r}
 inner_join(genotypes_df, expression_df, by="sample") %>%
-  ggplot(aes(x=genotype, y=.data[[gene_hgnc]], fill=genotype)) +
-  #geom_violin(alpha = 0.5) +
-  geom_boxplot(alpha=0.5) +
-  geom_jitter(position = position_jitter(seed = 1, width = 0.1)) +
-  theme_classic(base_size=15) +
+  ggplot(aes(x=genotype, y=.data[[gene_hgnc]])) +
+  geom_boxplot(alpha=0.5, width=0.5) +
+  geom_jitter(aes(color=genotype), position = position_jitter(seed = 1, width = 0.1), size=3.5) +
+  theme_classic(base_size=20) +
   scale_fill_discrete(name=snp_rsid) +
-  xlab("Genotype") + ylab(paste0(gene_hgnc, " Expression")) +
-  ggtitle(celltype)
+  #xlab("Genotype") + ylab(paste0(gene_hgnc, " Expression")) +
+  xlab("") + ylab("") +
+  scale_color_manual(values=c("#2ca02c", "#ff7f0e", "#1f77b4")) +
+  #ggtitle(celltype) +
+  labs(color="Genotype at rs28731441")
 ```
 
 Additionally visualize the eQTL with residualized expression

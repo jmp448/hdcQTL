@@ -1,0 +1,9 @@
+name: ldsc
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - ldsc
+  - numpy
+  - pandas
+  - ipykernel

@@ -1,0 +1,322 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(vroom)
+```
+
+## Look at enrichment of dynamic eQTLs in enhancers
+```{r}
+calc_or <- function(n_tests, n_elements, n_qtls, n_overlap) {
+  (n_overlap * (n_tests - n_elements - n_qtls + n_overlap)) / ((n_elements - n_overlap) * (n_qtls - n_overlap))
+}
+
+calc_or_matching <- function(n_tests, n_elements, n_qtls, n_overlap) {
+  (n_overlap * (n_tests - n_elements)) / (n_elements * (n_qtls - n_overlap))
+}
+```
+
+
+## Neuronal Dynamic eQTLs
+### Early acting
+#### In brain
+```{r}
+n_tests_earlyneur_brain = read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_earlyneur_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_earlyneur_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/earlydynamic-eb-neur-top_original_n_qtls.txt")[[1]]
+n_overlap_earlyneur_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/earlydynamic-eb-neur-top_original_n_overlaps.txt")[[1]]
+
+or_earlyneur_brain = calc_or(n_tests_earlyneur_brain, n_elements_earlyneur_brain, n_qtls_earlyneur_brain, n_overlap_earlyneur_brain) 
+or_earlyneur_brain
+```
+
+With confidence intervals
+```{r}
+bg_earlyneur_brain <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/earlydynamic-eb-neur-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_earlyneur_brain <- tibble(n_elements=bg_earlyneur_brain) %>%
+  mutate(n_qtls=n_qtls_earlyneur_brain, n_tests = n_qtls_earlyneur_brain, n_overlap=n_overlap_earlyneur_brain) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_earlyneur_brain$or)
+quantile(or_earlyneur_brain$or, c(0.025, 0.975))
+```
+#### In IPSC
+```{r}
+n_tests_earlyneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_earlyneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_earlyneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/earlydynamic-eb-neur-top_original_n_qtls.txt")[[1]]
+n_overlap_earlyneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/earlydynamic-eb-neur-top_original_n_overlaps.txt")[[1]]
+
+or_earlyneur_ipsc = calc_or(n_tests_earlyneur_ipsc, n_elements_earlyneur_ipsc, n_qtls_earlyneur_ipsc, n_overlap_earlyneur_ipsc) 
+or_earlyneur_ipsc
+```
+
+With confidence intervals
+```{r}
+bg_earlyneur_ipsc <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/earlydynamic-eb-neur-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_earlyneur_ipsc <- tibble(n_elements=bg_earlyneur_ipsc) %>%
+  mutate(n_qtls=n_qtls_earlyneur_ipsc, n_tests = n_qtls_earlyneur_ipsc, n_overlap=n_overlap_earlyneur_ipsc) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_earlyneur_ipsc$or)
+quantile(or_earlyneur_ipsc$or, c(0.025, 0.975))
+```
+
+### Late acting
+#### In brain
+```{r}
+n_tests_lateneur_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_lateneur_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_lateneur_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/latedynamic-eb-neur-top_original_n_qtls.txt")[[1]]
+n_overlap_lateneur_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/latedynamic-eb-neur-top_original_n_overlaps.txt")[[1]]
+
+or_lateneur_brain = calc_or(n_tests_lateneur_brain, n_elements_lateneur_brain, n_qtls_lateneur_brain, n_overlap_lateneur_brain) 
+or_lateneur_brain
+```
+
+With confidence intervals
+```{r}
+bg_lateneur_brain <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/latedynamic-eb-neur-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_lateneur_brain <- tibble(n_elements=bg_lateneur_brain) %>%
+  mutate(n_qtls=n_qtls_lateneur_brain, n_tests = n_qtls_lateneur_brain, n_overlap=n_overlap_lateneur_brain) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_lateneur_brain$or)
+quantile(or_lateneur_brain$or, c(0.025, 0.975))
+```
+
+### In IPSC
+```{r}
+n_tests_lateneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_lateneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_lateneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/latedynamic-eb-neur-top_original_n_qtls.txt")[[1]]
+n_overlap_lateneur_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/latedynamic-eb-neur-top_original_n_overlaps.txt")[[1]]
+
+or_lateneur_ipsc = calc_or(n_tests_lateneur_ipsc, n_elements_lateneur_ipsc, n_qtls_lateneur_ipsc, n_overlap_lateneur_ipsc) 
+or_lateneur_ipsc
+```
+
+With confidence intervals
+```{r}
+bg_lateneur_ipsc <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/latedynamic-eb-neur-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_lateneur_ipsc <- tibble(n_elements=bg_lateneur_ipsc) %>%
+  mutate(n_qtls=n_qtls_lateneur_ipsc, n_tests = n_qtls_lateneur_ipsc, n_overlap=n_overlap_lateneur_ipsc) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_lateneur_ipsc$or)
+quantile(or_lateneur_ipsc$or, c(0.025, 0.975))
+```
+
+Visualize everything together for neuronal dynamic eQTLs
+```{r}
+tibble(early_brain=or_earlyneur_brain$or,
+       late_brain=or_lateneur_brain$or,
+       early_ipsc=or_earlyneur_ipsc$or,
+       late_ipsc=or_lateneur_ipsc$or) %>%
+  pivot_longer(everything(), names_to="qtl_cat", values_to="or") %>%
+  separate(qtl_cat, into=c("class", "context")) %>%
+  mutate(log_or=log(or)) %>%
+  mutate(class=factor(class, levels=c("early", "late")),
+         context=factor(context, levels=c("ipsc", "brain"))) %>%
+  ggplot(aes(x=context, y=log_or, fill=class)) +
+  geom_boxplot() +
+  scale_fill_manual(values=c("#929292", "#004D80")) +
+  geom_hline(yintercept=0, linetype="dashed", color="grey") +
+  theme_classic() +
+  ggtitle("Neuronal Dynamic eQTL Enhancer Enrichment")
+```
+
+
+## CM dynamic eQTLs
+### Early acting
+#### In IPSCs
+```{r}
+n_tests_earlycm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_earlycm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_earlycm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/earlydynamic-eb-cm-top_original_n_qtls.txt")[[1]]
+n_overlap_earlycm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/earlydynamic-eb-cm-top_original_n_overlaps.txt")[[1]]
+
+or_earlycm_ipsc = calc_or(n_tests_earlycm_ipsc, n_elements_earlycm_ipsc, n_qtls_earlycm_ipsc, n_overlap_earlycm_ipsc) 
+or_earlycm_ipsc
+```
+
+With confidence intervals
+```{r}
+bg_earlycm_ipsc <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/earlydynamic-eb-cm-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_earlycm_ipsc <- tibble(n_elements=bg_earlycm_ipsc) %>%
+  mutate(n_qtls=n_qtls_earlycm_ipsc, n_tests = n_qtls_earlycm_ipsc, n_overlap=n_overlap_earlycm_ipsc) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_earlycm_ipsc$or)
+quantile(or_earlycm_ipsc$or, c(0.025, 0.975))
+```
+
+#### In Heart
+```{r}
+n_tests_earlycm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_earlycm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_earlycm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/earlydynamic-eb-cm-top_original_n_qtls.txt")[[1]]
+n_overlap_earlycm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/earlydynamic-eb-cm-top_original_n_overlaps.txt")[[1]]
+
+fisher.test(matrix(c(n_overlap_earlycm_heart, n_elements_earlycm_heart - n_overlap_earlycm_heart, n_qtls_earlycm_heart - n_overlap_earlycm_heart, n_tests_earlycm_heart - n_elements_earlycm_heart - n_qtls_earlycm_heart + n_overlap_earlycm_heart), nrow=2))
+```
+
+With confidence intervals
+```{r}
+bg_earlycm_heart <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/earlydynamic-eb-cm-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_earlycm_heart <- tibble(n_elements=bg_earlycm_heart) %>%
+  mutate(n_qtls=n_qtls_earlycm_heart, n_tests = n_qtls_earlycm_heart, n_overlap=n_overlap_earlycm_heart) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_earlycm_heart$or)
+quantile(or_earlycm_heart$or, c(0.025, 0.975))
+```
+
+### Late dynamic eQTLs
+#### In IPSCs
+```{r}
+n_tests_latecm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_latecm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_latecm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/latedynamic-eb-cm-top_original_n_qtls.txt")[[1]]
+n_overlap_latecm_ipsc=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/latedynamic-eb-cm-top_original_n_overlaps.txt")[[1]]
+
+or_latecm_ipsc = calc_or(n_tests_latecm_ipsc, n_elements_latecm_ipsc, n_qtls_latecm_ipsc, n_overlap_latecm_ipsc) 
+or_latecm_ipsc
+```
+
+With confidence intervals
+```{r}
+bg_latecm_ipsc <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_ipsc/latedynamic-eb-cm-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_latecm_ipsc <- tibble(n_elements=bg_latecm_ipsc) %>%
+  mutate(n_qtls=n_qtls_latecm_ipsc, n_tests = n_qtls_latecm_ipsc, n_overlap=n_overlap_latecm_ipsc) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_latecm_ipsc$or)
+quantile(or_latecm_ipsc$or, c(0.025, 0.975))
+```
+
+#### In Heart
+```{r}
+n_tests_latecm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]]
+n_elements_latecm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/n_enhancers_dynamic-all_background.txt")[[1]]
+n_qtls_latecm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/latedynamic-eb-cm-top_original_n_qtls.txt")[[1]]
+n_overlap_latecm_heart=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/latedynamic-eb-cm-top_original_n_overlaps.txt")[[1]]
+
+fisher.test(matrix(c(n_overlap_latecm_heart, n_elements_latecm_heart - n_overlap_latecm_heart, n_qtls_latecm_heart - n_overlap_latecm_heart, n_tests_latecm_heart - n_elements_latecm_heart - n_qtls_latecm_heart + n_overlap_latecm_heart), nrow=2))
+```
+
+With confidence intervals
+```{r}
+bg_latecm_heart <- read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_heart/latedynamic-eb-cm-top_all_overlap_counts.dynamic-all_background.txt")$V1
+
+or_latecm_heart <- tibble(n_elements=bg_latecm_heart) %>%
+  mutate(n_qtls=n_qtls_latecm_heart, n_tests = n_qtls_latecm_heart, n_overlap=n_overlap_latecm_heart) %>%
+  mutate(or=pmap_dbl(., calc_or_matching))
+
+hist(or_latecm_heart$or)
+quantile(or_latecm_heart$or, c(0.025, 0.975))
+```
+Visualize everything together for neuronal dynamic eQTLs
+```{r}
+tibble(early_heart=or_earlycm_heart$or,
+       late_heart=or_latecm_heart$or,
+       early_ipsc=or_earlycm_ipsc$or,
+       late_ipsc=or_latecm_ipsc$or) %>%
+  pivot_longer(everything(), names_to="qtl_cat", values_to="or") %>%
+  separate(qtl_cat, into=c("class", "context")) %>%
+  mutate(log_or=log(or)) %>%
+  mutate(class=factor(class, levels=c("early", "late")),
+         context=factor(context, levels=c("ipsc", "heart"))) %>%
+  ggplot(aes(x=context, y=log_or, fill=class)) +
+  geom_boxplot() +
+  scale_fill_manual(values=c("#929292", "#B51700")) +
+  geom_hline(yintercept=0, linetype="dashed", color="grey") +
+  theme_classic() +
+  ggtitle("CM Dynamic eQTL Enhancer Enrichment")
+```
+
+<!-- ### CI ANALYSES (graveyard) -->
+<!-- ```{r} -->
+<!-- n_qtls_ci_lateheart=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/latedynamic-eb-neur-signif_", seq(0, 999), "_n_qtls.txt"), col_names="n_qtl", delim="\t") -->
+<!-- n_overlap_ci_latebrain=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/latedynamic-eb-neur-signif_", seq(0, 999), "_n_overlaps.txt"), col_names="n_overlap", delim="\t") -->
+
+<!-- or_ci_latebrain = bind_cols(n_qtls_ci_latebrain, n_overlap_ci_latebrain) %>% -->
+<!--   mutate(n_tests = n_tests_latebrain, n_elements = n_elements_latebrain) %>% -->
+<!--   mutate(or = pmap_dbl(., calc_or)) -->
+
+<!-- hist(or_ci_latebrain$or) -->
+<!-- quantile(or_ci_latebrain$or, c(0.025, 0.975)) -->
+<!-- ``` -->
+
+
+
+<!-- Get bootstrapped confidence intervals -->
+<!-- ```{r} -->
+<!-- n_qtls_ci_earlybrain=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/earlydynamic-eb-neur-signif_", seq(0, 999), "_n_qtls.txt"), col_names="n_qtl", delim="\t") -->
+<!-- n_overlap_ci_earlybrain=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/earlydynamic-eb-neur-signif_", seq(0, 999), "_n_overlaps.txt"), col_names="n_overlap", delim="\t") -->
+
+<!-- or_ci_earlybrain = bind_cols(n_qtls_ci_earlybrain, n_overlap_ci_earlybrain) %>% -->
+<!--   mutate(n_tests = n_tests_earlybrain, n_elements = n_elements_earlybrain) %>% -->
+<!--   mutate(or = pmap_dbl(., calc_or)) -->
+
+<!-- hist(or_ci_earlybrain$or) -->
+<!-- quantile(or_ci_earlybrain$or, c(0.025, 0.975)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- n_tests=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]] -->
+<!-- n_elements=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_all/n_enhancers_dynamic-all_background.txt")[[1]] -->
+<!-- n_qtls=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_all/dynamic-signif_original_n_qtls.txt")[[1]] -->
+<!-- n_overlap=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_all/dynamic-signif_original_n_overlaps.txt")[[1]] -->
+
+<!-- or = calc_or(n_tests, n_elements, n_qtls, n_overlap)  -->
+<!-- or -->
+<!-- ``` -->
+
+<!-- Estimate confidence intervals -->
+<!-- ```{r} -->
+<!-- n_qtls_ci=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_all/dynamic-signif_", seq(0, 999), "_n_qtls.txt"), col_names="n_qtl", delim="\t") -->
+<!-- n_overlap_ci=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_all/dynamic-signif_", seq(0, 999), "_n_overlaps.txt"), col_names="n_overlap", delim="\t") -->
+
+<!-- or_ci = bind_cols(n_qtls_ci, n_overlap_ci) %>% -->
+<!--   mutate(n_tests = n_tests, n_elements = n_elements) %>% -->
+<!--   mutate(or = pmap_dbl(., calc_or)) -->
+
+<!-- hist(or_ci$or) -->
+<!-- quantile(or_ci$or, c(0.025, 0.975)) -->
+<!-- ``` -->
+
+
+
+<!-- Brain only -->
+<!-- ```{r} -->
+<!-- n_tests_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/dynamic-all_n_tests.txt")[[1]] -->
+<!-- n_elements_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/n_enhancers_dynamic-all_background.txt")[[1]] -->
+<!-- n_qtls_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/dynamic-eb-neur-signif_original_n_qtls.txt")[[1]] -->
+<!-- n_overlap_brain=read.table("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/dynamic-eb-neur-signif_original_n_overlaps.txt")[[1]] -->
+
+<!-- or_brain = calc_or(n_tests_brain, n_elements_brain, n_qtls_brain, n_overlap_brain)  -->
+<!-- or_brain -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- n_qtls_ci_brain=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/dynamic-eb-neur-signif_", seq(0, 999), "_n_qtls.txt"), col_names="n_qtl", delim="\t") -->
+<!-- n_overlap_ci_brain=vroom(paste0("results/static_eqtl_followup/roadmap_enrichments/dynamic-eqtls/enhancers_brain/dynamic-eb-neur-signif_", seq(0, 999), "_n_overlaps.txt"), col_names="n_overlap", delim="\t") -->
+
+<!-- or_ci_brain = bind_cols(n_qtls_ci_brain, n_overlap_ci_brain) %>% -->
+<!--   mutate(n_tests = n_tests_brain, n_elements = n_elements_brain) %>% -->
+<!--   mutate(or = pmap_dbl(., calc_or)) -->
+
+<!-- hist(or_ci_brain$or) -->
+<!-- quantile(or_ci_brain$or, c(0.025, 0.975)) -->
+<!-- ``` -->

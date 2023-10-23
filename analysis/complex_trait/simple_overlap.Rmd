@@ -1,0 +1,254 @@
+```{r}
+library(tidyverse)
+library(vroom)
+library(mashr)
+library(MatrixGenerics)
+library(data.table)
+```
+
+### eQTLs
+```{r}
+mash_eqtls <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.matchable_hits.mash-all_pool.bed")
+eqtls <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.matchable_hits.tensorqtl-all_pool.bed")
+dynamic_eqtls <- vroom("results/dynamic_qtl_calling/eb-all_15binstrimmed/dynamic-signif_variant_gene_pairs.matchable_hits.dynamic-all_pool.bed")
+cellregmap_eqtls <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.sighits.tsv")
+
+mash_eqtl_variants <- distinct(select(mash_eqtls, c(`#CHR`, END)))
+eqtl_variants <- distinct(select(eqtls, c(`#CHR`, END)))
+dynamic_variants <- distinct(select(dynamic_eqtls, c(`#CHR`, END)))
+crm_variants <- distinct(select(cellregmap_eqtls, EB_VARIANT_ID))
+```
+
+Schizophrenia
+
+Urate levels
+```{r}
+urate <- fread("data/gwas/sinnott-armstrong/Sinnott-Armstrong-Urate.sumstats.hg38.tsv")[CHROM %in% paste0(seq(22)), .(CHROM, POS, P)]
+urate_hits <- urate[as.numeric(P) <= 5e-8,]
+urate_hits <- urate_hits[,P := as.numeric(P)]
+urate_hits <- urate_hits[,CHROM:=paste0("chr", CHROM)]
+urate_hits_tbl <- as_tibble(urate_hits)
+```
+
+See where our eQTLs overlap with urate GWAS
+```{r}
+eqtl_urate <- inner_join(urate_hits_tbl, eqtls, by=c("CHROM"="#CHR", "POS"="END"), multiple="all")
+mash_urate <- inner_join(urate_hits_tbl, mash_eqtls, by=c("CHROM"="#CHR", "POS"="END"), multiple="all")
+dynamic_urate <- inner_join(urate_hits_tbl, dynamic_eqtls, by=c("CHROM"="#CHR", "POS"="END"), multiple="all")
+```
+
+CVD
+```{r}
+z_to_p <- function(zscore) {
+  pnorm(abs(zscore), lower.tail = FALSE) * 2
+}
+cvd <- fread("data/gwas/zhang/sumstats/UKB_460K.disease_CARDIOVASCULAR.sumstats")[, .(SNP, Z)]
+cvd <- cvd[,P := z_to_p(Z)]
+cvd_hits <- cvd[P <= 5e-8, .(SNP, P)]
+cvd_hits_tbl <- as_tibble(cvd_hits)
+```
+
+```{r}
+eqtl_cvd <- inner_join(cvd_hits_tbl, eqtls, by=c("SNP"="EB_VARIANT_ID"), multiple="all")
+mash_cvd <- inner_join(cvd_hits_tbl, mash_eqtls, by=c("SNP"="EB_VARIANT_ID"), multiple="all")
+dynamic_cvd <- inner_join(cvd_hits_tbl, dynamic_eqtls, by=c("SNP"="EB_VARIANT_ID"), multiple="all")
+```
+
+Looks like the best hits in both cases were actually from the neuronal trajectory, which isn't where we're interested
+```{r}
+cm_dynamic <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv") %>%
+  mutate(traj="CM")
+hep_dynamic <- vroom("results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv") %>%
+  mutate(traj="HEP")
+neur_dynamic <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv") %>%
+  mutate(traj="NEUR")
+
+dynamic_eqtls_strat <- bind_rows(cm_dynamic, hep_dynamic, neur_dynamic)
+```
+
+```{r}
+dynamic_cvd_strat <- inner_join(cvd_hits_tbl, dynamic_eqtls_strat, by=c("SNP"="variant_id"), multiple="all")
+dynamic_cvd_strat
+```
+
+AF - nothing
+```{r}
+af <- fread("data/gwas/zhang/sumstats/PASS_AtrialFibrillation_Nielsen2018.sumstats")[, .(SNP, Z)]
+af <- af[,P := z_to_p(Z)]
+af_hits <- af[P <= 5e-8, .(SNP, P)]
+af_hits_tbl <- as_tibble(af_hits)
+```
+
+```{r}
+dynamic_af_strat <- inner_join(af_hits_tbl, dynamic_eqtls_strat, by=c("SNP"="variant_id"), multiple="all")
+dynamic_af_strat
+```
+
+CAD - nothing
+```{r}
+cad <- fread("data/gwas/zhang/sumstats/PASS_Coronary_Artery_Disease.sumstats")[, .(SNP, Z)]
+cad <- cad[,P := z_to_p(Z)]
+cad_hits <- cad[P <= 5e-8, .(SNP, P)]
+cad_hits_tbl <- as_tibble(cad_hits)
+```
+
+```{r}
+dynamic_cad_strat <- inner_join(cad_hits_tbl, dynamic_eqtls_strat, by=c("SNP"="variant_id"), multiple="all")
+dynamic_cad_strat
+```
+
+HDL
+```{r}
+hdl <- fread("data/gwas/zhang/sumstats/UKB_460K.biochemistry_HDLcholesterol.sumstats")[, .(SNP, Z)]
+hdl <- hdl[,P := z_to_p(Z)]
+hdl_hits <- hdl[P <= 5e-8, .(SNP, P)]
+hdl_hits_tbl <- as_tibble(hdl_hits)
+```
+
+```{r}
+dynamic_hdl_strat <- inner_join(hdl_hits_tbl, dynamic_eqtls_strat, by=c("SNP"="variant_id"), multiple="all")
+dynamic_hdl_strat
+```
+
+## Visualize an example dynamic eQTL
+### Load data
+```{r}
+cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% c(filter(dynamic_eqtls_strat, traj=="CM")$phenotype_id)) %>%
+  select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+cm_genotype_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% c(filter(dynamic_eqtls_strat, traj=="CM")$variant_id)) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+```
+
+Reference to map the normalized genotypes to the respective allele counts
+```{r}
+geno_map <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim",
+                  col_names=c("CHR", "RS", "CM", "POS", "REF", "ALT"))
+```
+
+```{r}
+g <- "RILPL1"
+v <- "rs7971779"
+select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8, lwd=1.25) +
+  theme_classic(base_size=15) +
+  ylab("RILPL1 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(values=brewer.pal(3, "Set1"))
+```
+
+```{r}
+filter(geno_map, RS=="rs7971779")
+```
+
+## Novel Dynamic eQTL Overlap
+Subset to novel dynamic eQTLs
+```{r}
+overlap_dynamic_qtls <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/dynamic_variant_gene_pairs.full_gtex_overlap.bed",
+                              col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "TRAJECTORY", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+
+novel_dynamic_hdl_strat <- anti_join(dynamic_hdl_strat, overlap_dynamic_qtls, by=c("phenotype_id"="EB_HGNC", "SNP"="RSID"))
+supernovel_dynamic_hdl_strat <- anti_join(dynamic_hdl_strat, overlap_dynamic_qtls, by=c("phenotype_id"="EB_HGNC"))
+novel_dynamic_hdl_strat
+```
+
+This leaves exclusively the eQTLs for TMED2, which does also have a dynamic eQTL that DOES overlap w a GTEx QTL
+```{r}
+overlap_dynamic_qtls <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/dynamic_variant_gene_pairs.full_gtex_overlap.bed",
+                              col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "TRAJECTORY", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+
+novel_dynamic_hdl_strat <- anti_join(dynamic_hdl_strat, overlap_dynamic_qtls, by=c("phenotype_id"="EB_HGNC", "SNP"="RSID"))
+supernovel_dynamic_hdl_strat <- anti_join(dynamic_hdl_strat, overlap_dynamic_qtls, by=c("phenotype_id"="EB_HGNC"))
+novel_dynamic_hdl_strat
+```
+
+LDL
+```{r}
+ldl <- fread("data/gwas/zhang/sumstats/UKB_460K.biochemistry_LDLdirect.sumstats")[, .(SNP, Z)]
+ldl <- ldl[,P := z_to_p(Z)]
+ldl_hits <- ldl[P <= 5e-8, .(SNP, P)]
+ldl_hits_tbl <- as_tibble(ldl_hits)
+```
+
+```{r}
+dynamic_ldl_strat <- inner_join(ldl_hits_tbl, dynamic_eqtls_strat, by=c("SNP"="variant_id"), multiple="all")
+novel_dynamic_ldl_strat <- anti_join(dynamic_ldl_strat, overlap_dynamic_qtls, by=c("phenotype_id"="EB_HGNC", "SNP"="RSID"))
+novel_dynamic_ldl_strat
+```
+Only a variant along the neuronal trajectory
+
+Schizophrenia
+```{r}
+scz <- fread("data/gwas/zhang/sumstats/PASS_Schizophrenia_Pardinas2018.sumstats")[, .(SNP, Z)]
+scz <- scz[,P := z_to_p(Z)]
+scz_hits <- scz[P <= 5e-8, .(SNP, P)]
+scz_hits_tbl <- as_tibble(scz_hits)
+```
+
+```{r}
+dynamic_scz_strat <- inner_join(scz_hits_tbl, dynamic_eqtls_strat, by=c("SNP"="variant_id"), multiple="all")
+novel_dynamic_scz_strat <- anti_join(dynamic_scz_strat, overlap_dynamic_qtls, by=c("phenotype_id"="EB_HGNC", "SNP"="RSID"))
+novel_dynamic_scz_strat
+```
+
+## African Ancestry GWAS
+```{r}
+
+```
+
+Look at novel dynamic eQTLs as priority
+```{r}
+novel_dynamic <- filter(dynamic_eqtls_strat, !phenotype_id %in% overlap_dynamic_qtls$EB_HGNC)
+novel_dynamic_mesendo <- filter(novel_dynamic, traj %in% c("CM", "HEP"))
+```
+
+Consider an alternative (less stringent) definition of novelty
+```{r}
+novel_dynamic_2 <- anti_join(dynamic_eqtls_strat, overlap_dynamic_qtls, by=c("phenotype_id"="EB_HGNC", "variant_id"="RSID"))
+novel_dynamic_mesendo_2 <- filter(novel_dynamic_2, traj %in% c("CM", "HEP"))
+```
+
+Consider a third definition of novelty that's hopefully in between (no GTEx eQTL w/in 5kb)
+```{r}
+window_dynamic_qtls <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/dynamic_variant_gene_pairs.full_gtex_window_overlap.bed",
+                              col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "TRAJECTORY", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+```
+
+```{r}
+novel_dynamic_3 <- anti_join(dynamic_eqtls_strat, window_dynamic_qtls, by=c("phenotype_id"="EB_HGNC", "variant_id"="RSID"))
+novel_dynamic_mesendo_3 <- filter(novel_dynamic_3, traj %in% c("CM", "HEP"))
+```
+
+This actually wound up being *more* stringent - there are genes without any strict overlap with GTEx, but they do have this window issue
+```{r}
+trait_loc <- "data/gwas/zhang/sumstats/UKB_460K.disease_CARDIOVASCULAR.sumstats"
+trait_loc <- "data/gwas/zhang/sumstats/UKB_460K.disease_HYPERTENSION_DIAGNOSED.sumstats"
+trait_loc <- "data/gwas/zhang/sumstats/UKB_460K.bp_SYSTOLICadjMEDz.sumstats"
+trait_loc <- "data/gwas/zhang/sumstats/UKB_460K.bp_DIASTOLICadjMEDz.sumstats"
+trait_loc <- "data/gwas/zhang/sumstats/UKB_460K.bmd_HEEL_TSCOREz.sumstats"
+trait_loc <- "data/gwas/zhang/sumstats/PASS_AtrialFibrillation_Nielsen2018.sumstats"
+trait_loc <- "data/gwas/zhang/sumstats/PASS_Coronary_Artery_Disease.sumstats"
+gwas <- fread(trait_loc)[, .(SNP, Z)]
+gwas <- gwas[,P := z_to_p(Z)]
+gwas_hits <- gwas[P <= 5e-8, .(SNP, P)]
+filter(gwas_hits, SNP %in% novel_dynamic_mesendo_3$variant_id)
+```
+
+For the first definition, no overlap with SBP, DBP, hypertension, cardiovascular disease, CAD (not UKB), AF, BMD
+For the second definition, overlap at GFOD2 (rs9925393) for BMD - next, I'm going to try a third definition that defines GTEx overlap as lying w/in 5kb of a GTEx hit, which should lie in between these two extremes
+For the third definition - nothing for SBP, DBP, hypertension, CVD, BMD, CAD (not UKB), AF (not UKB)
+

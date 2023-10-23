@@ -6,6 +6,7 @@ output: html_notebook
 library(tidyverse)
 library(gplots)
 library(mashr)
+library(rmeta)
 ```
 
 ## Characterizing mash patterns
@@ -364,4 +365,54 @@ mash_plot_meta(full_m, "SH3PXD2B_rs10042482", labels=colnames(full_m$result$lfsr
                xlim=c(-0.8, 0.6),
                colors=meta.colors(box=mash_colors))
 ```
+Plot these on same axis. First, get the color scheme sorted
+```{r}
+color_map_mash_fig <- color_map %>%
+  mutate(layer=factor(layer, levels=c("epithelium", "immune", "ecto_1", "ecto_2", "endoderm", "Squa_Epi", "mesoderm", "Vasc_Endo"))) %>%
+  arrange(layer)
+
+type_order <- color_map_mash_fig$type
+color_order <- color_map_mash_fig$color
+```
+
+
+```{r}
+mash_posterior_betas <- get_pm(full_m)["SH3PXD2B_rs10042482",]
+mash_posterior_sds <- get_psd(full_m)["SH3PXD2B_rs10042482",]
+mash_precision <- 1 / mash_posterior_sds ** 2
+mash_celltypes <- colnames(get_pm(full_m))
+mash_ests <- tibble(celltype=mash_celltypes,
+                    beta=mash_posterior_betas,
+                    sd=mash_posterior_sds,
+                    precision=mash_precision,
+                    approach=rep("mash", length(mash_celltypes)))
+
+nonmash_betas <- nonmash_viz$slope
+nonmash_sds <- nonmash_viz$slope_se
+nonmash_precision <- 1 / nonmash_sds ** 2
+nonmash_celltypes <- nonmash_viz$celltype
+nonmash_ests <- tibble(celltype=nonmash_celltypes,
+                    beta=nonmash_betas,
+                    sd=nonmash_sds,
+                    precision=nonmash_precision,
+                    approach=rep("non-mash", length(nonmash_celltypes)))
+
+mash_comp_viz <- bind_rows(mash_ests, nonmash_ests) %>%
+  mutate(approach=case_match(factor(approach, levels=c("non-mash", "mash")), "non-mash" ~ "Without MASH", "mash" ~ "With MASH")) %>%
+  mutate(approach=factor(approach, levels=c("Without MASH", "With MASH"))) %>%
+  mutate(celltype=factor(celltype, levels=rev(type_order)))
+
+ggplot(mash_comp_viz, aes(x=celltype, y=beta, color=celltype)) +
+  geom_hline(aes(yintercept=0), linetype="dashed", color="red") +
+  geom_errorbar(aes(ymin=beta - sd, ymax=beta + sd), color="#D5D5D5", width=0.5) +
+  geom_point(aes(size=precision), shape=15) +
+  theme_classic(base_size=20) +
+  theme(legend.position = "none") +
+  scale_color_manual(values=rev(color_order)) +
+  coord_flip() +
+  facet_grid(cols=vars(approach)) +
+  xlab("Cell Type") +
+  ylab("Estimated Effect Size") 
+```
+
 

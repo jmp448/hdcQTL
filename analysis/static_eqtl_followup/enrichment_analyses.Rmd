@@ -1,0 +1,586 @@
+```{r}
+library(tidyverse)
+library(vroom)
+library(mashr)
+library(MatrixGenerics)
+```
+
+### eQTL Enrichments in Functional Elements
+```{r}
+mash_eqtls <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.matchable_hits.mash-all_pool.bed")
+mash_background <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.matched_background.mash-all_pool.bed")
+eqtls <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.matchable_hits.tensorqtl-all_pool.bed")
+background <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.matched_background.tensorqtl-all_pool.bed")
+dynamic_eqtls <- vroom("results/dynamic_qtl_calling/eb-all_15binstrimmed/dynamic-signif_variant_gene_pairs.matchable_hits.dynamic-all_pool.bed")
+dynamic_bg <- vroom("results/dynamic_qtl_calling/eb-all_15binstrimmed/dynamic-signif_variant_gene_pairs.matched_background.dynamic-all_pool.bed")
+
+mash_eqtl_variants <- distinct(select(mash_eqtls, c(`#CHR`, END)))
+mash_background_variants <- distinct(select(mash_background, c(`#CHR`, END)))
+
+eqtl_variants <- distinct(select(eqtls, c(`#CHR`, END)))
+background_variants <- distinct(select(background, c(`#CHR`, END)))
+
+dynamic_variants <- distinct(select(dynamic_eqtls, c(`#CHR`, END)))
+dynamic_background_variants <- distinct(select(dynamic_bg, c(`#CHR`, END)))
+```
+
+Load the annotations
+```{r}
+annotations <- vroom(paste0("data/ldsc/baselineLD_v2.2_annot/baselineLD.", seq(22), ".annot.gz")) %>%
+  mutate(CHR=paste0("chr", CHR))
+```
+
+Prep for comparison with mash eQTLs
+```{r}
+mash_eqtl_variants$mash_eqtl <- 1
+mash_background_variants$background <- 1
+mash_comparison <- left_join(annotations, mash_eqtl_variants, by=c("CHR"="#CHR", "BP"="END")) %>%
+  left_join(mash_background_variants, by=c("CHR"="#CHR", "BP"="END")) %>%
+  replace_na(list(mash_eqtl=0, background=0))
+
+n_mash_eqtl <- sum(mash_comparison$mash_eqtl)
+n_mash_bg <- sum(mash_comparison$background)
+n_snp <- nrow(mash_comparison)
+```
+
+Prep for comparison with non-mash eQTLs
+```{r}
+eqtl_variants$eqtl <- 1
+background_variants$background <- 1
+eqtl_comparison <- left_join(annotations, eqtl_variants, by=c("CHR"="#CHR", "BP"="END")) %>%
+  left_join(background_variants, by=c("CHR"="#CHR", "BP"="END")) %>%
+  replace_na(list(eqtl=0, background=0))
+
+n_eqtl <- sum(eqtl_comparison$eqtl)
+n_bg <- sum(eqtl_comparison$background)
+```
+
+```{r}
+dynamic_variants$eqtl <- 1
+dynamic_background_variants$background <- 1
+dynamic_comparison <- left_join(annotations, dynamic_variants, by=c("CHR"="#CHR", "BP"="END")) %>%
+  left_join(dynamic_background_variants, by=c("CHR"="#CHR", "BP"="END")) %>%
+  replace_na(list(eqtl=0, background=0))
+
+n_dynamic <- sum(dynamic_comparison$eqtl)
+n_dynamic_bg <- sum(dynamic_comparison$background)
+```
+
+## Enhancers
+Measure enrichment in FANTOM5 Enhancers
+```{r}
+n_enhancer <- sum(mash_comparison$Enhancer_Andersson)
+
+# MASH eQTLs
+overlap_mash_eqtl_enhancer <- sum((mash_comparison$Enhancer_Andersson == 1) & (mash_comparison$mash_eqtl == 1))
+ct_mash_eqtl_enhancer <- matrix(c(overlap_mash_eqtl_enhancer, n_enhancer - overlap_mash_eqtl_enhancer, n_mash_eqtl - overlap_mash_eqtl_enhancer, n_snp - n_enhancer - n_mash_eqtl + overlap_mash_eqtl_enhancer), nr=2)
+fisher_mash_eqtl_enhancer <- fisher.test(ct_mash_eqtl_enhancer, alternative='g')
+
+# MASH BG
+overlap_mash_bg_enhancer <- sum((mash_comparison$Enhancer_Andersson == 1) & (mash_comparison$background == 1))
+ct_mash_bg_enhancer <- matrix(c(overlap_mash_bg_enhancer, n_enhancer - overlap_mash_bg_enhancer, n_mash_bg - overlap_mash_bg_enhancer, n_snp - n_enhancer - n_mash_bg + overlap_mash_bg_enhancer), nr=2)
+fisher_mash_bg_enhancer <- fisher.test(ct_mash_bg_enhancer, alternative='g')
+
+# TensorQTL eQTLs
+overlap_eqtl_enhancer <- sum((eqtl_comparison$Enhancer_Andersson == 1) & (eqtl_comparison$eqtl == 1))
+ct_eqtl_enhancer <- matrix(c(overlap_eqtl_enhancer, n_enhancer - overlap_eqtl_enhancer, n_eqtl - overlap_eqtl_enhancer, n_snp - n_enhancer - n_eqtl + overlap_eqtl_enhancer), nr=2)
+fisher_eqtl_enhancer <- fisher.test(ct_eqtl_enhancer, alternative='g')
+
+# TensorQTL BG
+overlap_bg_enhancer <- sum((eqtl_comparison$Enhancer_Andersson == 1) & (eqtl_comparison$background == 1))
+ct_bg_enhancer <- matrix(c(overlap_bg_enhancer, n_enhancer - overlap_bg_enhancer, n_bg - overlap_bg_enhancer, n_snp - n_enhancer - n_bg + overlap_bg_enhancer), nr=2)
+fisher_bg_enhancer <- fisher.test(ct_bg_enhancer, alternative='g')
+
+# Dynamic eQTLs
+overlap_dynamic_enhancer <- sum((dynamic_comparison$Enhancer_Andersson == 1) & (dynamic_comparison$eqtl == 1))
+ct_dynamic_enhancer <- matrix(c(overlap_dynamic_enhancer, n_enhancer - overlap_dynamic_enhancer, n_dynamic - overlap_dynamic_enhancer, n_snp - n_enhancer - n_dynamic + overlap_dynamic_enhancer), nr=2)
+fisher_dynamic_enhancer <- fisher.test(ct_dynamic_enhancer, alternative='g')
+
+# TensorQTL BG
+overlap_dynamicbg_enhancer <- sum((dynamic_comparison$Enhancer_Andersson == 1) & (dynamic_comparison$background == 1))
+ct_dynamicbg_enhancer <- matrix(c(overlap_dynamicbg_enhancer, n_enhancer - overlap_dynamicbg_enhancer, n_dynamic - overlap_dynamicbg_enhancer, n_snp - n_enhancer - n_dynamic + overlap_dynamicbg_enhancer), nr=2)
+fisher_dynamicbg_enhancer <- fisher.test(ct_dynamicbg_enhancer, alternative='g')
+```
+
+Visualize enrichment in FANTOM5 Enhancers
+```{r}
+tibble("OR"=c(fisher_mash_eqtl_enhancer$estimate, fisher_mash_bg_enhancer$estimate, 
+              fisher_eqtl_enhancer$estimate, fisher_bg_enhancer$estimate,
+              fisher_dynamic_enhancer$estimate, fisher_dynamicbg_enhancer$estimate),
+       "QTL Method"=rep(c("MASH", "TensorQTL", "Dynamic"), each=2),
+       "Variants"=rep(c("eQTLs", "Background"), times=3)) %>%
+  ggplot(aes(x=`QTL Method`, y=OR, color=Variants)) +
+  geom_point() +
+  theme_classic()
+```
+
+## Promoters
+Measure enrichment in UCSC promoters
+```{r}
+n_promoter <- sum(mash_comparison$Promoter_UCSC)
+
+# MASH eQTLs
+overlap_mash_eqtl_promoter <- sum((mash_comparison$Promoter_UCSC == 1) & (mash_comparison$mash_eqtl == 1))
+ct_mash_eqtl_promoter <- matrix(c(overlap_mash_eqtl_promoter, n_promoter - overlap_mash_eqtl_promoter, n_mash_eqtl - overlap_mash_eqtl_promoter, n_snp - n_promoter - n_mash_eqtl + overlap_mash_eqtl_promoter), nr=2)
+fisher_mash_eqtl_promoter <- fisher.test(ct_mash_eqtl_promoter, alternative='g')
+
+# MASH BG
+overlap_mash_bg_promoter <- sum((mash_comparison$Promoter_UCSC == 1) & (mash_comparison$background == 1))
+ct_mash_bg_promoter <- matrix(c(overlap_mash_bg_promoter, n_promoter - overlap_mash_bg_promoter, n_mash_bg - overlap_mash_bg_promoter, n_snp - n_promoter - n_mash_bg + overlap_mash_bg_promoter), nr=2)
+fisher_mash_bg_promoter <- fisher.test(ct_mash_bg_promoter, alternative='g')
+
+# TensorQTL eQTLs
+overlap_eqtl_promoter <- sum((eqtl_comparison$Promoter_UCSC == 1) & (eqtl_comparison$eqtl == 1))
+ct_eqtl_promoter <- matrix(c(overlap_eqtl_promoter, n_promoter - overlap_eqtl_promoter, n_eqtl - overlap_eqtl_promoter, n_snp - n_promoter - n_eqtl + overlap_eqtl_promoter), nr=2)
+fisher_eqtl_promoter <- fisher.test(ct_eqtl_promoter, alternative='g')
+
+# TensorQTL BG
+overlap_bg_promoter <- sum((eqtl_comparison$Promoter_UCSC == 1) & (eqtl_comparison$background == 1))
+ct_bg_promoter <- matrix(c(overlap_bg_promoter, n_promoter - overlap_bg_promoter, n_bg - overlap_bg_promoter, n_snp - n_promoter - n_bg + overlap_bg_promoter), nr=2)
+fisher_bg_promoter <- fisher.test(ct_bg_promoter, alternative='g')
+
+# Dynamic eQTLs
+overlap_dynamic_promoter <- sum((dynamic_comparison$Promoter_UCSC == 1) & (dynamic_comparison$eqtl == 1))
+ct_dynamic_promoter <- matrix(c(overlap_dynamic_promoter, n_promoter - overlap_dynamic_promoter, n_dynamic - overlap_dynamic_promoter, n_snp - n_promoter - n_dynamic + overlap_dynamic_promoter), nr=2)
+fisher_dynamic_promoter <- fisher.test(ct_dynamic_promoter, alternative='g')
+
+# TensorQTL BG
+overlap_dynamicbg_promoter <- sum((dynamic_comparison$Promoter_UCSC == 1) & (dynamic_comparison$background == 1))
+ct_dynamicbg_promoter <- matrix(c(overlap_dynamicbg_promoter, n_promoter - overlap_dynamicbg_promoter, n_dynamic - overlap_dynamicbg_promoter, n_snp - n_promoter - n_dynamic + overlap_dynamicbg_promoter), nr=2)
+fisher_dynamicbg_promoter <- fisher.test(ct_dynamicbg_promoter, alternative='g')
+```
+
+Visualize enrichment in UCSC promoters
+```{r}
+tibble("OR"=c(fisher_mash_eqtl_promoter$estimate, fisher_mash_bg_promoter$estimate, 
+              fisher_eqtl_promoter$estimate, fisher_bg_promoter$estimate,
+              fisher_dynamic_promoter$estimate, fisher_dynamicbg_promoter$estimate),
+       "QTL Method"=rep(c("MASH", "TensorQTL", "Dynamic"), each=2),
+       "Variants"=rep(c("eQTLs", "Background"), times=3)) %>%
+  ggplot(aes(x=`QTL Method`, y=OR, color=Variants)) +
+  geom_point() +
+  theme_classic()
+```
+
+## pLI Genes
+Load pLI data, and the eGenes
+```{r}
+conservation_info <- vroom("temp/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz")
+pli_scores <- select(conservation_info, c(gene, gene_id, pLI)) %>%
+  drop_na() %>%
+  distinct(gene, .keep_all=T)
+
+mash_egenes <- distinct(select(mash_eqtls, EB_HGNC))
+mash_background_egenes <- distinct(select(mash_background, EB_HGNC))
+
+eqtl_egenes <- distinct(select(eqtls, EB_HGNC))
+background_egenes <- distinct(select(background, EB_HGNC))
+
+dynamic_egenes <- distinct(select(dynamic_eqtls, EB_HGNC))
+dynamic_background_egenes <- distinct(select(dynamic_bg, EB_HGNC)) # huge discrepancy in number here (230 vs 2357)
+```
+
+Compare the fraction of high pLI genes in each group
+```{r}
+mash_egenes_high_pLI <- filter(pli_scores, gene %in% mash_egenes$EB_HGNC) %>%
+  mutate(high=pLI > 0.9) %>%
+  summarize(prop=mean(high)) %>%
+  pull(prop)
+
+mash_bg_high_pLI <- filter(pli_scores, gene %in% mash_background_egenes$EB_HGNC) %>%
+  mutate(high=pLI > 0.9) %>%
+  summarize(prop=mean(high)) %>%
+  pull(prop)
+
+eqtl_egenes_high_pLI <- filter(pli_scores, gene %in% eqtl_egenes$EB_HGNC) %>%
+  mutate(high=pLI > 0.9) %>%
+  summarize(prop=mean(high)) %>%
+  pull(prop)
+
+background_egenes_high_pLI <- filter(pli_scores, gene %in% background_egenes$EB_HGNC) %>%
+  mutate(high=pLI > 0.9) %>%
+  summarize(prop=mean(high)) %>%
+  pull(prop)
+
+dynamic_egenes_high_pLI <- filter(pli_scores, gene %in% dynamic_egenes$EB_HGNC) %>%
+  mutate(high=pLI > 0.9) %>%
+  summarize(prop=mean(high)) %>%
+  pull(prop)
+
+dynamic_background_egenes_high_pLI <- filter(pli_scores, gene %in% dynamic_background_egenes$EB_HGNC) %>%
+  mutate(high=pLI > 0.9) %>%
+  summarize(prop=mean(high)) %>%
+  pull(prop)
+```
+
+Visualize pLI trends
+```{r}
+tibble("Proportion of High pLI"=c(mash_egenes_high_pLI, mash_bg_high_pLI, 
+                                  eqtl_egenes_high_pLI, background_egenes_high_pLI,
+                                  dynamic_egenes_high_pLI, dynamic_background_egenes_high_pLI),
+       "QTL Method"=rep(c("MASH", "TensorQTL", "Dynamic"), each=2),
+       "Variants"=rep(c("eQTLs", "Background"), times=3)) %>%
+  ggplot(aes(x=`QTL Method`, y=`Proportion of High pLI`, color=Variants)) +
+  geom_point() +
+  theme_classic()
+```
+The trend in the background suggests this trend may not be due to the QTL discovery procedure, but the selection of tests for QTL calling
+- What aspect of that selection would drive this trend?
+
+Gene set enrichment
+
+And finally, trait heritability
+```{r}
+urate <- fread("data/gwas/sinnott-armstrong/Sinnott-Armstrong-Urate.sumstats.hg38.tsv")[CHROM %in% paste0(seq(22)), .(CHROM, POS, P)]
+urate_hits <- urate[P <= 5e-8,]
+urate_hits <- urate_hits[,P := as.numeric(P)]
+urate_hits <- urate_hits[,CHROM:=paste0("chr", CHROM)]
+urate_hits_tbl <- as_tibble(urate_hits)
+
+eqtl_urate <- inner_join(urate_hits_tbl, eqtls, by=c("CHROM"="#CHR", "POS"="END"), multiple="all")
+mash_urate <- inner_join(urate_hits_tbl, mash_eqtls, by=c("CHROM"="#CHR", "POS"="END"), multiple="all")
+dynamic_urate <- inner_join(urate_hits_tbl, dynamic_eqtls, by=c("CHROM"="#CHR", "POS"="END"), multiple="all")
+```
+
+Look at heritability enrichment for each type of eQTL
+```{r}
+urate <- fread("data/gwas/sinnott-armstrong/Sinnott-Armstrong-Urate.sumstats.hg38.tsv")[CHROM %in% paste0(seq(22)), .(CHROM, POS, P)]
+urate <- urate[,CHROM:=paste0("chr", CHROM)]
+
+eqtl_urate <- as_tibble(urate[as.data.table(eqtls), on = .(CHROM = `#CHR`, POS = END)]) %>%
+  mutate(qtl='TensorQTL')
+mash_urate <- as_tibble(urate[as.data.table(mash_eqtls), on = .(CHROM = `#CHR`, POS = END)]) %>%
+  mutate(qtl='MASH')
+dynamics_urate <- as_tibble(urate[as.data.table(dynamic_eqtls), on = .(CHROM = `#CHR`, POS = END)]) %>%
+  mutate(qtl='Dynamic')
+
+qtls_urate <- bind_rows(eqtl_urate, mash_urate, dynamics_urate) %>%
+  group_by(qtl) %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(qtls_urate, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+
+```{r}
+z_to_p <- function(zscore) {
+  pnorm(abs(zscore), lower.tail = FALSE) * 2
+}
+
+scz_loc <- "data/gwas/zhang/sumstats/PASS_Schizophrenia_Pardinas2018.sumstats" # 984K snps
+scz <- fread(scz_loc)[, .(SNP, Z)]
+
+eqtl_scz <- as_tibble(scz[as.data.table(eqtls), on = .(SNP = EB_VARIANT_ID)]) %>%
+  drop_na() %>%
+  mutate(qtl='TensorQTL') %>%
+mash_scz <- as_tibble(scz[as.data.table(mash_eqtls), on = .(SNP = EB_VARIANT_ID)]) %>%
+  drop_na() %>%
+  mutate(qtl='MASH')
+dynamics_scz <- as_tibble(scz[as.data.table(dynamic_eqtls), on = .(SNP = EB_VARIANT_ID)]) %>%
+  drop_na() %>%
+  mutate(qtl='Dynamic')
+
+qtls_scz <- bind_rows(eqtl_scz, mash_scz, dynamics_scz) %>%
+  group_by(qtl) %>%
+  mutate(P=map_dbl(Z, z_to_p)) %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(qtls_scz, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+
+Break down this analysis by the trajectory where the effect was discovered
+```{r}
+cm_dynamic <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+hep_dynamic <- vroom("results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+neur_dynamic <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+```
+
+```{r}
+neur_dynamics_scz <- filter(dynamics_scz, SNP %in% neur_dynamic$variant_id) %>%
+  mutate(qtl="Ecto_Dynamic")
+mesendo_dynamics_scz <- filter(dynamics_scz,SNP %in% c(cm_dynamic$variant_id, hep_dynamic$variant_id)) %>%
+  mutate(qtl="Mesendo_Dynamic")
+
+qtls_scz <- bind_rows(eqtl_scz, mash_scz, neur_dynamics_scz, mesendo_dynamics_scz) %>%
+  group_by(qtl) %>%
+  mutate(P=map_dbl(Z, z_to_p)) %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(qtls_scz, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+```{r}
+neur_dynamics_urate <- filter(dynamics_urate, EB_VARIANT_ID %in% neur_dynamic$variant_id) %>%
+  mutate(qtl="Ecto_Dynamic")
+mesendo_dynamics_urate <- filter(dynamics_urate, EB_VARIANT_ID %in% c(cm_dynamic$variant_id, hep_dynamic$variant_id)) %>%
+  mutate(qtl="Mesendo_Dynamic")
+
+stratified_qtls_urate <- bind_rows(eqtl_urate, mash_urate, neur_dynamics_urate, mesendo_dynamics_urate) %>%
+  group_by(qtl) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P)) %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(stratified_qtls_urate, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+
+This stratification doesn't capture what we're looking for - we don't see any notable heritability among the dynamic eQTLs outside the ectoderm trajectory, which may be because there are so few (~50 eGenes)
+
+As an alternative, do we have more independent effects to study if we look at the mash hits that are not shared across all contexts?
+```{r}
+ectoderm_types <- c("CNS-neurons", "CNS-glia", "PNS-neurons", "PNS-glia", 
+                    "Retinal-cells", "Adrenocortical-cells", "Neuroendocrine-cells")
+epithelial_types <- c("Ciliated-epithelial-cells", "Ductal-cells", "Acinar-cells", 
+                      "Metanephric-cells", "Ureteric-bud-cells")
+endoderm_types <- c("Goblet-cells", "Hepatoblasts", "Parietal-and-chief-cells", 
+                    "Bronchiolar-and-alveolar-epithelial-cells", "Squamous-epithelial-cells")
+mesoderm_types <- c("Cardiomyocytes", "Stromal-cells", "Epicardial-fat-cells", 
+                    "Mesangial-cells", "Smooth-muscle-cells", "Mesothelial-cells",
+                    "Stellate-cells" , "Vascular-endothelial-cells", "Skeletal-muscle-cells")
+
+mesendo_types <- c(endoderm_types, mesoderm_types)
+all_ecto_types <- c(ectoderm_types)
+
+mash_hits <- get_n_significant_conditions(mash_deets)
+mash_specific_hits <- names(mash_hits)[(mash_hits > 0) & (mash_hits <= 20)]
+
+ecto_hits <- get_n_significant_conditions(mash_deets, conditions = all_ecto_types)[mash_specific_hits]
+mesendo_hits <- get_n_significant_conditions(mash_deets, conditions = mesendo_types)[mash_specific_hits]
+
+mesendo_specific_hits <- tibble(test=names(mesendo_hits)[ecto_hits == 0]) %>%
+  separate(test, into=c("gene", "variant"), sep="_")
+ecto_specific_hits <- tibble(test=names(ecto_hits)[mesendo_hits == 0]) %>%
+  separate(test, into=c("gene", "variant"), sep="_")
+```
+
+```{r}
+mesendo_mash_urate <- inner_join(mash_urate, mesendo_specific_hits, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P)) %>%
+  mutate(qtl="mesendo_mash")
+
+ecto_mash_urate <- inner_join(mash_urate, ecto_specific_hits, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P))%>%
+  mutate(qtl="ecto_mash")
+
+stratified_mash_qtls_urate <- bind_rows(mesendo_mash_urate, ecto_mash_urate) %>%
+  group_by(qtl) %>%
+  drop_na() %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(stratified_mash_qtls_urate, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+```{r}
+igf <- fread("data/gwas/sinnott-armstrong/Sinnott-Armstrong-IGF1.sumstats.hg38.tsv.gz")[CHROM %in% paste0(seq(22)), .(CHROM, POS, P)]
+igf <- igf[,CHROM:=paste0("chr", CHROM)]
+
+mash_igf <- as_tibble(igf[as.data.table(mash_eqtls), on = .(CHROM = `#CHR`, POS = END)]) %>%
+  mutate(qtl='MASH')
+
+mesendo_mash_igf <- inner_join(mash_igf, mesendo_specific_hits, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P)) %>%
+  mutate(qtl="mesendo_mash")
+
+ecto_mash_igf <- inner_join(mash_igf, ecto_specific_hits, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P))%>%
+  mutate(qtl="ecto_mash")
+
+stratified_mash_qtls_igf <- bind_rows(mesendo_mash_igf, ecto_mash_igf) %>%
+  group_by(qtl) %>%
+  drop_na() %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(stratified_mash_qtls_igf, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+
+It looks like quite a few of these ecto effects are actually shared effects that only 
+reach significance in the higher-powered ectoderm cell types. To work around that, we can 
+rework the way we're assessing sharing. First, let's find the context where each effect is the strongest
+```{r}
+mash_betas <- mash_deets$result$PosteriorMean
+significant_betas <- which(get_n_significant_conditions(mash_deets) >= 1)
+
+list_shared_contexts <- function(betas) {
+  max_effect = max(abs(betas))
+  sign_max_effect = sign(betas[which(abs(betas) == max_effect)])
+  if (sign_max_effect == 1) {
+    return(names(betas)[betas >= max_effect / 2])
+  } else if (sign_max_effect == -1) {
+    return(names(betas)[betas <= max_effect / -2])
+  }
+}
+```
+
+```{r}
+shared_contexts <- apply(mash_betas[significant_betas,], 1, list_shared_contexts)
+n_shared_contexts <- sapply(shared_contexts, length)
+
+specific_effects <- shared_contexts[n_shared_contexts < 20]
+```
+
+```{r}
+n_contexts_ecto <- sapply(specific_effects, function(cts){sum(cts %in% ectoderm_types)})
+n_contexts_mesendo <- sapply(specific_effects, function(cts){sum(cts %in% c(mesoderm_types, endoderm_types))})
+
+specific_effects_mesendo <- tibble(test=names(specific_effects)[(n_contexts_ecto == 0) & (n_contexts_mesendo > 0)]) %>%
+  separate(test, into=c("gene", "variant"), sep="_")
+specific_effects_ecto <- tibble(test=names(specific_effects)[(n_contexts_mesendo == 0) & (n_contexts_ecto > 0)]) %>%
+  separate(test, into=c("gene", "variant"), sep="_")
+```
+
+```{r}
+mesendo_mash_urate_2 <- inner_join(mash_urate, specific_effects_mesendo, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P)) %>%
+  mutate(qtl="mesendo_mash")
+
+ecto_mash_urate_2 <- inner_join(mash_urate, specific_effects_ecto, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P))%>%
+  mutate(qtl="ecto_mash")
+
+stratified_mash_qtls_urate_2 <- bind_rows(mesendo_mash_urate_2, ecto_mash_urate_2) %>%
+  group_by(qtl) %>%
+  drop_na() %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(stratified_mash_qtls_urate_2, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+What's left in ectoderm?
+- NRXN2 - that does actually look like a really brain specific transcript
+- HMGN4 - widely expressed
+- GPR137 - highest in testis
+- ZNF318 - tx regulator
+These aren't looking so ridiculout any more, but the QQ plot is pretty skewed by the LD blocks
+
+```{r}
+stratified_mash_qtls_urate_2 %>%
+  group_by(EB_HGNC) %>%
+  arrange(P) %>%
+  slice_head(n=1) %>%
+  group_by(qtl) %>%
+  mutate(P_null=row_number() / n()) %>%
+  ggplot(aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+Just not a strong case of any difference here
+```{r}
+mesendo_mash_igf_2 <- inner_join(mash_igf, specific_effects_mesendo, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P)) %>%
+  mutate(qtl="mesendo_mash")
+
+ecto_mash_igf_2 <- inner_join(mash_igf, specific_effects_ecto, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P))%>%
+  mutate(qtl="ecto_mash")
+
+stratified_mash_qtls_igf_2 <- bind_rows(mesendo_mash_igf_2, ecto_mash_igf_2) %>%
+  group_by(qtl) %>%
+  drop_na() %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(stratified_mash_qtls_igf_2, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+
+```{r}
+stratified_mash_qtls_igf_2 %>%
+  group_by(EB_HGNC) %>%
+  arrange(P) %>%
+  slice_head(n=1) %>%
+  group_by(qtl) %>%
+  mutate(P_null=row_number() / n()) %>%
+  ggplot(aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+
+Last, is there better enrichment of specific effects as opposed to shared, even if not in the lineage-specific way?
+```{r}
+shared_effects <- shared_contexts[n_shared_contexts >= 20]
+
+specific_effects_tbl <- tibble(test=names(specific_effects)) %>%
+  separate(test, into=c("gene", "variant"), sep="_")
+
+shared_effects_tbl <- tibble(test=names(shared_effects)) %>%
+  separate(test, into=c("gene", "variant"), sep="_")
+```
+
+```{r}
+spec_mash_igf <- inner_join(mash_igf, specific_effects_tbl, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P)) %>%
+  mutate(qtl="spec_mash")
+
+shared_mash_igf <- inner_join(mash_igf, shared_effects_tbl, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P))%>%
+  mutate(qtl="shared_mash")
+
+spec_mash_qtls_igf <- bind_rows(spec_mash_igf, shared_mash_igf) %>%
+  group_by(qtl) %>%
+  drop_na() %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(spec_mash_qtls_igf, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+```{r}
+spec_mash_urate <- inner_join(mash_urate, specific_effects_tbl, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P)) %>%
+  mutate(qtl="spec_mash")
+
+shared_mash_urate <- inner_join(mash_urate, shared_effects_tbl, by=c("EB_HGNC"="gene", "EB_VARIANT_ID"="variant")) %>%
+  drop_na() %>%
+  mutate(P=as.numeric(P))%>%
+  mutate(qtl="shared_mash")
+
+spec_mash_qtls_urate <- bind_rows(spec_mash_urate, shared_mash_urate) %>%
+  group_by(qtl) %>%
+  drop_na() %>%
+  arrange(P) %>%
+  mutate(P_null=row_number() / n()) %>% 
+  mutate(nlog10P=-log10(P)) %>%
+  mutate(nlog10P_null=-log10(P_null))
+
+ggplot(spec_mash_qtls_urate, aes(x=nlog10P_null, y=nlog10P, color=qtl)) +
+  geom_point()
+```
+
+This is probably diluted by false positives among the specific effects

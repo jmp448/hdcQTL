@@ -183,4 +183,3 @@ rule merge_effect_size_estimates:
         """
         echo done > {output}
         """
-        

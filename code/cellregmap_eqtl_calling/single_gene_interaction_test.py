@@ -161,7 +161,7 @@ print("Running for gene {}".format(g))
 pvals = run_interaction(y=y, W=W, G=G_val, E=C_val, hK=hK_val)
 
 pv = pd.DataFrame({"EB_HGNC":[g for _ in test_snps],
-                  "EB_VARIANT_ID":test_snps,
+                  "EB_VARIANT_ID":G_expanded.snp.values,
                   "P_CELLREGMAP":pvals[0]})
 
 pv.to_csv(output_loc, sep="\t", header=False, index=False)

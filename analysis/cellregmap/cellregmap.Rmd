@@ -135,8 +135,12 @@ select(filter(neur_exp, gene==!!g), c("ind_type", "expression")) %>%
   inner_join(neur_pseudotime, by="ind_type") %>%
   mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot() +
-  theme_classic()
+  geom_boxplot(lwd=1.25) +
+  theme_classic(base_size=20) +
+  scale_fill_manual(values=brewer.pal(3, "Set1")) +
+  xlab("Pseudotime Bin") +
+  ylab("AS3MT Expression") +
+  labs(fill="Genotype at rs11191419")
 ```
 
 Look at the structure plot for this variant
@@ -152,7 +156,19 @@ structure_df <- crm_betas_loadings %>%
 ```{r, fig.width=8, fig.height=4}
 ggplot(structure_df, aes(x=AS3MT_rs11191419, y=loading, fill=topic)) +
   geom_col(width=1e-3) +
-  theme_classic(base_size=15) +
-  scale_fill_manual(values=brewer.pal(10, 'Set1'))
+  theme_classic(base_size=35) +
+  scale_fill_manual(values=brewer.pal(10, 'Set1')) +
+  theme(legend.position="none") +
+  xlab("Aggregate Interacting Environment at rs11191419") +
+  ylab("Topic Loadings")
+```
+
+Also get the pseudobulk expression 
+```{r}
+pseudocell_exp <- vroom("data/single_cell_objects/eb_pseudocells_normalized.tsv")
+
+expression_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", "AS3MT_rs11191419"))) %>% 
+  left_join(select(pseudocell_exp, c(`...1`, AS3MT)), by=c("PSEUDOCELL"="...1"))
 ```
 

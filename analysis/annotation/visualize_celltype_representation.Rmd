@@ -12,111 +12,71 @@ sc_annotated <- celltypes %>%
   mutate(umap1=umap$UMAP_1, umap2=umap$UMAP_2)
 ```
 
-Stratify by germ layer
+Assign colors to each cell type based on hierarchical clustering
 ```{r}
-dropped <- c("STC2_TLX1 positive cells","Lymphatic endothelial cells",
-             "Intestinal epithelial cells","Endocardial cells")
-ecto <- c("Retinal cells","CNS neurons","PNS glia","CNS glia","PNS neurons",
-          "Adrenocortical cells","Neuroendocrine cells")
-immune <- c("Erythroblasts","Megakaryocytes","Lymphoid cells")
-meso <- c("Vascular endothelial cells","Stromal cells","Epicardial fat cells",
-          "Skeletal muscle cells","Mesangial cells","Mesothelial cells",
-          "Cardiomyocytes","Smooth muscle cells","Stellate cells")
-epi <- c("Ductal cells", "Metanephric cells","Ciliated epithelial cells",
-         "Ureteric bud cells","Acinar cells",
-         "Parietal and chief cells")
-endo <- c("Hepatoblasts","Goblet cells","Bronchiolar and alveolar epithelial cells",
-          "Squamous epithelial cells")
+type_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+                "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia","Metanephric-cells", 
+                "Erythroblasts", "Ciliated-epithelial-cells", "Acinar-cells", "Ductal-cells", 
+                "Bronchiolar-and-alveolar-epithelial-cells","Adrenocortical-cells", "Parietal-and-chief-cells", "Ureteric-bud-cells", 
+                "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells", 
+                "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts", 
+                "unassigned") 
 
-sc_annotated <- sc_annotated %>%
-  mutate(ecto_type=if_else(value %in% ecto, value, NA_character_)) %>%
-  mutate(endo_type=if_else(value %in% endo, value, NA_character_)) %>%
-  mutate(meso_type=if_else(value %in% meso, value, NA_character_)) %>%
-  mutate(epi_type=if_else(value %in% epi, value, NA_character_)) %>%
-  mutate(immune_type=if_else(value %in% immune, value, NA_character_))
+type_colors <- c("#130063", "#192594", "#004D80", 
+                 "#7F7FFF", "#316DFF", "#1B7FFF", "#0097FF", "#7298BB", 
+                 "#7F9ACE", "#8CB4D5", "#96C0E5", "#98BEC6", 
+                 "#00AB8E", "#3EBFBB", "#55D0B7", "#25C683", 
+                 "#860B1E", "#9B1716", "#B51700", "#B13B3E", 
+                 "#CC4E4F", "#D32323", "#FF0000",
+                 "#965C3D", "#8410D3", "#84108A",  
+                 "#FEDE7F", "#FED255", "#FEAE00", 
+                 "#D5D5D5") 
+
+color_map <- tibble(type = type_order, color = type_colors) %>%
+  mutate(type_spaced = str_replace_all(type, "-", " "))
 ```
 
-Ectoderm cells
-```{r}
-ggplot(sc_annotated, aes(x=umap1, y=umap2, color=ecto_type)) +
-  geom_point(pch=".") +
-  theme_classic()
-```
+```{r fig.width=8, fig.height=4}
+umap_viz <- sc_annotated %>%
+  mutate(value = factor(value, levels=color_map$type_spaced)) %>%
+  drop_na() # removes a few very rare cell types in the EB data
 
-Mesoderm cells
-```{r}
-ggplot(sc_annotated, aes(x=umap1, y=umap2, color=meso_type)) +
-  geom_point(pch=".") +
-  theme_classic(base_size=12) +
-  guides(color=guide_legend(override.aes=list(size=10)))
-```
-
-Endoderm cells
-```{r}
-ggplot(sc_annotated, aes(x=umap1, y=umap2, color=endo_type)) +
-  geom_point(pch=".") +
-  theme_classic()
-```
-
-Epithelial cells
-```{r}
-ggplot(sc_annotated, aes(x=umap1, y=umap2, color=epi_type)) +
-  geom_point(pch=".") +
-  theme_classic()
-```
-
-Immune cells
-```{r}
-ggplot(sc_annotated, aes(x=umap1, y=umap2, color=immune_type)) +
-  geom_point(pch=".") +
-  theme_classic()
+ggplot(umap_viz, aes(x=umap1, y=umap2, color=value)) +
+  geom_point(size=1e-5) +
+  theme_classic(base_size=20) +
+  scale_color_manual(values = color_map$color) + 
+  guides(color = guide_legend(override.aes = list(size = 10))) +
+  xlab("UMAP1") + ylab("UMAP2") + 
+  labs(color="Cell Type Assignment")
 ```
 
 ## Overview of Pseudobulk Data
-First, which cell types are included in this analysis (after filtering out samples with too few cells)?
-```{r, warning=FALSE, message=FALSE}
-options(readr.show_progress = FALSE)
-sample_summary <- read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/sample_summary.tsv") %>%
-  mutate(individual=factor(individual), type=factor(type))
-
-cell.types <- sample_summary  %>%
-  mutate(type=as.character(type)) %>%
-  filter(!dropped) %>%
-  dplyr::count(type) %>%
-  filter(n > 25) %>%
-  pull(type)
-
-cell.types
-```
-
 We see that the proportion of cells mapping to each cell type varies widely between donors
 ```{r, fig.height=8, fig.width=8}
 cell_metadata <- vroom("data/single_cell_objects/highpass/eb_metadata.tsv")
 
 donor_celltype <- select(cell_metadata, c("cell", "donor_id")) %>%
-  inner_join(select(sc_annotated, c("cell", "value"))) %>%
-  mutate(type=if_else(value=="unassigned", NA_character_, value))
+  inner_join(select(sc_annotated, c("cell", "value"))) 
 
 proportions_per_celltype <- donor_celltype %>%
   add_count(donor_id, name="donor_n") %>%
-  add_count(donor_id, type, name="donor_type_n") %>%
+  add_count(donor_id, value, name="donor_type_n") %>%
   mutate(proportion=donor_type_n / donor_n) %>%
-  select(type, donor_id, proportion) %>%
-  distinct
+  select(value, donor_id, proportion) %>%
+  distinct %>%
+  mutate(value = factor(value, levels=color_map$type_spaced)) %>%
+  drop_na() # removes rare cell types
 
-ggplot(proportions_per_celltype, aes(x=factor(type), y=proportion, fill=factor(type))) +
-  geom_violin(scale="width") +
-  coord_flip() +
-  theme_classic(base_size=25) +
-  theme(legend.position = "none")
-
-ggplot(proportions_per_celltype, aes(x=factor(donor_id), y=proportion, fill=factor(type))) +
+ggplot(proportions_per_celltype, aes(x=donor_id, y=proportion, fill=value)) +
   geom_bar(stat="identity", color="black") +
   coord_flip() +
-  theme_classic(base_size=25)
+  theme_classic(base_size=25) +
+  scale_fill_manual(values=color_map$color) +
+  xlab("Donor") + ylab("Cell Type Proportion") + 
+  theme(legend.position="none")
 ```
-
-But on the flip side, most donors to generate most cell types!
 
 Here's what it looks like for different cutoffs on the number of cells req'd for a 
 pseudobulk sample
@@ -125,7 +85,7 @@ thresholds <- seq(10) * 5
 all_donors <- unique(donor_celltype$donor_id)
 
 count_celltypes <- function(df, thresh, d) {
-  count(df, donor_id, type) %>% filter((n>=thresh) & (donor_id==d)) %>% nrow
+  dplyr::count(df, donor_id, value) %>% filter((n>=thresh) & (donor_id==d)) %>% nrow
 }
 
 n_types <- expand_grid(thresholds, all_donors) %>%
@@ -135,101 +95,22 @@ ggplot(n_types, aes(x=thresholds, y=n_types, color=all_donors)) +
   geom_line()
 ```
 
-And for clarity, here's the slice at a cutoff of 5 (the value we actually chose)
-```{r fig.height=8, fig.width=6}
-atleast_5cells <- filter(n_types, thresholds==5) 
+But most donors to generate most cell types
+```{r fig.height=4, fig.width=3}
 
-ggplot(atleast_5cells, aes(x=factor(all_donors, levels=pull(arrange(atleast_5cells, n_types), all_donors)), y=n_types)) +
-  geom_bar(stat="identity") +
+atleast_5cells <- filter(n_types, thresholds==5)  %>%
+  mutate(all_donors = factor(all_donors, levels=pull(arrange(., n_types), all_donors)))
+
+ggplot(atleast_5cells, aes(x=all_donors, y=n_types)) +
+  geom_segment( aes(x=all_donors, xend=all_donors, y=0, yend=n_types), color="skyblue") +
+  geom_point( color="blue", size=5, alpha=0.8) +
   geom_hline(linetype="dashed", color="red", yintercept=median(atleast_5cells$n_types)) +
   coord_flip() +
-  theme_classic(base_size=25) +
+  theme_classic(base_size=15) +
   xlab("Donor") + ylab("Number of Cell Types")
 ```
 
-On the flip side, how many samples are there per cell type at various threhsolds?
+Combine figures
 ```{r}
-thresholds <- seq(10) * 5
-all_types <- na.omit(unique(donor_celltype$type))
-
-count_samples <- function(df, thresh, ct) {
-  count(df, donor_id, type) %>% filter((n>=thresh) & (type==ct)) %>% nrow
-}
-
-sample_sizes <- expand_grid(thresholds, all_types) %>%
-  mutate(n=map2_dbl(thresholds, all_types, count_samples, df=donor_celltype))
-
-ggplot(sample_sizes, aes(x=thresholds, y=n, color=all_types)) +
-  geom_line()
+p1_rearrangement_df <- arrange(p)
 ```
-
-We can also look at 
-```{r}
-n_cell_types <- sample_sizes %>%
-  group_by(thresholds) %>%
-  mutate(`20`=sum(n >= 20)) %>%
-  mutate(`30`=sum(n >= 30)) %>%
-  mutate(`40`=sum(n >= 40)) %>%
-  pivot_longer(c(`20`, `30`, `40`), names_to="sample_size_threshold", values_to="n_types")
-
-ggplot(n_cell_types, aes(x=thresholds, y=n_types, color=sample_size_threshold)) +
-  geom_line()
-```
-
-
-
-
-<!-- To emphasize that we do see most cell types in most donors, we can visualize this differently -->
-<!-- ```{r, fig.width=8, fig.height=4} -->
-<!-- read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/sample_summary.tsv") %>% -->
-<!--   mutate(individual=factor(individual), type=factor(type))  %>% -->
-<!--   #filter(!dropped) %>% -->
-<!--   select(individual, type, dropped) %>% -->
-<!--   pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>% -->
-<!--   pivot_longer(!individual, names_to="type", values_to="dropped") %>% -->
-<!--   mutate(individual=paste0("NA", individual)) %>% -->
-<!--   mutate(observed=!dropped) %>% -->
-<!--   ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) + -->
-<!--     geom_point(shape = 1, size = 1, stroke=2) + -->
-<!--     scale_color_manual(values = c("#1DB100", "#D5D5D5")) + -->
-<!--     theme_classic(base_size=15) + -->
-<!--     labs(title = "Cell Type Observations", -->
-<!--          x = "Donor", -->
-<!--          y = "Cell Type", -->
-<!--          color = "Cell Type Observed") + -->
-<!--     theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
-<!-- ``` -->
-
-<!-- After manual pruning of outlier samples -->
-<!-- ```{r, fig.width=8, fig.height=4} -->
-<!-- read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv") %>% -->
-<!--   mutate(individual=factor(individual), type=factor(type))  %>% -->
-<!--   #filter(!dropped) %>% -->
-<!--   select(individual, type, dropped) %>% -->
-<!--   pivot_wider(names_from=type, values_from=dropped, values_fill=T) %>% -->
-<!--   pivot_longer(!individual, names_to="type", values_to="dropped") %>% -->
-<!--   mutate(individual=paste0("NA", individual)) %>% -->
-<!--   mutate(observed=!dropped) %>% -->
-<!--   ggplot(aes(x = individual, y = type, color = factor(observed, levels=c(T, F)))) + -->
-<!--     geom_point(shape = 1, size = 1, stroke=2) + -->
-<!--     scale_color_manual(values = c("#1DB100", "#D5D5D5")) + -->
-<!--     theme_classic(base_size=15) + -->
-<!--     labs(title = "Cell Type Observations", -->
-<!--          x = "Donor", -->
-<!--          y = "Cell Type", -->
-<!--          color = "Cell Type Observed") + -->
-<!--     theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
-<!-- ``` -->
-
-<!-- How many cells do we have (median) per cell type? -->
-<!-- ```{r} -->
-<!-- sample_summary %>% -->
-<!--   filter(!dropped) %>% -->
-<!--   filter(type %in% cell.types) %>% -->
-<!--   group_by(type) %>% -->
-<!--   summarize(n_cells_median=median(n_cells_filtered)) %>% -->
-<!--   arrange(n_cells_median) %>% -->
-<!--   ggplot(aes(x=type, y=n_cells_median)) + -->
-<!--   geom_bar(stat="identity") + -->
-<!--   theme(axis.text.x = element_text(angle = 45, hjust=1)) -->
-<!-- ``` -->

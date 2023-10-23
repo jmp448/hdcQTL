@@ -12,6 +12,9 @@ include: "rules/dynamic_qtl_calling.py"
 include: "rules/fast_topics.py"
 include: "rules/cellregmap_eqtl_calling.py"
 include: "rules/trans_qtl_calling.py"
+include: "rules/subset_qtl_calling.py"
+include: "rules/complex_trait_analysis.py"
+include: "rules/wrangle_roadmap.py"
 
 HTTP = HTTPRemoteProvider()
 
@@ -20,6 +23,6 @@ rule make_conda:
         "test.tmp"
     output:
         "test.tmp2"
-    conda: "slurmy/tensorqtl.yml"
+    conda: "slurmy/cellregmap.yml"
     shell:
         "echo booyah > {output}"

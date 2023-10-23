@@ -93,11 +93,248 @@ bind_rows(trait, qtl) %>%
   facet_grid(rows=vars(phenotype)) 
 ```
 
-## eQTL Violin/ Box Plot
+## Dynamic eQTL
 ```{r}
-exp <- vroom()
+hdl_sumstats <- fread("data/gwas/zhang/sumstats/UKB_460K.biochemistry_HDLcholesterol.sumstats")[, .(SNP, Z)]
+hdl <- hdl[,P := z_to_p(Z)]
+```
+
+Load the dynamic eQTL data
+```{r}
+locus_gene <- "CCDC117"
+dynamic_all <- vroom("results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
+tmed_dynamic <- filter(dynamic_all, phenotype_id == locus_gene) %>%
+  mutate(nlog10p = -log10(pval_gi))
+bim_file <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim",
+                  col_names=c("CHR", "RSID", "NA", "POS", "REF", "ALT"))
+tmed_snps <- filter(bim_file, RSID %in% tmed_dynamic$variant_id) %>%
+  select(CHR, POS, RSID)
+
+dynamic_viz <- left_join(tmed_dynamic, tmed_snps, by=c("variant_id"="RSID"))
+ggplot(dynamic_viz, aes(x=POS, y=nlog10p)) +
+  geom_point()
+```
+
+Look at the subset that overlaps w GTEx
+```{r}
+overlap_dynamic_qtls <- vroom("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/dynamic_variant_gene_pairs.full_gtex_overlap.bed",
+                              col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "TRAJECTORY", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
+  filter(EB_HGNC==locus_gene, RSID %in% tmed_dynamic$variant_id)
+
+dynamic_viz <- dynamic_viz %>%
+  mutate(overlap = variant_id %in% overlap_dynamic_qtls$RSID)
+
+ggplot(dynamic_viz, aes(x=POS, y=nlog10p)) +
+  geom_point() +
+  facet_grid(rows=vars(overlap))
+```
+
+
+## COL1A2 locus
+```{r}
+alm_gwas <- vroom("data/gwas/pei/GCST90000025.sumstats.hg38.bed",
+                  col_names=c("#CHR", "START", "END", "HG19", "P")) %>%
+  filter(`#CHR` == "7")
+
+cm_dqtl <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
+col1a2_qtl <- filter(cm_dqtl, phenotype_id == "COL1A2")
+
+cm_dqtl_bim <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim",
+                      col_names=c("CHR", "RS", "NA", "POS", "REF", "ALT")) %>%
+  filter(CHR == "chr7") %>%
+  dplyr::select(RS, POS)
+```
+
+Will also highlight the novel EB eQTLs
+```{r}
+cm_novel_hits <- vroom("results/gwas_overlap/cm_fully_novel.tsv")
+```
+
+
+```{r}
+col1a2_tss <- 94394561
+alm_gwas_merge <- alm_gwas %>%
+  dplyr::select(END, P) %>%
+  filter((col1a2_tss - 50e3 <= END) & (col1a2_tss + 50e3 >= END)) %>%
+  mutate(assay="GWAS") %>%
+  mutate(highlight= P <= 5e-8)
+
+col1a2_qtl_merge <- col1a2_qtl %>%
+  dplyr::select(variant_id, pval_gi) %>%
+  inner_join(cm_dqtl_bim, by=c("variant_id"="RS")) %>%
+  mutate(highlight= variant_id %in% cm_novel_hits$EB_VARIANT_ID) %>%
+  dplyr::select(-c(variant_id)) %>%
+  dplyr::rename(END=POS, P=pval_gi) %>%
+  mutate(assay="QTL") 
+  
+
+locus_view <- bind_rows(alm_gwas_merge, col1a2_qtl_merge) %>%
+  mutate(nlog10p=-log10(P))
+
+ggplot(locus_view, aes(x=END, y=nlog10p, color=highlight)) +
+  facet_grid(rows=vars(assay), scales="free_y") +
+  geom_point() +
+  geom_vline(aes(xintercept=col1a2_tss), color="red") +
+  theme_classic() +
+  scale_color_manual(values=c("black", "red"))
+```
+
+## Colored by LD
+Let's view the LD patterns underlying the primary locus, to see if it suggests this is one or multiple loci
+```{r}
+gwas_vars <- alm_gwas_merge %>%
+  select(END, P) %>% 
+  rename(POS=END) %>%
+  mutate(CHR="chr7", .before=1) %>%
+  mutate(SNP=paste(CHR, POS, sep=":"))
+
+ldmat <- LDlinkR::LDmatrix(gwas_vars$SNP, 
+                  pop = "EUR", 
+                  r2d = "r2",
+                  token = "36e356ef3c1e", 
+                  file = FALSE,
+                  genome_build = "grch38")
+write_tsv(ldmat, "temp/ld_matrix.txt")
+```
+
+Map these RS IDs to chromosome positions
+```{r}
+ldmat <- read.table("temp/ld_matrix.txt", header=T)
+
+snpmart = useEnsembl(biomart = "snps", dataset="hsapiens_snp")
+snp_list <- getBM(attributes = c('refsnp_id','allele','chrom_start','chrom_strand'), 
+      filters = c('snp_filter'), 
+      values = ldmat$RS_number, 
+      mart = snpmart)
+snp_pos <- as_tibble(snp_list) 
+# stopifnot(all(snp_pos$chrom_strand == 7))
+lead_variant_1 <- filter(snp_pos, chrom_start==94346257)$refsnp_id
+ldmat_pos <- as_tibble(ldmat) %>%
+  left_join(dplyr::select(snp_pos, -c(chrom_strand)), by=c("RS_number"="refsnp_id")) %>%
+  dplyr::select(c(RS_number, chrom_start, lead_variant_1))
+```
+
+Plot the GWAS with correlation to the first lead SNP
+```{r}
+locus_view_lv1_ld <- left_join(locus_view, dplyr::select(ldmat_pos, c(chrom_start, lead_variant_1)), by=c("END"="chrom_start"))
+
+locus_view_lv1_ld %>%
+  filter(assay == "GWAS") %>%
+  ggplot(aes(x=END, y=nlog10p, color=rs55921499)) +
+      facet_grid(rows=vars(assay), scales="free_y") +
+      geom_point() +
+      geom_vline(aes(xintercept=col1a2_tss), color="red") +
+      theme_classic() +
+      scale_color_viridis()
+```
+Next, we need LD on the QTL side from our YRI donors
+
+List SNPs included in the QTL plot
+```{r}
+rs_col1a2 <- filter(cm_dqtl_bim, POS %in% col1a2_qtl_merge$END)
+```
+
+Get the genotype data
+```{r}
+cm_genotype_df_full <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") 
+cm_genotype_df_col1a2 <- cm_genotype_df_full %>% 
+  filter(snp %in% rs_col1a2$RS) %>%
+  column_to_rownames("snp")
+ld_col1a2 <- cor(t(cm_genotype_df_col1a2))
+```
+
+Get the variant that we tested in EB that has the highest p-value in the GWAS
+```{r}
+lead_snp <- filter(alm_gwas_merge, END %in% rs_col1a2$POS) %>%
+  arrange(P, END) %>%
+  slice_head(n=1) %>%
+  inner_join(cm_dqtl_bim, by=c("END"="POS")) %>%
+  pull(RS)
+```
+
+Try using the other one
+```{r}
+lead_snp <- filter(rs_col1a2, POS == 94356288) %>%
+  pull(RS)
+```
+
+
+Get LD with the lead variant
+```{r}
+col1a2_qtl_ld <- as_tibble(ld_col1a2[,lead_snp], rownames="RS") %>%
+  inner_join(rs_col1a2, by="RS") %>%
+  right_join(col1a2_qtl_merge, by=c("POS"="END"))
+
+ggplot(col1a2_qtl_ld, aes(x=POS, y=-log10(P), color=value)) +
+  geom_point() +
+  scale_color_viridis()
+```
+
+Combined the two plots colored by LD
+```{r, fig.height=5, fig.width=5}
+col1a2_ld_plot <- col1a2_qtl_ld %>%
+  mutate(nlog10p = -log10(P)) %>%
+  dplyr::select(c(POS, value, nlog10p)) %>%
+  rename(lead_ld=value) %>%
+  mutate(assay="QTL")
+
+alm_ld_plot <- locus_view_lv1_ld %>%
+  filter(assay=="GWAS") %>%
+  dplyr::select(c(END, rs55921499, nlog10p, assay)) %>%
+  rename(lead_ld=rs55921499, POS=END)
+
+combined_ld_plot <- bind_rows(col1a2_ld_plot, alm_ld_plot) %>%
+  mutate(assay=str_replace(assay, "GWAS", "ALM GWAS")) %>%
+  mutate(assay=str_replace(assay, "QTL", "COL1A2 QTL"))
+
+ggplot(combined_ld_plot, aes(x=POS, y=nlog10p, color=lead_ld)) +
+  geom_point(size=2.5) +
+  scale_color_viridis() +
+  theme_classic(base_size=15) +
+  facet_grid(rows=vars(assay), scales="free_y") +
+  ylab("-log10(P)") + xlab("Position (chr7)") +
+  labs(color="LD with lead variant,\nrs55921499") +
+  geom_vline(xintercept=col1a2_tss, linetype="dashed", color="gray")
 ```
 
 
 
+## CRM Analysis
+To understand the context of CRM loci, we can just get a quick view on the UMAP
+```{r}
+umap <- vroom("data/single_cell_objects/eb_pflog1ppfnorm.hvg.umap_embedding.txt", col_names=c("UMAP_1", "UMAP_2"))
+celltypes <- vroom("data/fca/eb_cellid_labels.tsv")
 
+sc_annotated <- celltypes %>%
+  mutate(umap1=umap$UMAP_1, umap2=umap$UMAP_2)
+
+pseudocell_map <- vroom("data/fast_topics/cell_pseudocell_mapping.tsv")
+
+sc_annotated <- right_join(sc_annotated, pseudocell_map, by="cell")
+```
+
+```{r}
+tmem <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.TMEM213.cellregmap.betas.tsv")
+
+tmem %>%
+  dplyr::select(PSEUDOCELL, BETA_GXC) %>%
+  right_join(sc_annotated, by=c("PSEUDOCELL"="pseudocell_15")) %>%
+  sample_n(100000) %>%
+  ggplot(aes(x=umap1, y=umap2, color=BETA_GXC)) +
+  geom_point(size=1e-5) +
+  theme_classic() +
+  scale_color_viridis()
+```
+```{r}
+gata <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.GATA4.cellregmap.betas.tsv")
+
+gata %>%
+  dplyr::select(PSEUDOCELL, BETA_GXC) %>%
+  right_join(sc_annotated, by=c("PSEUDOCELL"="pseudocell_15"), multiple="all") %>%
+  sample_n(100000) %>%
+  ggplot(aes(x=umap1, y=umap2, color=BETA_GXC)) +
+  geom_point(size=1e-5) +
+  theme_classic()
+```

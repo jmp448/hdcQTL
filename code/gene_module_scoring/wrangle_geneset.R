@@ -2,6 +2,10 @@
 gmt_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
 gs_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.Hs.symbols.gs"
 
+# Redo for 2023 version
+gmt_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.v2023.1.Hs.symbols.gmt"
+gs_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.Hs.2023.symbols.gs"
+
 # Wrangle GO MF gene sets
 gmt_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.mf.v2022.1.Hs.symbols.gmt"
 gs_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.mf.Hs.symbols.gs"
@@ -20,7 +24,7 @@ gmt_df <- as_tibble(do.call("rbind", gmt_list2)) %>%
 
 # Convert to .gs format for scDRS
 gmt_gs <- gmt_df %>%
-  select(geneset, genes) %>%
+  dplyr::select(geneset, genes) %>%
   dplyr::rename(TRAIT=geneset) %>%
   mutate(GENESET=sapply(genes, paste, collapse=","), .keep="unused") %>%
   write_tsv(gs_file)

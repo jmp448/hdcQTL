@@ -1,7 +1,10 @@
 library(tidyverse)
 library(vroom)
+library(mashr)
 
-eqtl_file <- snakemake@input[['qtl_summary']]
+neur_loc <- snakemake@input[['neur_tests']]
+cm_loc <- snakemake@input[['cm_tests']]
+hep_loc <- snakemake@input[['hep_tests']]
 bim_file <- snakemake@input[['bim_file']]
 gtf_loc <- snakemake@input[['gtf_loc']]
 
@@ -19,8 +22,11 @@ bim <- vroom(bim_file, col_names=c("#CHR", "variant_id", "POS_CM", "POS_BP", "AL
 gencode <- vroom(gtf_loc) %>% 
   select(c(hgnc, ensg))
 
-# Make BED file
-bed <- vroom(eqtl_file) %>%
+# Merge tests from all three trajectories
+neur <- vroom(neur_loc)
+cm <- vroom(cm_loc)
+hep <- vroom(hep_loc)
+all_trajectories <- bind_rows(neur, cm, hep) %>%
   filter(variant_id != ".") %>%
   dplyr::rename(GENE=phenotype_id) %>%
   select(c(variant_id, GENE)) %>%
@@ -30,4 +36,3 @@ bed <- vroom(eqtl_file) %>%
   dplyr::rename(EB_ENSG=ensg, EB_HGNC=GENE, EB_VARIANT_ID=variant_id) %>%
   relocate(`#CHR`, START, END, EB_ENSG, EB_HGNC, EB_VARIANT_ID) %>%
   write_tsv(bed_file)
-  

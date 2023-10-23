@@ -8,4 +8,5 @@ dependencies:
   - r-vroom
   - r-matrixstats
   - bioconductor-sva
-  
+  - r-r.utils
+  - r-data.table

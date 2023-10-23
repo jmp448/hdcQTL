@@ -10,3 +10,4 @@ dependencies:
   - r-matrixstats
   - bioconductor-edger
   - bioconductor-limma
+  - bioconductor-pcamethods

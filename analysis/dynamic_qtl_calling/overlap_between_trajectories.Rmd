@@ -2,6 +2,8 @@
 library(tidyverse)
 library(vroom)
 library(qvalue)
+library(MatrixGenerics)
+library(RColorBrewer)
 ```
 
 ```{r}
@@ -44,7 +46,7 @@ cm_granges <- tibble(variant_id=rownames(cm_genotypes), gmin=cm_gmins, gmax=cm_g
 cm_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
 cm_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
 cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv")
-cm_hits <- filter(cm_emt, pval_adj_bh <= 0.1) %>%
+cm_hits <- filter(cm_emt, pval_adj_bh <= 0.05) %>%
   left_join(cm_granges, by="variant_id") %>%
   mutate(tmin=min(cm_pseudotime$pseudotime), tmax=max(cm_pseudotime$pseudotime)) %>%
   mutate(class=pmap_chr(.l=list(b_g, b_i, b_gi, tmin, tmax, gmin, gmax), .f=classify_dynamics))
@@ -89,11 +91,11 @@ head(neur_hits_classified, n=10)
 Visualize some examples
 ```{r}
 cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
-  filter(gene %in% c(cm_hits$phenotype_id, neur_hits$phenotype_id)) %>%
+  filter(gene %in% c(cm_hits$phenotype_id)) %>%
   select(-c(`#chr`, start, end)) %>%
   pivot_longer(!gene, names_to="ind_type", values_to="expression")
-cm_genotype_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/5clpcs/genotype_df.tsv") %>% 
-  filter(snp %in% c(cm_hits$variant_id, neur_hits$variant_id)) %>%
+cm_genotype_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% c(cm_hits$variant_id)) %>%
   pivot_longer(!snp, names_to="ind_type", values_to="genotype")
 cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
   mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
@@ -138,7 +140,11 @@ select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
   inner_join(cm_pseudotime, by="ind_type") %>%
   mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot()
+  geom_boxplot(width=0.8, lwd=1.25) +
+  theme_classic(base_size=15) +
+  ylab("RILPL1 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(values=brewer.pal(3, "Set1"))
 ```
 
 Visualize a late CM example
@@ -190,3 +196,72 @@ neur_late_rep_in_cm <- neur_hits_classified %>%
   inner_join(cm_all, by=c("phenotype_id", "variant_id"))
 hist(qvalue(neur_late_rep_in_cm$pval_gi, lambda=0.5))
 ```
+
+Visualize a trait example
+```{r fig.height=3, fig.width=8}
+g <- "COL1A2"
+v <- "rs10487252"
+
+cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene ==g) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+
+cm_genotype_df_full <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") 
+cm_genotype_df <- cm_genotype_df_full %>% 
+  filter(snp ==v) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+
+qtl_df <- dplyr::select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) 
+
+ggplot(qtl_df, aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(linewidth=1.25) +
+  theme_classic() +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  labs(legend.position="none") +
+  scale_fill_manual(values=c("#B51700", "#0076BA"))
+```
+Make this look a little nicer
+```{r}
+
+
+```
+
+
+Now focus on residual expression
+```{r}
+cm_covariates_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/covariate_df.tsv")
+full_qtl_df <- filter(cm_exp, gene == g) %>%
+  select(-c(gene)) %>%
+  inner_join(select(cm_genotype_df, !snp), by="ind_type") %>% 
+  inner_join(select(cm_pseudotime, !pseudotime_bin), by="ind_type") %>%
+  inner_join(cm_covariates_df, by=c("ind_type" = "sample")) %>%
+  column_to_rownames("ind_type")
+```
+
+```{r}
+qtl_m <- lm("expression ~ .", full_qtl_df)
+exp_residuals <- qtl_m$residuals
+
+qtl_df$residual_expression <- exp_residuals
+ggplot(qtl_df, aes(x=pseudotime_bin, y=residual_expression, fill=genotype)) +
+  geom_boxplot()
+```
+
+Diagnostics - look at the residuals plot
+```{r}
+qtl_m_full <- lm("expression ~ . + genotype * pseudotime", full_qtl_df)
+
+plot(qtl_m_full)
+```
+

@@ -122,8 +122,23 @@ rule sldsc_meta_analysis:
         """
         echo did it > {output}
         """
+
+# HG19 to HG38 Liftover        
+# rule sumstats2bed_sa:
+#     resources:
+#         mem_mb=50000,
+#         time="30:00"
+#     input:
+#         sumstats="{sumstat_file}.sumstats.hg19.tsv.gz"
+#     output:
+#         bed="{sumstat_file}.sumstats.hg19.bed"
+#     conda:
+#         "../slurmy/r-sva.yml"
+#     script:
+#         "../code/complex_trait_analysis/sumstats2bed_sa.R"
         
-rule sumstats2bed:
+rule sumstats2bed_ldl:
+  # this worked for the LDL paper as well as for the appendicular lean mass gwas
     resources:
         mem_mb=50000,
         time="30:00"
@@ -131,10 +146,12 @@ rule sumstats2bed:
         sumstats="{sumstat_file}.sumstats.hg19.tsv.gz"
     output:
         bed="{sumstat_file}.sumstats.hg19.bed"
+    params:
+        chr_filter=7
     conda:
         "../slurmy/r-sva.yml"
     script:
-        "../code/complex_trait_analysis/sumstats2bed.R"
+        "../code/complex_trait_analysis/sumstats2bed_ldl.R"
     
 rule crossmap_hg19_to_hg38:
     resources:
@@ -151,21 +168,21 @@ rule crossmap_hg19_to_hg38:
         python $CONDA_PREFIX/bin/CrossMap.py bed {input.chain_file} {input.bed_input} {output.bed_output}
         """
    
-rule bed2sumstats:
-    resources:
-        mem_mb=50000,
-        time="30:00"
-    input:
-        orig_sumstats="{sumstat_file}.sumstats.hg19.tsv.gz",
-        lifted_bed="{sumstat_file}.sumstats.hg38.bed",
-        annots=expand("data/ldsc/baselineLD_v2.2_annot/baselineLD.{chrom}.annot.gz", chrom=range(1, 23))
-    output:
-        lifted_sumstats="{sumstat_file}.sumstats.hg38.tsv.gz"
-    conda:
-        "../slurmy/r-sva.yml"
-    script:
-        "../code/complex_trait_analysis/bed2sumstats.R"
-
+# rule bed2sumstats_sa:
+#     resources:
+#         mem_mb=50000,
+#         time="30:00"
+#     input:
+#         orig_sumstats="{sumstat_file}.sumstats.hg19.tsv.gz",
+#         lifted_bed="{sumstat_file}.sumstats.hg38.bed",
+#         annots=expand("data/ldsc/baselineLD_v2.2_annot/baselineLD.{chrom}.annot.gz", chrom=range(1, 23))
+#     output:
+#         lifted_sumstats="{sumstat_file}.sumstats.hg38.tsv.gz"
+#     conda:
+#         "../slurmy/r-sva.yml"
+#     script:
+#         "../code/complex_trait_analysis/bed2sumstats_sa.R"
+        
 # rule prep_allele_merge:
 #     input:
 #         snplist="data/ldsc/hg38_regression_snp_weight_files/w_hm3.noMHC.snplist",

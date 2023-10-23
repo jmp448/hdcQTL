@@ -1,7 +1,8 @@
 library(tidyverse)
 library(vroom)
+library(mashr)
 
-eqtl_file <- snakemake@input[['qtl_summary']]
+qtl_loc <- snakemake@input[['crm_hits']]
 bim_file <- snakemake@input[['bim_file']]
 gtf_loc <- snakemake@input[['gtf_loc']]
 
@@ -19,15 +20,15 @@ bim <- vroom(bim_file, col_names=c("#CHR", "variant_id", "POS_CM", "POS_BP", "AL
 gencode <- vroom(gtf_loc) %>% 
   select(c(hgnc, ensg))
 
-# Make BED file
-bed <- vroom(eqtl_file) %>%
-  filter(variant_id != ".") %>%
-  dplyr::rename(GENE=phenotype_id) %>%
-  select(c(variant_id, GENE)) %>%
+# Merge tests from all three trajectories
+qtls <- vroom(qtl_loc)
+qtls_bed <- qtls %>%
+  filter(EB_VARIANT_ID != ".") %>%
+  select(c(EB_VARIANT_ID, EB_HGNC)) %>%
   distinct() %>%
-  inner_join(bim, by="variant_id") %>%
-  inner_join(gencode, by=c("GENE"="hgnc")) %>%
-  dplyr::rename(EB_ENSG=ensg, EB_HGNC=GENE, EB_VARIANT_ID=variant_id) %>%
+  inner_join(bim, by=c("EB_VARIANT_ID"="variant_id")) %>%
+  inner_join(gencode, by=c("EB_HGNC"="hgnc")) %>%
+  dplyr::rename(EB_ENSG=ensg) %>%
   relocate(`#CHR`, START, END, EB_ENSG, EB_HGNC, EB_VARIANT_ID) %>%
+  mutate(EB_CONTEXT="CRM") %>%
   write_tsv(bed_file)
-  

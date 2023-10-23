@@ -51,7 +51,7 @@ fca_pc_genes <- filter(fca_genes,
                        (gene_short_name %in% gencode$hgnc) & (gene_id_short %in% gencode$ensg))
 hgnc_duplicates <- fca_pc_genes %>%
   group_by(gene_short_name) %>%
-  count() %>%
+  dplyr::count() %>%
   filter(n > 1) %>%
   pull(gene_short_name)
 fca_pc_genes <- fca_pc_genes %>%
@@ -90,7 +90,7 @@ omitted_types <- c("AFP_ALB positive cells",
                    "SLC26A4_PAEP positive cells")
 
 celltype_sampler <- as_tibble(colData(fca)) %>%
-  select(sample, Organ, celltype) %>%
+  dplyr::select(sample, Organ, celltype) %>%
   mutate(celltype_revised=celltype) %>%
   mutate(celltype_revised=if_else(Organ=="Placenta", true=NA_character_, false=celltype_revised)) %>%
   mutate(celltype_revised=if_else(celltype %in% omitted_types, true=NA_character_, false=celltype_revised)) %>%
@@ -105,7 +105,7 @@ may not offer enough information to obtain reliable expression signatures.
 ```{r}
 celltype_sampler %>%
   filter(n < 500) %>%
-  select(celltype) %>% 
+  dplyr::select(celltype) %>% 
   unique()
 celltype_sampler <- celltype_sampler %>%
   filter(n >= 500)

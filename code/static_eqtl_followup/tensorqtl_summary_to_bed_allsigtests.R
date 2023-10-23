@@ -52,6 +52,8 @@ bed <- vroom(eqtl_file) %>%
   select(c(variant_id, GENE, celltype)) %>%
   left_join(bim, by="variant_id") %>%
   left_join(hgnc_ensg_dict, by=c("GENE"="hgnc")) %>%
+  group_by(`#CHR`, START, END, ensg, GENE, variant_id) %>%
+  summarize(celltype=paste(celltype, collapse=",")) %>%
   dplyr::rename(EB_ENSG=ensg, EB_HGNC=GENE, EB_VARIANT_ID=variant_id, EB_CELLTYPE=celltype) %>%
   relocate(`#CHR`, START, END, EB_ENSG, EB_HGNC, EB_VARIANT_ID, EB_CELLTYPE) %>%
   drop_na() %>%
