@@ -9,14 +9,21 @@ library(mashr)
 #bed_file="results/static/ebqtl_ipsc/pseudobulk_tmm/basic/IPSC/8pcs/matrixeqtl.cis_qtl_pairs.tophits.bed"
 
 mash_loc <- snakemake@input[['mash_model']]
-harmonized_tests_loc <- snakemake@input[['harmonized_tests']]
-# bim_file <- snakemake@input[['bim_file']]
-# gtf_loc <- snakemake@input[['gtf_loc']]
+bim_file <- snakemake@input[['bim_file']]
+gtf_loc <- snakemake@input[['gtf_loc']]
 
 bed_file <- snakemake@output[['bedfile']]
 
-# Harmonized tests
-harmonized_tests <- vroom(harmonized_tests_loc) 
+# Get variant info
+bim <- vroom(bim_file, col_names=c("#CHR", "variant_id", "POS_CM", "POS_BP", "ALLELE_1", "ALLELE_2"),
+             col_select=c("#CHR", "POS_BP", "variant_id")) %>%
+  dplyr::rename(END=`POS_BP`) %>%
+  mutate(START=as.integer(END)-1) # bed files are zero-indexed
+
+# Get a mapping from HGNC to ENSG
+gencode <- vroom(gtf_loc) %>% 
+  select(c(hgnc, ensg)) %>%
+  dplyr::rename(EB_ENSG=ensg)
 
 # Get mash significant hits
 m <- readRDS(mash_loc)
@@ -26,10 +33,8 @@ mash_hits <- as_tibble(get_lfsr(m)[get_significant_results(m, thresh=0.05),], ro
   group_by(test) %>%
   summarize(EB_CELLTYPE=paste(EB_CELLTYPE, collapse=",")) %>%
   separate(test, into=c("EB_HGNC", "EB_VARIANT_ID"), sep="_") %>%
-  left_join(harmonized_tests, by=c("EB_VARIANT_ID"="variant_id_rsid", "EB_HGNC"="phenotype_id_hgnc")) %>%
-  drop_na() %>% # this will remove tests not run in GTEx
-  dplyr::rename(EB_ENSG=phenotype_id_ensg) %>%
-  separate(variant_id, into=c("#CHR", "END", "EB_REF", "EB_ALT", "BUILD")) %>%
-  mutate(END=as.numeric(END), START=END-1) %>%
+  filter(EB_VARIANT_ID != ".") %>%
+  inner_join(bim, by=c("EB_VARIANT_ID"="variant_id")) %>%
+  inner_join(gencode, by=c("EB_HGNC"="hgnc")) %>%
   select(c(`#CHR`, START, END, EB_ENSG, EB_HGNC, EB_VARIANT_ID, EB_CELLTYPE)) %>%
   write_tsv(bed_file)

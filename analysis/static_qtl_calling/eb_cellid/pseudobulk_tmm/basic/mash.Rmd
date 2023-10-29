@@ -14,47 +14,64 @@ library(rmeta)
 load("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_inputs.Rdata")
 ```
 
+For these visualizations, I'm going to keep the cell type order established
+by hierarchical clustering in the `analysis/annotation/tidy_celltype_names.Rmd` notebook
 ```{r}
-ectoderm_types <- c("CNS-neurons", "CNS-glia", "PNS-neurons", "PNS-glia", 
-                    "Retinal-cells", "Adrenocortical-cells", "Neuroendocrine-cells"
-                    )
-epithelial_types <- c("Ciliated-epithelial-cells", "Ductal-cells", "Acinar-cells", 
-                      "Metanephric-cells", "Ureteric-bud-cells")
-endoderm_types <- c("Goblet-cells", "Hepatoblasts", "Parietal-and-chief-cells", 
-                    "Bronchiolar-and-alveolar-epithelial-cells", "Squamous-epithelial-cells")
-mesoderm_types <- c("Cardiomyocytes", "Stromal-cells", "Epicardial-fat-cells", 
-                    "Mesangial-cells", "Smooth-muscle-cells", "Mesothelial-cells",
-                    "Stellate-cells" , "Vascular-endothelial-cells", "Skeletal-muscle-cells")
-immune_types <- c("Erythroblasts", "Lymphoid-cells", "Megakaryocytes")
+type_levels <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+                   "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia",
+                   "Metanephric-cells", "Erythroblasts", "Ciliated-epithelial-cells",
+                   "Acinar-cells", "Ductal-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
+                   "Parietal-and-chief-cells", "Ureteric-bud-cells",
+                   "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
+                   "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                   "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                   "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts")  
 
-type_levels <- c(ectoderm_types, epithelial_types, mesoderm_types, 
-                 endoderm_types, immune_types)
+ectoderm_1 <- tibble(type=c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells"),
+                     layer="ecto_1", color="#004D80")
+ectoderm_2 <- tibble(type=c("PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia"),
+                     layer="ecto_2", color="#0076BA")
+neuroepithelium <- tibble(type=c("Metanephric-cells", "Erythroblasts", "Ciliated-epithelial-cells",
+                                 "Acinar-cells", "Ductal-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
+                                 "Parietal-and-chief-cells", "Ureteric-bud-cells"),
+                          layer="neuroepithelium", color="#00AB8E")
+mesoderm <- tibble(type=c("Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
+                          "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells"),
+                   layer="mesoderm", color="#B51700")
+vasc <- tibble(type=c("Vascular-endothelial-cells"),
+               layer="vasc", color="#965C3D")
+immune <- tibble(type=c("Lymphoid-cells", "Megakaryocytes"),
+                 layer="immune", color="#970E53")
+endoderm <- tibble(type=c("Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts"),
+                   layer="endoderm", color="#FEAE00")
+
+color_map <- bind_rows(ectoderm_1, ectoderm_2, neuroepithelium, mesoderm, vasc, immune, endoderm)
 ```
 
-Map each germ layer to its own color
-```{r}
-ecto <- tibble(type=ectoderm_types, layer="ectoderm", color="#0076BA")
-epi <- tibble(type=epithelial_types, layer="epithelium", color="#16E7CF")
-meso <- tibble(type=mesoderm_types, layer="mesoderm", color="#B51700")
-endo <- tibble(type=endoderm_types, layer="endoderm", color="#FEAE00")
-immune <- tibble(type=immune_types, layer="immune", color="#970E53")
-color_map <- bind_rows(ecto, epi, meso, endo, immune)
-```
+<!-- Map each germ layer to its own color -->
+<!-- ```{r} -->
+<!-- ecto <- tibble(type=ectoderm_1, layer="ectoderm", color="#0076BA") -->
+<!-- epi <- tibble(type=epithelial_types, layer="epithelium", color="#16E7CF") -->
+<!-- meso <- tibble(type=mesoderm_types, layer="mesoderm", color="#B51700") -->
+<!-- endo <- tibble(type=endoderm_types, layer="endoderm", color="#FEAE00") -->
+<!-- immune <- tibble(type=immune_types, layer="immune", color="#970E53") -->
+<!-- color_map <- bind_rows(ecto, epi, meso, endo, immune) -->
+<!-- ``` -->
 
-OR (this is based on the clustering in `annotations/tidy_celltype_names.Rmd`)
-```{r}
-type_levels <- c("Vascular-endothelial-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Parietal-and-chief-cells", "Adrenocortical-cells", "Ureteric-bud-cells", "Acinar-cells", "Ductal-cells", "Lymphoid-cells", "Megakaryocytes", "Skeletal-muscle-cells", "Neuroendocrine-cells", "PNS-neurons", "PNS-glia", "Erythroblasts", "Ciliated-epithelial-cells", "CNS-neurons", "Retinal-cells", "CNS-glia", "Metanephric-cells", "Goblet-cells", "Hepatoblasts", "Squamous-epithelial-cells", "Mesangial-cells", "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells", "Cardiomyocytes", "Epicardial-fat-cells", "Mesothelial-cells") 
+<!-- OR (this is based on the clustering in `annotations/tidy_celltype_names.Rmd`) -->
+<!-- ```{r} -->
+<!-- type_levels <- c("Vascular-endothelial-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Parietal-and-chief-cells", "Adrenocortical-cells", "Ureteric-bud-cells", "Acinar-cells", "Ductal-cells", "Lymphoid-cells", "Megakaryocytes", "Skeletal-muscle-cells", "Neuroendocrine-cells", "PNS-neurons", "PNS-glia", "Erythroblasts", "Ciliated-epithelial-cells", "CNS-neurons", "Retinal-cells", "CNS-glia", "Metanephric-cells", "Goblet-cells", "Hepatoblasts", "Squamous-epithelial-cells", "Mesangial-cells", "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells", "Cardiomyocytes", "Epicardial-fat-cells", "Mesothelial-cells")  -->
 
-vasc <- tibble(type="Vascular-endothelial-cells", layer="Vasc_Endo", color="#863108")
-epi <- tibble(type=c("Bronchiolar-and-alveolar-epithelial-cells", "Parietal-and-chief-cells", "Adrenocortical-cells", "Ureteric-bud-cells", "Acinar-cells", "Ductal-cells"), layer="epithelium", color="#16E7CF")
-immune <- tibble(type=c("Lymphoid-cells", "Megakaryocytes"), layer="immune", color="#970E53")
-ecto_1 <- tibble(type=c("Skeletal-muscle-cells", "Neuroendocrine-cells", "PNS-neurons"), layer="ecto_1", color="#004D80")
-ecto_2 <- tibble(type=c("PNS-glia", "Erythroblasts", "Ciliated-epithelial-cells", "CNS-neurons", "Retinal-cells", "CNS-glia", "Metanephric-cells"), layer="ecto_2", color="#0076BA")
-endo <- tibble(type=c("Goblet-cells", "Hepatoblasts"), layer="endoderm", color="#FEAE00")
-squa <- tibble(type="Squamous-epithelial-cells", layer="Squa_Epi", color="#FE7000")
-meso <- tibble(type=c("Mesangial-cells", "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells", "Cardiomyocytes", "Epicardial-fat-cells", "Mesothelial-cells"), layer="mesoderm", color="#B51700")
-color_map <- bind_rows(vasc, epi, immune, ecto_1, ecto_2, endo, squa, meso)
-```
+<!-- vasc <- tibble(type="Vascular-endothelial-cells", layer="Vasc_Endo", color="#863108") -->
+<!-- epi <- tibble(type=c("Bronchiolar-and-alveolar-epithelial-cells", "Parietal-and-chief-cells", "Adrenocortical-cells", "Ureteric-bud-cells", "Acinar-cells", "Ductal-cells"), layer="epithelium", color="#16E7CF") -->
+<!-- immune <- tibble(type=c("Lymphoid-cells", "Megakaryocytes"), layer="immune", color="#970E53") -->
+<!-- ecto_1 <- tibble(type=c("Skeletal-muscle-cells", "Neuroendocrine-cells", "PNS-neurons"), layer="ecto_1", color="#004D80") -->
+<!-- ecto_2 <- tibble(type=c("PNS-glia", "Erythroblasts", "Ciliated-epithelial-cells", "CNS-neurons", "Retinal-cells", "CNS-glia", "Metanephric-cells"), layer="ecto_2", color="#0076BA") -->
+<!-- endo <- tibble(type=c("Goblet-cells", "Hepatoblasts"), layer="endoderm", color="#FEAE00") -->
+<!-- squa <- tibble(type="Squamous-epithelial-cells", layer="Squa_Epi", color="#FE7000") -->
+<!-- meso <- tibble(type=c("Mesangial-cells", "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells", "Cardiomyocytes", "Epicardial-fat-cells", "Mesothelial-cells"), layer="mesoderm", color="#B51700") -->
+<!-- color_map <- bind_rows(vasc, epi, immune, ecto_1, ecto_2, endo, squa, meso) -->
+<!-- ``` -->
 
 
 
@@ -86,8 +103,7 @@ factor_1 <- U.flash$FLASH_nonneg_1 %>%
   arrange(type) %>%
   mutate(type=factor(type, levels=color_map$type))
  
-factor_1  %>%
-  ggplot(aes(x=type, y=value, fill=color)) +
+mash_factor_1 <- ggplot(factor_1, aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
@@ -95,6 +111,7 @@ factor_1  %>%
   scale_fill_identity() +
   coord_flip() +
   lims(x = rev(levels(factor_1$type)))
+mash_factor_1
 ```
 
 Component 2 - mesoderm/ endoderm
@@ -108,8 +125,7 @@ factor_2 <- U.flash$FLASH_nonneg_2 %>%
   arrange(type) %>%
   mutate(type=factor(type, levels=color_map$type))
  
-factor_2  %>%
-  ggplot(aes(x=type, y=value, fill=color)) +
+mash_factor_2 <- ggplot(factor_2, aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
@@ -117,6 +133,7 @@ factor_2  %>%
   scale_fill_identity() +
   coord_flip() +
   lims(x = rev(levels(factor_2$type)))
+mash_factor_2
 ```
 
 FLASH 3 - Most differentiated cell types
@@ -130,8 +147,7 @@ factor_3 <- U.flash$FLASH_nonneg_3 %>%
   arrange(type) %>%
   mutate(type=factor(type, levels=color_map$type))
  
-factor_3  %>%
-  ggplot(aes(x=type, y=value, fill=color)) +
+mash_factor_3 <- ggplot(factor_3, aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
@@ -139,10 +155,11 @@ factor_3  %>%
   scale_fill_identity() +
   coord_flip() +
   lims(x = rev(levels(factor_3$type)))
+mash_factor_3
 ```
 
 FLASH 4 - Neuroepithelium
-```{r, fig.height=4, fig.width=4}
+```{r}
 factor_4 <- U.flash$FLASH_nonneg_4 %>%
   princomp %>%
   .$loadings %>%
@@ -152,8 +169,7 @@ factor_4 <- U.flash$FLASH_nonneg_4 %>%
   arrange(type) %>%
   mutate(type=factor(type, levels=color_map$type))
  
-factor_4  %>%
-  ggplot(aes(x=type, y=value, fill=color)) +
+mash_factor_4 <- ggplot(factor_4, aes(x=type, y=value, fill=color)) +
   geom_bar(stat="identity") +
   theme_classic(base_size=15) +
   theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
@@ -161,9 +177,10 @@ factor_4  %>%
   scale_fill_identity() +
   coord_flip() +
   lims(x = rev(levels(factor_4$type)))
+mash_factor_4
 ```
 
-```{r fig.height=4, fig.width=4}
+```{r}
 factor_shared_boilerplate <- factor_1 %>%
   mutate(value=1)
 
@@ -177,7 +194,7 @@ factor_shared_boilerplate  %>%
   coord_flip() +
   lims(x = rev(levels(factor_shared_boilerplate$type)))
 ```
-```{r fig.height=4, fig.width=4}
+```{r}
 factor_1_boilerplate <- factor_1 %>%
   mutate(value=c(1, rep(0.01, nrow(.)-1)))
 
@@ -234,62 +251,68 @@ tibble(n_contexts=get_n_significant_conditions(tophits_m)) %>%
   theme_classic(base_size=15)
 ```
 
-## Power Comparison
-```{r}
-qtls_by_type <- as_tibble(colSums(get_lfsr(tophits_m) <= 0.05), rownames="type") %>%
-  rename(n_eqtl=value)
-```
+<!-- ## Power Comparison -->
+<!-- First, how many eGenes does mash detect when only testing the top hits per gene? -->
+<!-- ```{r} -->
+<!-- sum(get_n_significant_conditions(tophits_m) >= 1) -->
+<!-- ``` -->
 
 
-```{r}
-permutation_egenes <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.tsv") %>%
-  select(celltype, phenotype_id) %>%
-  distinct() %>% # one line per egene in a context
-  dplyr::count(celltype) %>%
-  dplyr::rename(type=celltype, permutations=n)
-
-mash_hits_comparison <- qtls_by_type %>%
-  rename(mash=n_eqtl) %>%
-  left_join(permutation_egenes, by="type") %>%
-  pivot_longer(!type, names_to="method", values_to="n") %>%
-  replace_na(list(n=0)) %>%
-  mutate(type=factor(type, levels=type_levels))
-```
-
-Permutation eGenes
-```{r fig.width=3, fig.height=4}
-permutation_egenes  %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
-  ggplot(aes(x=type, y=permutations)) +
-  geom_col(fill="#0076BA") +
-  ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") +
-  coord_flip() +
-  theme_classic(base_size=12) +
-  lims(x = rev(levels(type_levels)))
-```
+<!-- ```{r} -->
+<!-- qtls_by_type <- as_tibble(colSums(get_lfsr(tophits_m) <= 0.05), rownames="type") %>% -->
+<!--   rename(n_eqtl=value) -->
+<!-- ``` -->
 
 
-```{r fig.width=5, fig.height=4}
-mash_hits_comparison  %>%
-  mutate(type=factor(type, levels=type_levels)) %>%
-  ggplot(aes(x=type, y=n, fill=method)) +
-  geom_bar(position="dodge", stat="identity") +
-  ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") +
-  coord_flip() +
-  theme_classic(base_size=12) 
-#+
-#  lims(x = rev(levels(type_levels)))
-```
+<!-- ```{r} -->
+<!-- permutation_egenes <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.tsv") %>% -->
+<!--   dplyr::select(celltype, phenotype_id) %>% -->
+<!--   distinct() %>% # one line per egene in a context -->
+<!--   dplyr::count(celltype) %>% -->
+<!--   dplyr::rename(type=celltype, permutations=n) -->
+
+<!-- mash_hits_comparison <- qtls_by_type %>% -->
+<!--   rename(mash=n_eqtl) %>% -->
+<!--   left_join(permutation_egenes, by="type") %>% -->
+<!--   pivot_longer(!type, names_to="method", values_to="n") %>% -->
+<!--   replace_na(list(n=0)) %>% -->
+<!--   mutate(type=factor(type, levels=type_levels)) -->
+<!-- ``` -->
+
+<!-- Permutation eGenes -->
+<!-- ```{r fig.width=3, fig.height=4} -->
+<!-- permutation_egenes  %>% -->
+<!--   mutate(type=factor(type, levels=type_levels)) %>% -->
+<!--   ggplot(aes(x=type, y=permutations)) + -->
+<!--   geom_col(fill="#0076BA") + -->
+<!--   ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") + -->
+<!--   coord_flip() + -->
+<!--   theme_classic(base_size=12) + -->
+<!--   lims(x = rev(levels(type_levels))) -->
+<!-- ``` -->
+
+
+<!-- ```{r fig.width=5, fig.height=4} -->
+<!-- mash_hits_comparison  %>% -->
+<!--   mutate(type=factor(type, levels=type_levels)) %>% -->
+<!--   ggplot(aes(x=type, y=n, fill=method)) + -->
+<!--   geom_bar(position="dodge", stat="identity") + -->
+<!--   ylab("# Genes with eQTL") + xlab("FCA-Annotated Cell Type") + -->
+<!--   coord_flip() + -->
+<!--   theme_classic(base_size=12)  -->
+<!-- #+ -->
+<!-- #  lims(x = rev(levels(type_levels))) -->
+<!-- ``` -->
 
 ## Exploring Specific Examples
 ```{r}
-eb_sighits_loc <- "/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.tsv"
-eb_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/mash-signif_variant_gene_pairs.full_gtex_overlap.bed"
+mash_sighits_bed_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/mash/original/mash-signif_variant_gene_pairs.bed"
+mash_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/mash/original/mash-signif_variant_gene_pairs.all_tissue_overlap.bed"
 
-gtex_overlap <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+gtex_overlap <- vroom(mash_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
                                                           "RSID", "CELLTYPE", "CHR1", "START1", 
                                                           "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
-eb_all <- vroom(eb_sighits_loc)
+eb_all <- vroom(mash_sighits_bed_loc)
 
 overlap_egenes <- unique(gtex_overlap$EB_HGNC)
 all_egenes <- unique(eb_all$EB_HGNC)
@@ -300,7 +323,7 @@ See if any of our novel eQTLs have interesting patterns
 ```{r}
 full_m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_fitted_model.full.rds")
 
-n_contexts <- as_tibble(get_n_significant_contexts(full_m), rownames="gv")
+n_contexts <- as_tibble(mashr::get_n_significant_conditions(full_m), rownames="gv")
 
 novel_overlap_posteriors <- as_tibble(full_m$posterior_weights) %>%
   mutate(gv=rownames(full_m$result$lfsr), .before=1) %>%
@@ -312,9 +335,9 @@ novel_overlap_posteriors <- as_tibble(full_m$posterior_weights) %>%
 
 Ideally, an example will not only not be found in GTEx, but it will have been missed by our previous analysis
 ```{r}
-permutation_ehits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.tsv")
+permutation_ehits <- read_tsv("/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed")
 
-doubly_novel_overlap_posteriors <- filter(novel_overlap_posteriors, !gene %in% permutation_ehits$phenotype_id)
+doubly_novel_overlap_posteriors <- filter(novel_overlap_posteriors, !gene %in% permutation_ehits$EB_HGNC)
 ```
 
 Are any of these effects significant in some-but-not-all contexts?
@@ -398,21 +421,19 @@ nonmash_ests <- tibble(celltype=nonmash_celltypes,
                     approach=rep("non-mash", length(nonmash_celltypes)))
 
 mash_comp_viz <- bind_rows(mash_ests, nonmash_ests) %>%
-  mutate(approach=case_match(factor(approach, levels=c("non-mash", "mash")), "non-mash" ~ "Without MASH", "mash" ~ "With MASH")) %>%
-  mutate(approach=factor(approach, levels=c("Without MASH", "With MASH"))) %>%
+  mutate(approach=case_match(factor(approach, levels=c("non-mash", "mash")), "non-mash" ~ "Univariate Analysis", "mash" ~ "Multivariate Analysis")) %>%
+  mutate(approach=factor(approach, levels=c("Univariate Analysis", "Multivariate Analysis"))) %>%
   mutate(celltype=factor(celltype, levels=rev(type_order)))
 
-ggplot(mash_comp_viz, aes(x=celltype, y=beta, color=celltype)) +
+mash_example_plot <- ggplot(mash_comp_viz, aes(x=celltype, y=beta, color=celltype)) +
   geom_hline(aes(yintercept=0), linetype="dashed", color="red") +
   geom_errorbar(aes(ymin=beta - sd, ymax=beta + sd), color="#D5D5D5", width=0.5) +
   geom_point(aes(size=precision), shape=15) +
   theme_classic(base_size=20) +
-  theme(legend.position = "none") +
+  theme(legend.position = "none", axis.text.x = element_text(angle=45, hjust=1)) +
   scale_color_manual(values=rev(color_order)) +
   coord_flip() +
   facet_grid(cols=vars(approach)) +
   xlab("Cell Type") +
   ylab("Estimated Effect Size") 
 ```
-
-

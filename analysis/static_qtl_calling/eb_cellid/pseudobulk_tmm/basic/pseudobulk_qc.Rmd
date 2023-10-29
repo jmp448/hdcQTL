@@ -185,7 +185,7 @@ read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobu
 sample_summary %>%
   filter(type=="Hepatoblasts")
 ```
-We'll remove NA19190 since it's got far fewer cells and looks like an outlier
+We'll remove NA19190 since it's got the least cells and looks like an outlier
 
 ### Metanephric cells
 ```{r}
@@ -219,7 +219,7 @@ read_tsv("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobu
 sample_summary %>%
   filter(type=="Parietal-and-chief-cells")
 ```
-NA19225, fewest cells and appears an outlier
+NA19225 removed, fewest cells and appears an outlier
 
 ### Retinal cells
 ```{r}

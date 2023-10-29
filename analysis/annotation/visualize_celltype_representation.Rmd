@@ -1,5 +1,6 @@
 ```{r}
 library(tidyverse)
+library(patchwork)
 ```
 
 ## Overview of single-cell data
@@ -43,7 +44,7 @@ umap_viz <- sc_annotated %>%
   mutate(value = factor(value, levels=color_map$type_spaced)) %>%
   drop_na() # removes a few very rare cell types in the EB data
 
-ggplot(umap_viz, aes(x=umap1, y=umap2, color=value)) +
+umap_plot <- ggplot(umap_viz, aes(x=umap1, y=umap2, color=value)) +
   geom_point(size=1e-5) +
   theme_classic(base_size=20) +
   scale_color_manual(values = color_map$color) + 
@@ -57,25 +58,8 @@ We see that the proportion of cells mapping to each cell type varies widely betw
 ```{r, fig.height=8, fig.width=8}
 cell_metadata <- vroom("data/single_cell_objects/highpass/eb_metadata.tsv")
 
-donor_celltype <- select(cell_metadata, c("cell", "donor_id")) %>%
-  inner_join(select(sc_annotated, c("cell", "value"))) 
-
-proportions_per_celltype <- donor_celltype %>%
-  add_count(donor_id, name="donor_n") %>%
-  add_count(donor_id, value, name="donor_type_n") %>%
-  mutate(proportion=donor_type_n / donor_n) %>%
-  select(value, donor_id, proportion) %>%
-  distinct %>%
-  mutate(value = factor(value, levels=color_map$type_spaced)) %>%
-  drop_na() # removes rare cell types
-
-ggplot(proportions_per_celltype, aes(x=donor_id, y=proportion, fill=value)) +
-  geom_bar(stat="identity", color="black") +
-  coord_flip() +
-  theme_classic(base_size=25) +
-  scale_fill_manual(values=color_map$color) +
-  xlab("Donor") + ylab("Cell Type Proportion") + 
-  theme(legend.position="none")
+donor_celltype <- dplyr::select(cell_metadata, c("cell", "donor_id")) %>%
+  inner_join(dplyr::select(sc_annotated, c("cell", "value"))) 
 ```
 
 Here's what it looks like for different cutoffs on the number of cells req'd for a 
@@ -97,20 +81,48 @@ ggplot(n_types, aes(x=thresholds, y=n_types, color=all_donors)) +
 
 But most donors to generate most cell types
 ```{r fig.height=4, fig.width=3}
-
 atleast_5cells <- filter(n_types, thresholds==5)  %>%
   mutate(all_donors = factor(all_donors, levels=pull(arrange(., n_types), all_donors)))
+donor_order <- levels(atleast_5cells$all_donors)
 
-ggplot(atleast_5cells, aes(x=all_donors, y=n_types)) +
+types_plot <- ggplot(atleast_5cells, aes(x=all_donors, y=n_types)) +
   geom_segment( aes(x=all_donors, xend=all_donors, y=0, yend=n_types), color="skyblue") +
   geom_point( color="blue", size=5, alpha=0.8) +
   geom_hline(linetype="dashed", color="red", yintercept=median(atleast_5cells$n_types)) +
   coord_flip() +
-  theme_classic(base_size=15) +
+  theme_classic(base_size=20) +
   xlab("Donor") + ylab("Number of Cell Types")
 ```
 
-Combine figures
 ```{r}
-p1_rearrangement_df <- arrange(p)
+proportions_per_celltype <- donor_celltype %>%
+  add_count(donor_id, name="donor_n") %>%
+  add_count(donor_id, value, name="donor_type_n") %>%
+  mutate(proportion=donor_type_n / donor_n) %>%
+  dplyr::select(value, donor_id, proportion) %>%
+  distinct %>%
+  mutate(value = factor(value, levels=color_map$type_spaced)) %>%
+  drop_na() %>% # removes rare cell types
+  mutate(donor_id=factor(donor_id, levels=donor_order))
+
+props_plot <- ggplot(proportions_per_celltype, aes(x=donor_id, y=proportion, fill=value)) +
+  geom_bar(stat="identity", color="black") +
+  coord_flip() +
+  theme_classic(base_size=20) +
+  scale_fill_manual(values=color_map$color) +
+  xlab("Donor") + ylab("Cell Type Proportion") + 
+  theme(legend.position="none")
+props_plot
+```
+
+Combine figures
+```{r fig.width=14, fig.height=8}
+layout <- "
+####BBCC
+####BBCC
+AAAABBCC
+AAAABBCC
+"
+umap_plot + types_plot + props_plot +
+  plot_layout(design = layout)
 ```

@@ -1,0 +1,137 @@
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(vroom))
+suppressPackageStartupMessages(library(qvalue))
+suppressPackageStartupMessages(library(MatrixGenerics))
+suppressPackageStartupMessages(library(RColorBrewer))
+```
+
+Load data from cardiomyocyte trajectory
+```{r}
+cm_hits <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+neur_hits <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+hep_hits <- vroom("results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+all_dqtls <- c(cm_hits$variant_id, hep_hits$variant_id, neur_hits$variant_id)
+all_dgenes <- c(cm_hits$phenotype_id, hep_hits$phenotype_id, neur_hits$phenotype_id)
+
+cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% all_dgenes) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+cm_genotype_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% all_dqtls) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+neur_exp <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% all_dgenes) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+neur_genotype_df <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% all_dqtls) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+neur_pseudotime <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+hep_exp <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% all_dgenes) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+hep_genotype_df <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% all_dqtls) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+hep_pseudotime <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+```
+
+Visualize an early CM example
+```{r}
+g_early <- "RILPL1"
+v_early <- "rs112931584"
+
+cm_early <- dplyr::select(filter(cm_exp, gene==g_early), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v_early), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("RILPL1 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(name="rs112931584 Genotype", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+hep_early <- dplyr::select(filter(hep_exp, gene==g_early), c("ind_type", "expression")) %>%
+  inner_join(filter(hep_genotype_df, snp==v_early), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(hep_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("RILPL1 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(name="rs112931584 Genotype", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+neur_early <- dplyr::select(filter(neur_exp, gene==g_early), c("ind_type", "expression")) %>%
+  inner_join(filter(neur_genotype_df, snp==v_early), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("RILPL1 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(name="rs112931584 Genotype", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+```
+
+Trajectory-specific late example
+```{r}
+g_late <- "ACAA2"
+v_late <- "rs8088307"
+
+cm_late <- dplyr::select(filter(cm_exp, gene==g_late), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v_late), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("ACAA2 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(name="rs8088307 Genotype", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
+
+hep_late <- dplyr::select(filter(hep_exp, gene==g_late), c("ind_type", "expression")) %>%
+  inner_join(filter(hep_genotype_df, snp==v_late), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(hep_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("ACAA2 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(name="rs8088307 Genotype", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
+
+neur_late <- dplyr::select(filter(neur_exp, gene==g_late), c("ind_type", "expression")) %>%
+  inner_join(filter(neur_genotype_df, snp==v_late), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("ACAA2 Expression") +
+  xlab("Pseudotime Bin") +
+  scale_fill_manual(name="rs8088307 Genotype", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
+```
+
+```{r fig.height=4, fig.width=9}
+layout <- "
+AAAAADDDDD
+BBBBBEEEEE
+CCCCCFFFFF
+"
+hep_early + cm_early + neur_early + hep_late + cm_late + neur_late +
+  plot_layout(design = layout)
+```
+
+
+

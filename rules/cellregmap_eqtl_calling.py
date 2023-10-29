@@ -84,10 +84,10 @@ rule filter_tests:
         mem_mb=50000,
         time="3:00:00"
     input:
-        test_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.bed",
+        test_eqtl_file="results/static_eqtl_followup/qtl_sets/mash/original/mash-signif_variant_gene_pairs.bed",
         genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed"
     output:
-        filtered_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.maf0.1.bed"
+        filtered_eqtl_file="data/cellregmap/mash-signif_variant_gene_pairs.maf0.1.bed"
     conda: 
         "../slurmy/cellregmap.yml"
     script:
@@ -99,7 +99,7 @@ rule run_interaction_test_fasttopics:
         mem_mb = 20000,
         time = "24:00:00"
     input:
-        test_eqtl_file="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/8pcs/{variant_group}_variant_gene_pairs.maf0.1.bed",
+        test_eqtl_file="data/cellregmap/mash-signif_variant_gene_pairs.maf0.1.bed",
         sample_mapping_file = "data/cellregmap/pseudocell_metadata.tsv",
         genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed" ,
         kinship_file = "data/genotypes/yri_kinship.tsv",
@@ -183,3 +183,17 @@ rule merge_effect_size_estimates:
         """
         echo done > {output}
         """
+
+rule crm_to_bed:
+    resources:
+        mem_mb=50000,
+        time="15:00"
+    input:
+        crm_hits="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.sighits.tsv",
+        bim_file="data/genotypes/yri_maf0.1_all.hg38.bim",
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/crm-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/crm_to_bed.R"

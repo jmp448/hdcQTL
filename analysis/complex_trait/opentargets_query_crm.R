@@ -63,7 +63,7 @@ crm_snplist <- dplyr::select(crm_gwas, EB_VARIANT_ID) %>%
 
 ### PARSE RESULTS
 # Filter out any CM hits that tag a GTEx eQTL
-crm_tagged_overlap <- read.table("results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/crm-signif-tags_variant_gene_pairs.full_gtex_overlap.bed",
+crm_tagged_overlap <- read.table("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/crm-signif-tags_variant_gene_pairs.all_tissue_overlap.bed",
                                 col.names=c("EB_CHR", "EB_START", "EB_END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_TAGGED_SNP",
                                             "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
   as_tibble()

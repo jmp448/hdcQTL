@@ -1,0 +1,60 @@
+```{r}
+library(tidyverse)
+```
+
+## Schematic Overview
+First, a UMAP visualization of a few cell types to help depict pseudobulk aggregation
+```{r}
+umap <- vroom("data/single_cell_objects/eb_pflog1ppfnorm.hvg.umap_embedding.txt", col_names=c("UMAP_1", "UMAP_2"))
+celltypes <- vroom("data/fca/eb_cellid_labels.tsv")
+umap <- bind_cols(umap, celltypes)
+```
+
+```{r}
+type_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+                "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia","Metanephric-cells", 
+                "Erythroblasts", "Ciliated-epithelial-cells", "Acinar-cells", "Ductal-cells", 
+                "Bronchiolar-and-alveolar-epithelial-cells","Adrenocortical-cells", "Parietal-and-chief-cells", "Ureteric-bud-cells", 
+                "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells", 
+                "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts", 
+                "unassigned") 
+
+type_colors <- c("#130063", "#192594", "#004D80", 
+                 "#7F7FFF", "#316DFF", "#1B7FFF", "#0097FF", "#7298BB", 
+                 "#7F9ACE", "#8CB4D5", "#96C0E5", "#98BEC6", 
+                 "#00AB8E", "#3EBFBB", "#55D0B7", "#25C683", 
+                 "#860B1E", "#9B1716", "#B51700", "#B13B3E", 
+                 "#CC4E4F", "#D32323", "#FF0000",
+                 "#965C3D", "#8410D3", "#84108A",  
+                 "#FEDE7F", "#FED255", "#FEAE00", 
+                 "#D5D5D5") 
+
+color_map <- tibble(type = type_order, color = type_colors) %>%
+  mutate(type_spaced = str_replace_all(type, "-", " "))
+
+umap <- umap %>%
+  left_join(dplyr::select(color_map, c(type_spaced, color)), by=c("value"="type_spaced"))
+```
+
+
+```{r}
+celltypes_viz <- c("Cardiomyocytes", "Hepatoblasts", "Neuroendocrine cells")
+celltype_plot <- ggplot(umap, aes(x=UMAP_1, y=UMAP_2)) +
+  geom_point(data=filter(umap, !value %in% celltypes_viz), alpha=0.2, color="#D5D5D5") +
+  geom_point(data=filter(umap, value %in% celltypes_viz), aes(color=color), size=1e-7, alpha=0.5) +
+  scale_color_identity() +
+  theme_classic(base_size=15) 
+celltype_plot
+```
+
+
+
+```{r fig.width=14, fig.height=8}
+# layout <- "
+# 
+# "
+celltype_plot + mash_factor_1 + mash_factor_2 + mash_factor_3 + mash_factor_4 + mash_example_plot 
++ plot_layout(design = layout)
+```

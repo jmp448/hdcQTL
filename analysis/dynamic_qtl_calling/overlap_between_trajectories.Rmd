@@ -101,36 +101,6 @@ cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_
   mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
 ```
 
-Visualize a switch CM example
-```{r}
-g <- "BMP5"
-v <- "rs7743744"
-select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
-  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
-  inner_join(cm_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
-  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot()
-
-g <- "FLVCR1"
-v <- "rs12048942"
-select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
-  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
-  inner_join(cm_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
-  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot()
-
-g <- "FEZ1"
-v <- "rs12276635"
-select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
-  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
-  inner_join(cm_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
-  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot()
-```
-
 Visualize an early CM example
 ```{r}
 g <- "RILPL1"
@@ -231,12 +201,6 @@ ggplot(qtl_df, aes(x=pseudotime_bin, y=expression, fill=genotype)) +
   labs(legend.position="none") +
   scale_fill_manual(values=c("#B51700", "#0076BA"))
 ```
-Make this look a little nicer
-```{r}
-
-
-```
-
 
 Now focus on residual expression
 ```{r}

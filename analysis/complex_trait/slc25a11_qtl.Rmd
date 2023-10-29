@@ -1,0 +1,67 @@
+```{r}
+library(tidyverse)
+```
+
+```{r fig.height=3, fig.width=8}
+g <- "SLC25A11"
+v <- "rs8075365"
+
+cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene ==g) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+
+cm_genotype_df_full <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") 
+cm_genotype_df <- cm_genotype_df_full %>% 
+  filter(snp ==v) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+
+qtl_df <- dplyr::select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) 
+
+ggplot(qtl_df, aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(linewidth=1.25) +
+  theme_classic() +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  labs(legend.position="none") 
++
+  scale_fill_manual(values=c("#B51700", "#0076BA"))
+```
+
+
+Now focus on residual expression
+```{r}
+cm_covariates_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/covariate_df.tsv")
+full_qtl_df <- filter(cm_exp, gene == g) %>%
+  select(-c(gene)) %>%
+  inner_join(select(cm_genotype_df, !snp), by="ind_type") %>% 
+  inner_join(select(cm_pseudotime, !pseudotime_bin), by="ind_type") %>%
+  inner_join(cm_covariates_df, by=c("ind_type" = "sample")) %>%
+  column_to_rownames("ind_type")
+```
+
+```{r}
+qtl_m <- lm("expression ~ .", full_qtl_df)
+exp_residuals <- qtl_m$residuals
+
+qtl_df$residual_expression <- exp_residuals
+ggplot(qtl_df, aes(x=pseudotime_bin, y=residual_expression, fill=genotype)) +
+  geom_boxplot()
+```
+
+Diagnostics - look at the residuals plot
+```{r}
+qtl_m_full <- lm("expression ~ . + genotype * pseudotime", full_qtl_df)
+
+plot(qtl_m_full)
+```
+

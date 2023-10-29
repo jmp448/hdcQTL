@@ -23,11 +23,11 @@ def list_tensorqtl_outputs(wildcards):
     pb_clusters = list(np.unique([s.split("_")[1] for s in samples]))
     return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{c}/{wildcards.npcs}pcs/tensorqtl_permutations.tsv" for c in pb_clusters]
 
-def list_tensorqtl_independent_outputs(wildcards):
+def list_bims(wildcards):
     pb_file = f'data/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/{wildcards.annotation}.pseudobulk_tmm.tsv'
     samples = list(pd.read_csv(pb_file, sep='\t', nrows=0).columns)[1:]
-    pb_clusters = list(np.unique([s.split("_")[1] for s in samples]))
-    return [f"results/static_qtl_calling/{wildcards.annotation}/pseudobulk_tmm/basic/{c}/{wildcards.npcs}pcs/tensorqtl_independent.tsv" for c in pb_clusters]
+    celltypes = list(np.unique([s.split("_")[1] for s in samples]))
+    return [f"data/static_qtl_calling/{{annotation}}/pseudobulk_tmm/basic/{c}/genotypes_filtered_plink.bim" for c in celltypes]
 
 ### PSEUDOBULK PREPROCESSING
 rule pseudobulk_qc:
@@ -163,6 +163,19 @@ rule plink_genotype_reformat:
     shell:
         "code/static_qtl_calling/plink_genotype_reformat.sh {input.genotypes} {input.inds} {params.prefix}"
           
+rule merge_bims_mash:
+    resources:
+        mem_mb=50000,
+        disk_mb=50000
+    input:
+        unpack(list_bims)
+    output:
+        "data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
+    shell:
+        """
+        cat {input} | sort -u -k 1,1 -k 4,4n > {output}
+        """
+
 rule plink_expression_reformat:
     input:
         exp="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/expression.tsv",
@@ -257,40 +270,6 @@ rule tensorqtl_fdr:
     script:
         "../code/static_qtl_calling/tensorqtl_fdr.R"
 
-rule tensorqtl_independent:
-    resources:
-        mem_mb=10000,
-        partition="gpu2",
-        gres="gpu:1",
-        nodes=1,
-        time="02:00:00"
-    input:
-        genotypes=expand("data/static_qtl_calling/{{annotation}}/pseudobulk_tmm/basic/{{type}}/genotypes_filtered_plink.{out}", out=['bed', 'bim', 'fam']),
-        exp="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/expression.bed.gz",
-        cov="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/covariates.tsv",
-        cis_df="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}pcs/tensorqtl_permutations.fdr.tsv"
-    output:
-        indep_df="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/{npcs}pcs/tensorqtl_independent.tsv"
-    params:
-        plink_prefix="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{type}/genotypes_filtered_plink"
-    conda:
-        "../slurmy/tensorqtl.yml"
-    script:
-        "../code/static_qtl_calling/tensorqtl_independent.py"
-        
-rule tensorqtl_merge_independent:
-    resources:
-        mem_mb=25000,
-        time="30:00"
-    input:
-        unpack(list_tensorqtl_independent_outputs)
-    output:
-        indep_df="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/tensorqtl_independent.all.tsv"
-    conda:
-        "../slurmy/r-mashr.yml"
-    script:
-        "../code/static_qtl_calling/tensorqtl_merge_independent.R"
- 
 rule list_significant_variant_gene_pairs:
     resources:
         mem_mb=100000,
@@ -304,6 +283,34 @@ rule list_significant_variant_gene_pairs:
         "../slurmy/r-mashr.yml"
     script:
         "../code/static_qtl_calling/list_significant_tests.R"
+        
+rule tensorqtl_summary_to_bed_alltests:
+    resources:
+        mem_mb=30000,
+        time="15:00"
+    input:
+        qtl_summary="results/static_qtl_calling/eb-cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.all.tsv",
+        bim_file="data/static_qtl_calling/eb-cellid/pseudobulk_tmm/basic/PNS-glia/genotypes_filtered_plink.bim",
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/original/tensorqtl-all_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/tensorqtl_summary_to_bed_alltests.R"
+        
+rule tensorqtl_summary_to_bed_allsigtests:
+    resources:
+        mem_mb=30000,
+        time="15:00"
+    input:
+        qtl_summary="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/signif_variant_gene_pairs.tsv",
+        bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim",
+        gtf_loc="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/tensorqtl_summary_to_bed_allsigtests.R"
         
 ### MASH
 rule mash_prep:
@@ -376,3 +383,48 @@ rule tidy_mash_hits:
         "../slurmy/r-mashr.yml"
     script:
         "../code/static_qtl_calling/tidy_mash_hits.R"
+        
+# note still uses the bim file of only one celltype
+# rule mash_to_bed_alltests:
+#     resources:
+#         mem_mb=50000,
+#         time="15:00"
+#     input:
+#         mash_model="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_fitted_model.full.rds",
+#         bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/PNS-glia/genotypes_filtered_plink.bim",
+#         gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+#     output:
+#         bedfile="results/static_eqtl_followup/qtl_sets/mash-all_variant_gene_pairs.bed"
+#     conda: "../slurmy/r-mashr.yml"
+#     script:
+#         "../code/static_eqtl_followup/mash_to_bed_alltests.R"
+
+# rule mash_to_bed_tophits:
+# This is for if you fit the mash model to just the top hits per gene rather than all
+#     resources:
+#         mem_mb=10000,
+#         time="05:00"
+#     input:
+#         mash_model="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash_fitted_model.tophits.rds",
+#         harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
+#     output:
+#         bedfile="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash-tophits_variant_gene_pairs.bed"
+#     conda: "../slurmy/r-mashr.yml"
+#     script:
+#         "../code/static_eqtl_followup/mash_to_bed_allsigtests.R"
+    
+rule mash_to_bed_allsigtests:
+    resources:
+        mem_mb=50000,
+        time="15:00"
+    input:
+        mash_model="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_fitted_model.full.rds",
+        bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim",
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/mash/original/mash-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/mash_to_bed_allsigtests.R"
+
+

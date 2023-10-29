@@ -41,20 +41,20 @@ rule list_donors_gtex_tissue:
         """
         # cut -f1,14 {input} | grep Nerve - Tibial | cut -d: -f2 | cut -d- -f1,2 | sort -u | tail -n +2 > /scratch16/abattle4/jpopp/GTEx_misc/{tissue}_donors.txt
 
-rule get_tissue_maf:
-    resources:
-        mem_mb=10000,
-        time="01:30:00"
-    input:
-        genotypes="/home/jpopp/scratch16-abattle4/lab_data/GTEx_v8/genotypes/WGS/variant_calls/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.vcf.gz",
-        inds="data/trans_qtl_calling/gtex/donors_per_tissue/donors-{tissue}.txt",
-        snp_ids="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/tested_variants.txt"
-    output:
-        "data/trans_qtl_calling/gtex/maf/{tissue}.frq"
-    params:
-        prefix="data/trans_qtl_calling/gtex/maf/"
-    shell:
-        "code/trans_qtl_calling/compute_af_gtex.sh {input.genotypes} {input.inds} {params.prefix}/{wildcards.tissue} {input.snp_ids}"
+# rule get_tissue_maf:
+#     resources:
+#         mem_mb=10000,
+#         time="01:30:00"
+#     input:
+#         genotypes="/home/jpopp/scratch16-abattle4/lab_data/GTEx_v8/genotypes/WGS/variant_calls/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.vcf.gz",
+#         inds="data/trans_qtl_calling/gtex/donors_per_tissue/donors-{tissue}.txt",
+#         snp_ids="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/tested_variants.txt"
+#     output:
+#         "data/trans_qtl_calling/gtex/maf/{tissue}.frq"
+#     params:
+#         prefix="data/trans_qtl_calling/gtex/maf/"
+#     shell:
+#         "code/trans_qtl_calling/compute_af_gtex.sh {input.genotypes} {input.inds} {params.prefix}/{wildcards.tissue} {input.snp_ids}"
 
 rule list_samples_gtex_tissue:
     input:
@@ -72,34 +72,30 @@ rule list_trans_qtl_candidate_variants:
     resources:
         mem_mb=50000
     input:
-        tests_list="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt",
-        afs="data/trans_qtl_calling/gtex/maf/{tissue}.frq",
         eb_hits="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.tsv",
-        eb_gtex_overlap="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.full_gtex_overlap.bed",
-        #gtf="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf",
-        gtf="data/gencode/gencode.hg38.filtered.gtf",
-        gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
+        eb_gtex_overlap="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
+        gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt",
+        bim="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
     output:
-        candidate_info="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidate_info.{gs}.{tissue}.tsv",
-        candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidates.{gs}.{tissue}.txt"
-        #match_details="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_matchers.{gs}.{tissue}.Rdata"
+        candidate_info="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidate_info.{gs}.tsv",
+        candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidates.{gs}.txt"
     conda: 
         "../slurmy/r-mashr.yml"
     script:
         "../code/trans_qtl_calling/list_trans_qtl_candidate_variants.R"
 
-rule list_trans_qtl_candidate_genes:
-    resources:
-        mem_mb=50000
-    input:
-        gtf="data/gencode/gencode.hg38.filtered.gtf",
-        gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
-    output:
-        gene_set="data/gene_sets/{gs}.ensg.tsv"
-    conda:
-        "../slurmy/r-mashr.yml"
-    script:
-        "../code/trans_qtl_calling/list_trans_qtl_candidate_genes.R"
+# rule list_trans_qtl_candidate_genes:
+#     resources:
+#         mem_mb=50000
+#     input:
+#         gtf="data/gencode/gencode.hg38.filtered.gtf",
+#         gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
+#     output:
+#         gene_set="data/gene_sets/{gs}.ensg.tsv"
+#     conda:
+#         "../slurmy/r-mashr.yml"
+#     script:
+#         "../code/trans_qtl_calling/list_trans_qtl_candidate_genes.R"
 
 rule plink_genotype_reformat_trans:
     # This command requires GTEx data access, which is protected
@@ -109,7 +105,7 @@ rule plink_genotype_reformat_trans:
     input:
         genotypes="/home/jpopp/scratch16-abattle4/lab_data/GTEx_v8/genotypes/WGS/variant_calls/GTEx_Analysis_2017-06-05_v8_WholeGenomeSeq_838Indiv_Analysis_Freeze.vcf.gz",
         inds="data/trans_qtl_calling/gtex/donors_per_tissue/donors-{tissue}.txt",
-        trans_candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/trans_eqtl_variant_candidates.{gs}.{tissue}.txt"
+        trans_candidates="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/trans_eqtl_variant_candidates.{gs}.txt"
     output:
         expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{gs}}.{out}", out=['bed', 'bim', 'fam'])
     params:
@@ -125,66 +121,66 @@ rule compress_bed_bugfix:
         "data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz"
     shell: "gzip -f {input} > {output}"
 
-rule tensorqtl_trans_allgenes:
-    resources:
-        mem_mb=100000,
-        time="01:00:00"
-    input:
-        genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}.{out}", out=['bed', 'bim', 'fam']),
-        exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
-        cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
-    output:
-        output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.tsv"
-    params:
-        plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/genotypes_filtered/plink.{tissue}.{candidate_gs}"
-    conda:
-        "../slurmy/tensorqtl.yml"
-    script:
-        "../code/trans_qtl_calling/trans_qtl_calling_allgenes.py"
-    
-rule merge_trans_allgenes:
-    resources:
-        mem_mb=250000,
-        time="30:00"
-    input:
-        unpack(list_transeqtl_allgenes_files)
-    output:
-        "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged/{candidate_gs}-variants.gtex_all_tissues.tsv"
-    conda:
-        "../slurmy/tensorqtl.yml"
-    script:
-        "../code/trans_qtl_calling/merge_trans.py"
-        
-rule tensorqtl_trans_pathwaygenes:
-    resources:
-        mem_mb=100000,
-        time="01:00:00"
-    input:
-        genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}.{out}", out=['bed', 'bim', 'fam']),
-        exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
-        cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt",
-        gs_genes="data/gene_sets/{affected_gs}.ensg.tsv"
-    output:
-        output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.{affected_gs}-genes.tsv"
-    params:
-        plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{tissue}.{candidate_gs}"
-    conda:
-        "../slurmy/tensorqtl.yml"
-    script:
-        "../code/trans_qtl_calling/trans_qtl_calling_pathwaygenes.py"
-
-rule merge_trans_pathwaygenes:
-    resources:
-        mem_mb=50000,
-        time="30:00"
-    input:
-        unpack(list_transeqtl_pathwaygenes_files)
-    output:
-        merged_df="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{affected_gs}-genes_merged/{candidate_gs}-variants.gtex_all_tissues.tsv"
-    conda:
-        "../slurmy/tensorqtl.yml"
-    script:
-        "../code/trans_qtl_calling/merge_trans.py"
+# rule tensorqtl_trans_allgenes:
+#     resources:
+#         mem_mb=100000,
+#         time="01:00:00"
+#     input:
+#         genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}.{out}", out=['bed', 'bim', 'fam']),
+#         exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
+#         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
+#     output:
+#         output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.tsv"
+#     params:
+#         plink_prefix="data/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/genotypes_filtered/plink.{tissue}.{candidate_gs}"
+#     conda:
+#         "../slurmy/tensorqtl.yml"
+#     script:
+#         "../code/trans_qtl_calling/trans_qtl_calling_allgenes.py"
+#     
+# rule merge_trans_allgenes:
+#     resources:
+#         mem_mb=250000,
+#         time="30:00"
+#     input:
+#         unpack(list_transeqtl_allgenes_files)
+#     output:
+#         "results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged/{candidate_gs}-variants.gtex_all_tissues.tsv"
+#     conda:
+#         "../slurmy/tensorqtl.yml"
+#     script:
+#         "../code/trans_qtl_calling/merge_trans.py"
+#         
+# rule tensorqtl_trans_pathwaygenes:
+#     resources:
+#         mem_mb=100000,
+#         time="01:00:00"
+#     input:
+#         genotypes=expand("data/trans_qtl_calling/gtex/genotypes_filtered/plink.{{tissue}}.{{candidate_gs}}.{out}", out=['bed', 'bim', 'fam']),
+#         exp="data/trans_qtl_calling/gtex/expression/{tissue}.v8.normalized_expression.bed.gz",
+#         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt",
+#         gs_genes="data/gene_sets/{affected_gs}.ensg.tsv"
+#     output:
+#         output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.{affected_gs}-genes.tsv"
+#     params:
+#         plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{tissue}.{candidate_gs}"
+#     conda:
+#         "../slurmy/tensorqtl.yml"
+#     script:
+#         "../code/trans_qtl_calling/trans_qtl_calling_pathwaygenes.py"
+# 
+# rule merge_trans_pathwaygenes:
+#     resources:
+#         mem_mb=50000,
+#         time="30:00"
+#     input:
+#         unpack(list_transeqtl_pathwaygenes_files)
+#     output:
+#         merged_df="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{affected_gs}-genes_merged/{candidate_gs}-variants.gtex_all_tissues.tsv"
+#     conda:
+#         "../slurmy/tensorqtl.yml"
+#     script:
+#         "../code/trans_qtl_calling/merge_trans.py"
 
 ## CELL TYPE PROPORTION QTL CALLING
 rule wrangle_ctprops_per_tissue:
@@ -207,7 +203,7 @@ rule tensorqtl_ctprops:
         ctprops="data/trans_qtl_calling/gtex/celltype_proportions/proportions-{tissue}.txt",
         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.v8.covariates.txt"
     output:
-        output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.celltype-proportions.tsv"
+        output_loc="results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.celltype-proportions.tsv"
     params:
         plink_prefix="data/trans_qtl_calling/gtex/genotypes_filtered/plink.{tissue}.{candidate_gs}"
     conda:
@@ -222,7 +218,7 @@ rule merge_ctprops:
     input:
         unpack(list_ctprop_files)
     output:
-        merged_df="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/all-celltype-proportions/{candidate_gs}-variants.gtex_all_tissues.tsv"
+        merged_df="results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all-celltype-proportions/{candidate_gs}-variants.gtex_all_tissues.tsv"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
@@ -271,7 +267,7 @@ rule tensorqtl_ctprops_sva:
         ctprops="data/trans_qtl_calling/gtex/celltype_proportions/proportions-{tissue}.txt",
         cov="data/trans_qtl_calling/gtex/covariates/{tissue}.{candidate_gs}.supervised_surrogate_variables.txt"
     output:
-        output_loc="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.celltype-proportions.sva.tsv"
+        output_loc="results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{tissue}.{candidate_gs}-variants.celltype-proportions.sva.tsv"
     conda:
         "../slurmy/tensorqtl.yml"
     script:
@@ -284,7 +280,7 @@ rule merge_ctprops_sva:
     input:
         unpack(list_ctprop_files_sva)
     output:
-        merged_df="results/trans_qtl_calling/{annotation}/pseudobulk_tmm/basic/all-celltype-proportions-sva/{candidate_gs}-variants.gtex_all_tissues.tsv"
+        merged_df="results/trans_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all-celltype-proportions-sva/{candidate_gs}-variants.gtex_all_tissues.tsv"
     conda:
         "../slurmy/tensorqtl.yml"
     script:

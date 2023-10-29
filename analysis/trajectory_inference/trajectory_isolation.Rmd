@@ -5,6 +5,7 @@ library(ggblend)
 library(patchwork)
 ```
 
+## Joint visualization of the UMAP embedding
 ```{r}
 umap <- vroom("data/single_cell_objects/eb_pflog1ppfnorm.hvg.umap_embedding.txt", col_names=c("UMAP_1", "UMAP_2"))
 cm_pcs <- vroom("data/trajectory_inference/eb-cm_lineage/eb-cm_lineage.15binstrimmed_pseudotime.2pcs.tsv")
@@ -26,9 +27,9 @@ hep_pcs$hep_color <- hep_palette(hep_pcs$PC1)
 ```
 
 ```{r}
-isolation_df <- left_join(umap, select(cm_pcs, c(cell, cm_color)), by="cell") %>%
-  left_join(select(neur_pcs, c(cell, neur_color)), by="cell") %>%
-  left_join(select(hep_pcs, c(cell, hep_color)), by="cell")
+isolation_df <- left_join(umap, dplyr::select(cm_pcs, c(cell, cm_color)), by="cell") %>%
+  left_join(dplyr::select(neur_pcs, c(cell, neur_color)), by="cell") %>%
+  left_join(dplyr::select(hep_pcs, c(cell, hep_color)), by="cell")
 ```
 
 We need each cell to have a single pseudotime value and trajectory (we'll arbitrarily choose a lineage for cells mapped to multiple)
@@ -40,7 +41,7 @@ trajectories_sampled <- isolation_df %>%
   sample_n(size=1) %>%
   ungroup
 
-pseudotime_df <- right_join(trajectories_sampled, select(isolation_df, c(cell, UMAP_1, UMAP_2)), by=c("cell", "UMAP_1", "UMAP_2")) %>%
+pseudotime_df <- right_join(trajectories_sampled, dplyr::select(isolation_df, c(cell, UMAP_1, UMAP_2)), by=c("cell", "UMAP_1", "UMAP_2")) %>%
   replace_na(list(pseudotime_color="#E6E6E6", trajectory="none")) %>%
   mutate(trajectory=factor(trajectory, levels=c("none", "neur_color", "cm_color", "hep_color"))) %>%
   arrange(trajectory)
@@ -49,14 +50,14 @@ pseudotime_df <- right_join(trajectories_sampled, select(isolation_df, c(cell, U
 
 ```{r fig.height=3.5, fig.width=4}
 pseudotime_plot <- ggplot(pseudotime_df, aes(x=UMAP_1, y=UMAP_2, color=pseudotime_color)) +
-  geom_point(data=filter(pseudotime_plot, trajectory == "none"), alpha=0.2) +
-  geom_point(data=filter(pseudotime_plot, trajectory != "none"), size=1e-7, alpha=0.5) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
+  geom_point(data=filter(pseudotime_df, trajectory == "none"), alpha=0.2) +
+  geom_point(data=filter(pseudotime_df, trajectory != "none"), size=1e-7, alpha=0.5) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
   scale_color_identity() +
   theme_classic(base_size=15) 
 pseudotime_plot
 ```
 
-Create PC biplots, as well
+## Visualization of Each Trajectory in Isolation
 ```{r fig.height=3, fig.width=4}
 pseudo_cm_plot <- ggplot(cm_pcs, aes(x=PC1, y=PC2, color=PC1)) +
   geom_point(size = 1e-3) +
@@ -77,17 +78,34 @@ pseudo_hep_plot<- ggplot(hep_pcs, aes(x=PC1, y=PC2, color=PC1)) +
   scale_color_gradient(low="#929292", high="#FEAE00") +
   theme_classic(base_size=15)  +
   theme(axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
-  xlab("") + ggtitle("Hepatoblast Trajectory")
+  xlab("Pseudotime (PC1)") + ggtitle("Hepatoblast Trajectory")
 ```
 
-Merge all plots together
-```{r fig.height=4, fig.width=6}
+## Marker Gene Expression
+```{r}
+smoothed_markers <- vroom("/project2/gilad/jpopp/ebQTL/temp/smoothed_marker_gene_exp_cm.tsv") %>%
+  pivot_longer(cols=c(NANOG, MIXL1, MESP1, GATA4, TNNT2), names_to="gene", values_to="expression") %>%
+  mutate(gene=factor(gene, levels=c("NANOG", "MIXL1", "MESP1", "GATA4", "TNNT2")))
+
+cm_palette_discrete <- colorBin(palette = c("#D5D5D5", "#B51700"), domain=seq(5))(seq(5))
+
+marker_plot <- ggplot(smoothed_markers, aes(x=pseudotime, y=expression, color=gene)) +
+  geom_line(lwd=2) +
+  theme_classic(base_size=15) +
+  theme(axis.ticks.x=element_blank(), axis.ticks.y=element_blank(), axis.text.x=element_blank(), axis.text.y=element_blank()) +
+  xlab("Pseudotime") + ylab("Relative Expression") +
+  labs(color="Marker Gene") +
+  scale_color_manual(values=c("#929292", "#E2C4BE", "#DF8A89", "#C74B31", "#B51700"))
+```
+
+
+```{r fig.height=3, fig.width=9}
 layout <- "
-AAAABB
-AAAACC
-AAAADD
+AAAABBEEEE
+AAAACCEEEE
+AAAADDEEEE
 "
-pseudotime_plot + pseudo_cm_plot + pseudo_neur_plot + pseudo_hep_plot + 
+pseudotime_plot + pseudo_cm_plot + pseudo_neur_plot + pseudo_hep_plot + marker_plot +
   plot_layout(design = layout)
 ```
 
