@@ -1,0 +1,169 @@
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+library(ggblend)
+library(patchwork)
+library(vroom)
+library(snpStats)
+library(tricycle)
+```
+
+Get all effect sizes
+```{r}
+crm_signif <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.sighits.tsv")
+crm_iegenes <- crm_signif$EB_HGNC
+
+crm_betas <- vroom(paste0("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.", crm_iegenes, ".cellregmap.betas.tsv"))
+crm_betas_wide <- dplyr::select(crm_betas, c(PSEUDOCELL, BETA_GXC, EB_HGNC, EB_VARIANT_ID)) %>%
+  unite(EB_QTL, EB_HGNC, EB_VARIANT_ID, sep="_") %>%
+  pivot_wider(id_cols=PSEUDOCELL, names_from=EB_QTL, values_from=BETA_GXC)
+
+topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
+
+crm_betas_loadings <- left_join(crm_betas_wide, topic_loadings, by=c("PSEUDOCELL"="pseudocell"))
+
+beta_topic_corrs <- cor(dplyr::select(crm_betas_loadings, -c(PSEUDOCELL, paste0("k", seq(10)))),
+                        dplyr::select(crm_betas_loadings, c(k8)))
+```
+
+### TROAP_rs11168975
+```{r}
+g <- "TROAP"
+v <- "rs11168975"
+pseudocell_exp <- vroom("data/single_cell_objects/eb_pseudocells_normalized.tsv")
+genotypes <- read.plink(bed="data/genotypes/yri_maf0.1_all.hg38.bed",
+                        bim="data/genotypes/yri_maf0.1_all.hg38.bim",
+                        fam="data/genotypes/yri_maf0.1_all.hg38.fam",
+                        select.snps = v)
+crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
+
+pseudocell_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", "TROAP_rs11168975"))) %>% 
+  rename(beta_gxc = TROAP_rs11168975) %>%
+  left_join(select(pseudocell_exp, c(`...1`, TROAP)), by=c("PSEUDOCELL"="...1")) %>%
+  mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
+  left_join(crm_genotypes_df, by=c("donor")) %>%
+  mutate(genotype=factor(genotype))
+
+crm_qtl_plot <- ggplot(pseudocell_df, aes(x=beta_gxc, y=TROAP, color=genotype)) +
+  geom_point(size=0.25) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
+  geom_smooth(method = "lm") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TA", "AA"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("CDK5 Expression") +
+  labs(color=v)
+crm_qtl_plot
+
+crm_qtl_plot_nonlinear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=TROAP, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "loess") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("TROAP Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_nonlinear
+```
+
+### Structure Plot
+```{r, fig.width=8, fig.height=4}
+topics_kept <- c('k1','k2', 'k4','k5','k6', 'k7', 'k8', 'k10')
+structure_df <- topic_loadings %>%
+  dplyr::select(all_of(c("pseudocell", topics_kept))) %>%
+  inner_join(filter(crm_betas, (EB_VARIANT_ID=="rs11168975") & (EB_HGNC=="TROAP")), by=c("pseudocell"="PSEUDOCELL")) %>%
+  pivot_longer(cols=topics_kept, names_to="topic", values_to="loading") %>%
+  mutate(topic=factor(topic, levels=topics_kept))
+
+structure_plot <- ggplot(structure_df, aes(x=BETA_GXC, y=loading, fill=topic)) +
+  geom_col(width=1e-3) +
+  theme_classic(base_size=15) +
+  scale_fill_manual(values=brewer.pal(9, 'Set1')) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("Topic Loadings") +
+  labs(fill="Topic")
+structure_plot
+```
+
+### Alternate visualization - boxplot
+```{r}
+pseudocell_df_thresh <- pseudocell_df %>%
+  mutate(phase1 = if_else(beta_gxc >= 0.1, ">= 0.1", "< 0.1"))
+
+binarized_environment <- ggplot(pseudocell_df_thresh, aes(x=phase1, y=TROAP, fill=genotype)) +
+  geom_boxplot()+
+  scale_fill_manual(values=brewer.pal(9, 'Set1')) +
+  theme_classic(base_size=15) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank()) +
+  xlab("Aggregate Interacting Environment") + ylab("TROAP Expression") +
+  theme(legend.position="none")
+binarized_environment
+```
+
+## Tricycle analysis
+```{r}
+pseudocell_exp_df <- t(column_to_rownames(pseudocell_exp, "...1"))
+schwabe <- estimate_Schwabe_stage(pseudocell_exp_df, gname.type = "SYMBOL", species = "human")
+trike <- estimate_cycle_position(pseudocell_exp_df, gname.type = "SYMBOL", species = "human")
+pseudocell_phases <- tibble("pseudocell"=colnames(pseudocell_exp_df),
+                            "phase"=schwabe,
+                            "state"=trike)
+topics_phase <- left_join(topic_loadings, pseudocell_phases, by="pseudocell")
+tri_phases <- pseudocell_phases$trike
+plot(trike, unname(pseudocell_exp_df["TOP2A",]))
+ggplot(pseudocell_df_phased, aes(x=state, y=k8)) +
+  geom_point() +
+  geom_smooth(method = "loess")
+```
+Okay, so k8 is largest in mitosis - can we visualize the QTL effect with respect to phase instead of the latent topic for easier interpretability?
+```{r}
+pseudocell_df_phased <- left_join(pseudocell_df, pseudocell_phases, by=c("PSEUDOCELL"="pseudocell"))
+
+crm_qtl_plot_phase <- ggplot(pseudocell_df_phased, aes(x=state, y=TROAP, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "loess") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Cell Cycle Phase") +
+  ylab("TROAP Expression") +
+  labs(color=v)
+crm_qtl_plot_phase
+
+```
+This is fairly clear - TROAP is most highly expressed during mitosis, but there's not a 
+strong interaction with cell cycle. Save the cell cycle phase assignments 
+in case I need them again
+```{r}
+write_tsv(pseudocell_phases, "temp/pseudocell_phases_tricycle.tsv")
+```
+
+
+
+
+```{r fig.height=5, fig.width=8}
+layout <- "
+AABBB
+AACCC
+AADDD
+"
+
+loadings_plot + structure_plot + crm_qtl_plot_nonlinear + binarized_environment +
+  plot_layout(design=layout)
+```
+
+
+
+This is interesting, but TROAP is one of several genes in this region of the genome 
+with some involvement in cytoskeletal function. And there's a nearby Is it possible that these genes are 
+co-regulated? 
+```{r}
+mash_all <- vroom("results/static_eqtl_followup/qtl_sets/mash-all_variant_gene_pairs.bed")
+local <- filter(mash_all, EB_HGNC %in% c("TROAP", "PRPH", "TUBA1C", "TUBA1B", "TUBA1A"))
+write_tsv(local, "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/troap-region_variant_gene_pairs.bed")
+```
+
+

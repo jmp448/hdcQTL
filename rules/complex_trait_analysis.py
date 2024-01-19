@@ -138,7 +138,7 @@ rule sldsc_meta_analysis:
 #         "../code/complex_trait_analysis/sumstats2bed_sa.R"
         
 rule sumstats2bed_ldl:
-  # this worked for the LDL paper as well as for the appendicular lean mass gwas
+  # this works for all GWAS catalog summary stats
     resources:
         mem_mb=50000,
         time="30:00"
@@ -152,6 +152,21 @@ rule sumstats2bed_ldl:
         "../slurmy/r-sva.yml"
     script:
         "../code/complex_trait_analysis/sumstats2bed_ldl.R"
+        
+rule sumstats2bed_pardinas:
+  # this is for pardinas summary stats downloaded from https://walters.psycm.cf.ac.uk/ 
+    resources:
+        mem_mb=50000,
+        time="30:00"
+    input:
+        sumstats="data/gwas/pardinas/clozuk_pgc2.meta.sumstats.txt"
+    output:
+        bed="data/gwas/pardinas/clozuk_pgc2.meta.sumstats.hg19.bed"
+    conda:
+        "../slurmy/r-sva.yml"
+    script:
+        "../code/complex_trait_analysis/sumstats2bed_pardinas.R"
+
     
 rule crossmap_hg19_to_hg38:
     resources:

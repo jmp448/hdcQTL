@@ -284,19 +284,19 @@ rule list_significant_variant_gene_pairs:
     script:
         "../code/static_qtl_calling/list_significant_tests.R"
         
-rule tensorqtl_summary_to_bed_alltests:
-    resources:
-        mem_mb=30000,
-        time="15:00"
-    input:
-        qtl_summary="results/static_qtl_calling/eb-cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.all.tsv",
-        bim_file="data/static_qtl_calling/eb-cellid/pseudobulk_tmm/basic/PNS-glia/genotypes_filtered_plink.bim",
-        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
-    output:
-        bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/original/tensorqtl-all_variant_gene_pairs.bed"
-    conda: "../slurmy/r-mashr.yml"
-    script:
-        "../code/static_eqtl_followup/tensorqtl_summary_to_bed_alltests.R"
+# rule tensorqtl_summary_to_bed_alltests:
+#     resources:
+#         mem_mb=30000,
+#         time="15:00"
+#     input:
+#         qtl_summary="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/tensorqtl_nominal.all.tsv",
+#         bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/PNS-glia/genotypes_filtered_plink.bim",
+#         gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+#     output:
+#         bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/original/tensorqtl-all_variant_gene_pairs.bed"
+#     conda: "../slurmy/r-mashr.yml"
+#     script:
+#         "../code/static_eqtl_followup/tensorqtl_summary_to_bed_alltests.R"
         
 rule tensorqtl_summary_to_bed_allsigtests:
     resources:

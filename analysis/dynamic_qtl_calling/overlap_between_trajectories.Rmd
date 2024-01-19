@@ -46,7 +46,7 @@ cm_granges <- tibble(variant_id=rownames(cm_genotypes), gmin=cm_gmins, gmax=cm_g
 cm_all <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv")
 cm_emt <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz")
 cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv")
-cm_hits <- filter(cm_emt, pval_adj_bh <= 0.05) %>%
+cm_hits <- filter(cm_emt, pval_adj_bh <= 0.1) %>%
   left_join(cm_granges, by="variant_id") %>%
   mutate(tmin=min(cm_pseudotime$pseudotime), tmax=max(cm_pseudotime$pseudotime)) %>%
   mutate(class=pmap_chr(.l=list(b_g, b_i, b_gi, tmin, tmax, gmin, gmax), .f=classify_dynamics))

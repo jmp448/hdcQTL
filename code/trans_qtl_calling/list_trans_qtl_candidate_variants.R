@@ -6,6 +6,7 @@ set.seed(1234)
 eb_sighits_loc <- snakemake@input[['eb_hits']]
 eb_sighits_overlap_loc <- snakemake@input[['eb_gtex_overlap']]
 gmt_file <- snakemake@input[['gmt']]
+gtf_loc <- snakemake@input[['gtf']]
 bim_file <- snakemake@input[['bim']]
 
 go_geneset <- snakemake@wildcards[['gs']]
@@ -51,11 +52,15 @@ bim <- vroom(bim_file, col_names=c("#CHR", "variant_id", "POS_CM", "POS_BP", "AL
 pathway_novel_qtls <- left_join(pathway_novel, bim, by=c("variant_id")) %>%
   mutate(variant_id_gtex = paste(`#CHR`, POS_BP, ALLELE_2, ALLELE_1, "b38", sep="_"))
 
+# Load mapping of gene names
+gencode <- vroom(gtf_loc, col_select=c("hgnc", "ensg"))
+
 # Save just this set of variants 
 pathway_novel_qtls %>%
-  dplyr::select(variant_id_gtex, phenotype_id) %>%
+  dplyr::select(variant_id_gtex, variant_id, phenotype_id) %>%
+  left_join(gencode, by=c("phenotype_id"="hgnc")) %>%
   write_tsv(variant_candidates_info_loc)
 
 pathway_novel_qtls %>%
-  dplyr::select(variant_id) %>%
+  dplyr::select(variant_id_gtex) %>%
   write_tsv(variant_candidates_loc, col_names=F)

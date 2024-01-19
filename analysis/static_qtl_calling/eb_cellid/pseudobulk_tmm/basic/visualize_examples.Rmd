@@ -35,7 +35,12 @@ gene_hgnc <- "FAM20C"
 celltype <- "PNS-glia"
 ```
 
-
+TMEFF2
+```{r}
+snp_rsid <- "rs12693642"
+gene_hgnc <- "TMEFF2"
+celltype <- "Ciliated-epithelial-cells"
+```
 
 ```{r}
 bed <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bed")
@@ -47,7 +52,7 @@ genotypes_df <- snpstats2geno(snpstat)
 ```
 
 ```{r}
-expression_df <- vroom(paste0("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/expression.bed.gz")) %>%
+expression_df <- vroom(paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/expression.bed.gz")) %>%
   select(-c(`#chr`, start, end)) %>%
   column_to_rownames("gene") %>% t %>%
   as_tibble(rownames="sample") %>%
@@ -62,7 +67,7 @@ inner_join(genotypes_df, expression_df, by="sample") %>%
   theme_classic(base_size=20) +
   scale_fill_discrete(name=snp_rsid) +
   #xlab("Genotype") + ylab(paste0(gene_hgnc, " Expression")) +
-  xlab("") + ylab("") +
+  xlab("") + ylab("TMEFF2 Expression\n(Ciliated Epithelial Cells)") +
   scale_color_manual(values=c("#2ca02c", "#ff7f0e", "#1f77b4")) +
   #ggtitle(celltype) +
   labs(color="Genotype at rs28731441")
@@ -71,8 +76,53 @@ inner_join(genotypes_df, expression_df, by="sample") %>%
 Additionally visualize the eQTL with residualized expression
 ```{r}
 covariate_df <- vroom(paste0("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/expression.bed.gz")) 
-
 ```
 
+## TMEFF2
+```{r}
+tmeff <- vroom("temp/tmeff_ex_data.tsv") %>%
+  dplyr::select(-c(`...1`)) %>%
+  filter(genotype != -1)
+```
+
+```{r}
+tmeff_lm <- lm('epithelial ~ . + 0', tmeff)
+plot(tmeff_lm)
+```
+
+There are two pretty clear outliers here, and they are driving the trend
+```{r}
+tmeff_outlier_eval <- ctprop[-c(92, 113),]
+tmeff_outlier_eval_lm <- lm('epithelial ~ .', tmeff_outlier_eval)
+plot(tmeff_outlier_eval_lm)
+summary(tmeff_outlier_eval_lm)
+```
+
+## MYSM1
+```{r}
+mysm <- vroom("temp/mysm_ex_data.tsv") %>%
+  dplyr::select(-c(`...1`)) %>%
+  filter(genotype != -1) %>%
+  relocate(epithelial)
+```
+
+```{r}
+mysm_lm <- lm('epithelial ~ .', mysm)
+plot(mysm_lm)
+```
+
+There are two pretty clear outliers here
+```{r}
+mysm_outlier_eval <- ctprop[-c(190, 259),]
+mysm_outlier_eval_lm <- lm('epithelial ~ .', mysm_outlier_eval)
+plot(mysm_outlier_eval_lm)
+```
+
+```{r}
+mysm_outlier_eval_2 <- ctprop[-c(92, 113),]
+mysm_outlier_eval_2_lm <- lm('epithelial ~ .', mysm_outlier_eval_2)
+plot(mysm_outlier_eval_2_lm)
+```
+Removing those gets rid of the effect
 
 

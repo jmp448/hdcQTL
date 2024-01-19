@@ -39,22 +39,36 @@ umap <- umap %>%
 ```
 
 
-```{r}
-celltypes_viz <- c("Cardiomyocytes", "Hepatoblasts", "Neuroendocrine cells")
+```{r fig.height=4, fig.width=4}
+celltypes_viz <- c("Cardiomyocytes", "Hepatoblasts", "PNS neurons")
 celltype_plot <- ggplot(umap, aes(x=UMAP_1, y=UMAP_2)) +
-  geom_point(data=filter(umap, !value %in% celltypes_viz), alpha=0.2, color="#D5D5D5") +
+  geom_point(data=filter(umap, !value %in% celltypes_viz), size=1e-7, alpha=0.2, color="#D5D5D5") +
   geom_point(data=filter(umap, value %in% celltypes_viz), aes(color=color), size=1e-7, alpha=0.5) +
   scale_color_identity() +
-  theme_classic(base_size=15) 
+  theme_classic(base_size=15) +
+  theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.ticks.y=element_blank()) 
 celltype_plot
 ```
 
-
-
-```{r fig.width=14, fig.height=8}
-# layout <- "
-# 
-# "
-celltype_plot + mash_factor_1 + mash_factor_2 + mash_factor_3 + mash_factor_4 + mash_example_plot 
-+ plot_layout(design = layout)
+We also want a schematic example of a cell type specific eQTL
+```{r fig.height=4, fig.width=3}
+neur_g1 <- rnorm(15)
+neur_g2 <- rnorm(15)
+neur_g3 <- rnorm(15)
+hep_g1 <- rnorm(15, mean=-2.5)
+hep_g2 <- rnorm(15)
+hep_g3 <- rnorm(15, mean=2.5)
+schematic_qtl <- tibble("expression"=c(neur_g1, neur_g2, neur_g3, hep_g1, hep_g2, hep_g3),
+                        "genotype"=rep(c("AA", "AG", "GG"), each=15, times=2),
+                        "celltype"=rep(c("PNS-neurons", "Hepatoblasts"), each=45)) %>%
+  left_join(dplyr::select(color_map, c(type, color)), by=c("celltype"="type"))
+ggplot(schematic_qtl, aes(x=genotype, y=expression, color=color)) +
+  geom_boxplot(lwd=1.5) +
+  facet_grid(rows=vars(celltype)) +
+  scale_color_identity() +
+  theme_classic(base_size=15) +
+  xlab("") + 
+  ylab("") +
+  theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.ticks.y=element_blank())
 ```
+

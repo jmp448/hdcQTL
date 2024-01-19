@@ -1,18 +1,32 @@
 #TODO download_fca
 #TODO incorporate pull_differentiation_genesets.R, maybe wrangle_geneset.R
 
-rule list_pcgs:
+rule process_gtf:
     resources:
-        partition="broadwl",
-        mem_mb=5000
+        mem_mb=10000,
+        time="30:00"
     input:
-        "/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
+        gtf_loc="/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
     output:
-        "data/fca/protein_coding_genes.tsv"
-    conda:
-        "../slurmy/r-fca.yml"
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf",
+        tss_loc="data/gencode/gencode.hg38.filtered.tss.tsv",
+        bed_loc="data/gencode/gencode.hg38.filtered.tss.bed"
+    conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/annotation/list_pcgs.R"
+        "../code/benchmarking_static_qtl_calling/gene_locs.R"
+        
+# rule list_pcgs:
+#     resources:
+#         partition="broadwl",
+#         mem_mb=5000
+#     input:
+#         "/project2/gilad/kenneth/References/human/cellranger/cellranger4.0/refdata-gex-GRCh38-2020-A/genes/genes.gtf"
+#     output:
+#         "data/fca/protein_coding_genes.tsv"
+#     conda:
+#         "../slurmy/r-fca.yml"
+#     script:
+#         "../code/annotation/list_pcgs.R"
 
 rule subset_fca:
     resources:
@@ -22,7 +36,7 @@ rule subset_fca:
         counts="data/fca/counts.sampled.rds",
         cell_metadata="data/fca/cell_metadata.rds",
         gene_metadata="data/fca/gene_metadata.rds",
-        pc_genes="data/fca/protein_coding_genes.tsv"
+        pc_genes="data/gencode/gencode.hg38.filtered.gtf"
     output:
         fca_subsampled="data/fca/counts.subsampled.sce"
     conda:
@@ -59,27 +73,27 @@ rule learn_fca_signatures:
     script:
         "../code/annotation/learn_fca_signatures.R"
 
-rule subset_ebs:
-    resources:
-        mem_mb=450000,
-        partition="bigmem2",
-        time="02:00:00"
-    input:
-        "data/single_cell_objects/eb_pflog1ppfnorm.h5ad",
-        "data/fca/fca_subsampled_hvg.tsv"
-    output:
-        "data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.h5ad"
-    conda:
-        "../slurmy/scvi.yml"
-    script:
-        "../code/annotation/eb_subset_to_fca_hvgs.py"
+# rule subset_ebs:
+#     resources:
+#         mem_mb=450000,
+#         partition="bigmem2",
+#         time="02:00:00"
+#     input:
+#         "data/single_cell_objects/eb_pflog1ppfnorm.h5ad",
+#         "data/fca/fca_subsampled_hvg.tsv"
+#     output:
+#         "data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.h5ad"
+#     conda:
+#         "../slurmy/scvi.yml"
+#     script:
+#         "../code/annotation/eb_subset_to_fca_hvgs.py"
 
 rule h5ad_to_sce:
     resources:
         mem_mb=250000,
         partition="bigmem2"
     input:
-        h5ad="data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.h5ad"
+        h5ad=ancient("data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.h5ad")
     output:
         sce="data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.sce"
     params:
@@ -88,7 +102,40 @@ rule h5ad_to_sce:
         "../slurmy/r-fca.yml"
     script:
         "../code/annotation/convert_h5ad_to_sce.R"
+rule learn_signatures_77:
+    resources:
+        mem_mb=200000,
+        time="06:00:00"
+    input:
+        counts="data/fca/counts.sampled.rds",
+        cell_metadata="data/fca/cell_metadata.rds",
+        gene_metadata="data/fca/gene_metadata.rds",
+        pc_genes="data/fca/protein_coding_genes.tsv",
+        hv_genes="data/fca/fca_subsampled_hvg.tsv"
+    output:
+        fca_77="data/fca/counts.subsampled.lognorm.mca.77celltypes.sce",
+        signatures_77="data/fca/fca_signatures.77celltypes.rds"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/learn_signatures_77.R"
         
+rule classify_ebs_77:
+    resources:
+        mem_mb=250000,
+        time="06:00:00"
+    input:
+        eb_hvgs="data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.sce",
+        signatures="data/fca/fca_signatures.77celltypes.rds"
+    output:
+        mca_embedding="data/fca/eb_mca_embedding.77celltypes.tsv",
+        cellid_labels="data/fca/eb_cellid_labels.77celltypes.tsv",
+        cellid_all_enrichments="data/fca/eb_cellid_enrichments.77celltypes.tsv"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/classify_ebs.R"
+ 
 rule classify_ebs:
     resources:
         mem_mb=250000,
@@ -117,3 +164,21 @@ rule sce_to_h5ad:
         "../slurmy/r-fca.yml"
     script:
         "../code/annotation/convert_sce_to_h5ad.R"
+        
+        
+rule classify_ebs_with_ipsc:
+    resources:
+        mem_mb=250000,
+        time="06:00:00"
+    input:
+        eb_hvgs="data/single_cell_objects/eb_pflog1ppfnorm.fca_hvg.sce",
+        signatures="data/fca/fca_signatures.with_ipsc.rds" #made at code/annotation/learn_signatures_with_ipsc.R
+    output:
+        mca_embedding="data/fca/eb_mca_embedding.with_ipsc.tsv",
+        cellid_labels="data/fca/eb_cellid_labels.with_ipsc.tsv",
+        cellid_all_enrichments="data/fca/eb_cellid_enrichments.with_ipsc.tsv"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/classify_ebs.R"
+

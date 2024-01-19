@@ -1,0 +1,68 @@
+```{r}
+library(tidyverse)
+```
+
+```{r fig.height=3, fig.width=8}
+g <- "RBPMS"
+v <- "rs73569729"
+
+hep_exp <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene ==g) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+hep_pseudotime <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+
+hep_genotype_df_full <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") 
+hep_genotype_df <- hep_genotype_df_full %>% 
+  filter(snp ==v) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+
+qtl_df <- dplyr::select(filter(hep_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(hep_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(hep_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) 
+
+ggplot(qtl_df, aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(linewidth=1.25) +
+  theme_classic() +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  labs(legend.position="none") 
+```
+
+```{r fig.height=3, fig.width=8}
+cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene ==g) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+
+cm_genotype_df_full <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") 
+cm_genotype_df <- cm_genotype_df_full %>% 
+  filter(snp ==v) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+
+qtl_df <- dplyr::select(filter(cm_exp, gene==g), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp==v), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) 
+
+ggplot(qtl_df, aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(linewidth=1.25) +
+  theme_classic() +
+  xlab("") + ylab("") +
+  theme(axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  labs(legend.position="none") 
+```
+```
+

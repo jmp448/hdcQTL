@@ -1,18 +1,19 @@
 ```{r}
 library(tidyverse)
 library(RColorBrewer)
+library(ggblend)
 ```
 
 ```{r}
-g <- "HCRTR2"
-v <- "rs6913948"
+g <- "CDK5"
+v <- "rs1549760"
 ```
 
 ## QTL Discovery
 First, let's look at how the QTL was discovered. I'll first get a STRUCTURE plot to see how the topics are being used
 ```{r}
 topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
-betas <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.HCRTR2.cellregmap.betas.tsv", col_select=c("PSEUDOCELL", "BETA_GXC", "BETA_G", "EB_HGNC", "EB_VARIANT_ID"))
+betas <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.CDK5.cellregmap.betas.tsv", col_select=c("PSEUDOCELL", "BETA_GXC", "BETA_G", "EB_HGNC", "EB_VARIANT_ID"))
 betas_wide <- dplyr::select(betas, c(PSEUDOCELL, BETA_GXC, EB_HGNC, EB_VARIANT_ID)) %>%
   unite(EB_QTL, EB_HGNC, EB_VARIANT_ID, sep="_") %>%
   pivot_wider(id_cols=PSEUDOCELL, names_from=EB_QTL, values_from=BETA_GXC)
@@ -36,62 +37,30 @@ ggplot(structure_df, aes(x=BETA_GXC, y=loading, fill=topic)) +
 ```
 
 ```{r}
-ex_snp <- "rs6913948"
-ex_gene <- "HCRTR2"
-```
-
-```{r}
 pseudocell_exp <- vroom("data/single_cell_objects/eb_pseudocells_normalized.tsv")
 genotypes <- read.plink(bed="data/genotypes/yri_maf0.1_all.hg38.bed",
                         bim="data/genotypes/yri_maf0.1_all.hg38.bim",
                         fam="data/genotypes/yri_maf0.1_all.hg38.fam",
-                        select.snps = ex_snp)
+                        select.snps = v)
 crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
 
 pseudocell_df <- betas_loadings %>%
-  select(all_of(c("PSEUDOCELL", "HCRTR2_rs6913948"))) %>% 
-  rename(beta_gxc = HCRTR2_rs6913948) %>%
-  left_join(select(pseudocell_exp, c(`...1`, HCRTR2)), by=c("PSEUDOCELL"="...1")) %>%
+  select(all_of(c("PSEUDOCELL", "CDK5_rs1549760"))) %>% 
+  rename(beta_gxc = CDK5_rs1549760) %>%
+  left_join(select(pseudocell_exp, c(`...1`, CDK5)), by=c("PSEUDOCELL"="...1")) %>%
   mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
   left_join(crm_genotypes_df, by=c("donor")) %>%
   mutate(genotype=factor(genotype))
 
-crm_qtl_plot <- ggplot(pseudocell_df, aes(x=beta_gxc, y=HCRTR2, color=genotype)) +
+crm_qtl_plot <- ggplot(pseudocell_df, aes(x=beta_gxc, y=CDK5, color=genotype)) +
   geom_point(size=0.25) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
   geom_smooth(method = "loess") +
   theme_classic(base_size=15)+
   scale_color_manual(labels=c("TT", "TA", "AA"), values=brewer.pal(3, "Set1")) +
   theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
   xlab("Aggregate Interacting Environment") +
-  ylab("AS3MT Expression") +
-  labs(color=ex_snp)
+  ylab("CDK5 Expression") +
+  labs(color=v)
 crm_qtl_plot
 ```
-Does this look like a nonlinear dynamic eQTL?
-```{r}
-neur_exp <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
-  filter(gene ==g) %>%
-  select(-c(`#chr`, start, end)) %>%
-  pivot_longer(!gene, names_to="ind_type", values_to="expression")
-neur_genotype_df <- as_tibble(fread("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/5clpcs/genotype_df.tsv")[snp == v,]) %>% 
-  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
-neur_pseudotime <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
-  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
-```
 
-```{r}
-dynamic_qtl_plot <- inner_join(dplyr::select(neur_exp, c("ind_type", "expression")), 
-           dplyr::select(neur_genotype_df, c("ind_type", "genotype")), 
-           by="ind_type") %>%
-  inner_join(neur_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
-  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot(lwd=1.25) +
-  theme_classic(base_size=15) +
-  theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
-  scale_fill_manual(labels=c("TT", "TA", "AA"), values=brewer.pal(3, "Set1")) +
-  xlab("Pseudotime Bin") +
-  ylab(paste0(ex_gene, " Expression")) +
-  labs(fill=ex_snp)
-dynamic_qtl_plot
-```

@@ -1,0 +1,113 @@
+---
+title: "Enrichment of eQTLs for schizophrenia risk"
+output: html_notebook
+---
+```{r}
+library(vroom)
+library(data.table)
+library(tidyverse)
+library(snpStats)
+set.seed(42)
+```
+
+
+### Disease
+Load eQTLs
+```{r}
+tensorqtl_eqtls <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed")
+bim <- vroom("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim",
+             col_names=c(""))
+```
+
+
+```{r}
+scz <- fread("data/gwas/pardinas/clozuk_pgc2.meta.sumstats.hg38.bed")
+
+scz_eqtls <- inner_join(mutate(tensorqtl_eqtls, `#CHR`=str_replace(`#CHR`, "chr", "")), scz, by=c("#CHR"="V1", "END"="V3"))
+random_snps_p <- sort(sample(scz$V5, nrow(scz_eqtls)))
+
+qq_scz <- tibble(eqtls=scz_eqtls$V5) %>%
+  arrange(eqtls) %>%
+  rowid_to_column() %>%
+  mutate(eqtls=-log10(eqtls)) %>%
+  mutate(bg=-log10(random_snps_p)) %>%
+  mutate(null = -log10(rowid / nrow(.) )) %>%
+  pivot_longer(cols=c(eqtls, bg), names_to="variant", values_to="p") %>%
+  mutate(variant=factor(variant, levels=c("bg", "eqtls")))
+
+ggplot(qq_scz, aes(x=null, y=p, color=variant)) +
+  geom_point() + 
+  geom_abline(slope=1, intercept=0, linetype="dashed") +
+  theme_classic() +
+  xlab("Theoretical -log10(P)") + ylab("Empirical -log10(P)") +
+  scale_color_manual(values=c("#929292", "#B51700")) +
+  theme(legend.position="none")
+```
+
+## Novel eQTLs with significance
+```{r}
+celltype_eqtls <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed")
+novel_gwas_overlaps <- read.table("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_tensorqtl_gwas_snplist.txt")$V1
+novel_celltype_eqtls_gwas <- celltype_eqtls %>%
+  filter(EB_VARIANT_ID %in% novel_gwas_overlaps) 
+
+gtex_tags <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif-tags_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("EB_CHR", "EB_START", "EB_END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_TAGGED_SNP",
+                                             "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT"))
+novel_celltype_eqtls_gwas_notags <- novel_celltype_eqtls_gwas %>%
+  anti_join(select(gtex_tags, c(EB_TAGGED_SNP, EB_HGNC)), by=c("EB_VARIANT_ID"="EB_TAGGED_SNP", "EB_HGNC"))
+```
+
+Look for examples of novel eQTLs with genome-wide significant association w schizophrenia
+```{r}
+scz_eqtls_novel <- filter(scz_eqtls, V5 <= 5e-8) %>%
+  inner_join(select(novel_celltype_eqtls_gwas_notags, c(EB_VARIANT_ID, EB_HGNC)), by=c("EB_VARIANT_ID", "EB_HGNC"))
+nrow(scz_eqtls_novel)
+length(unique(scz_eqtls_novel$EB_HGNC))
+```
+
+## Novel eQTL for BCL11B
+```{r}
+snpstats2geno <- function(s) {
+  ac <- tibble(ac=as.numeric(s$genotypes@.Data), sample=rownames(s$genotypes@.Data))
+  ac2geno <- tibble("ac"=c(1, 2, 3), 
+                    "genotype"=c(paste(rep(s$map$allele.1, 2), sep="", collapse=""), 
+                                                  paste(s$map$allele.1, s$map$allele.2, sep="", collapse=""), 
+                                                  paste(rep(s$map$allele.2, 2), sep="", collapse="")))
+  geno <- left_join(ac, ac2geno, by="ac")
+  geno
+}
+```
+
+
+```{r}
+snp_rsid <- "rs2693698"
+gene_hgnc <- "BCL11B"
+celltype <- "PNS-glia"
+
+bed <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bed")
+bim <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bim")
+fam <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.fam")
+snpstat <- read.plink(bed, bim, fam, na.strings = c("0", "-9"), sep = "." , select.subjects = NULL, select.snps = snp_rsid)
+
+genotypes_df <- snpstats2geno(snpstat)
+
+expression_df <- vroom(paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/expression.bed.gz")) %>%
+  select(-c(`#chr`, start, end)) %>%
+  column_to_rownames("gene") %>% t %>%
+  as_tibble(rownames="sample") %>%
+  dplyr::select(c(sample, gene_hgnc))
+```
+
+```{r}
+inner_join(genotypes_df, expression_df, by="sample") %>%
+  ggplot(aes(x=genotype, y=.data[[gene_hgnc]], color=genotype)) +
+  geom_boxplot(alpha=0.25, width=0.5, lwd=1.5) +
+  geom_jitter(aes(fill=genotype), position = position_jitter(seed = 1, width = 0.1), size=3.5, shape=21, lwd=1.25, color="black") +
+  theme_classic(base_size=20) +
+  scale_fill_manual(name=snp_rsid, values=brewer.pal(3, "Set1")) +
+  #xlab("Genotype") + ylab(paste0(gene_hgnc, " Expression")) +
+  xlab("rs2693698") + ylab("BCL11B Expression\n(PNS Glia)") +
+  scale_color_manual(values=brewer.pal(3, "Set1")) +
+  theme(legend.position="none")
+```

@@ -15,7 +15,7 @@ sc_annotated <- celltypes %>%
 
 Assign colors to each cell type based on hierarchical clustering
 ```{r}
-type_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+type_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                        
                 "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia","Metanephric-cells", 
                 "Erythroblasts", "Ciliated-epithelial-cells", "Acinar-cells", "Ductal-cells", 
                 "Bronchiolar-and-alveolar-epithelial-cells","Adrenocortical-cells", "Parietal-and-chief-cells", "Ureteric-bud-cells", 
@@ -126,3 +126,66 @@ AAAABBCC
 umap_plot + types_plot + props_plot +
   plot_layout(design = layout)
 ```
+
+# Redo with IPSCs
+```{r}
+celltypes_ipsc <- vroom("data/fca/eb_cellid_labels.with_ipsc.tsv")
+
+sc_annotated_with_ipsc <- celltypes_ipsc %>%
+  mutate(umap1=umap$UMAP_1, umap2=umap$UMAP_2)
+
+type_order_ipsc <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                        
+                "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia","Metanephric-cells", 
+                "Erythroblasts", "Ciliated-epithelial-cells", "Acinar-cells", "Ductal-cells", 
+                "Bronchiolar-and-alveolar-epithelial-cells","Adrenocortical-cells", "Parietal-and-chief-cells", "Ureteric-bud-cells", 
+                "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells", 
+                "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts", 
+                "IPSC", "unassigned") 
+
+type_colors_ipsc <- c("#130063", "#192594", "#004D80", 
+                 "#7F7FFF", "#316DFF", "#1B7FFF", "#0097FF", "#7298BB", 
+                 "#7F9ACE", "#8CB4D5", "#96C0E5", "#98BEC6", 
+                 "#00AB8E", "#3EBFBB", "#55D0B7", "#25C683", 
+                 "#860B1E", "#9B1716", "#B51700", "#B13B3E", 
+                 "#CC4E4F", "#D32323", "#FF0000",
+                 "#965C3D", "#8410D3", "#84108A",  
+                 "#FEDE7F", "#FED255", "#FEAE00", 
+                 "#5E5E5E", "#D5D5D5") 
+
+color_map_ipsc <- tibble(type = type_order_ipsc, color = type_colors_ipsc) %>%
+  mutate(type_spaced = str_replace_all(type, "-", " "))
+
+```
+
+```{r fig.width=8, fig.height=4}
+umap_viz_ipsc <- sc_annotated_with_ipsc %>%
+  mutate(value = factor(value, levels=color_map_ipsc$type_spaced)) %>%
+  drop_na() # removes a few very rare cell types in the EB data
+
+umap_plot_ipsc <- ggplot(umap_viz_ipsc, aes(x=umap1, y=umap2, color=value)) +
+  geom_point(size=1e-5) +
+  theme_classic(base_size=20) +
+  scale_color_manual(values = color_map_ipsc$color) + 
+  guides(color = guide_legend(override.aes = list(size = 10))) +
+  xlab("UMAP1") + ylab("UMAP2") + 
+  labs(color="Cell Type Assignment")
+umap_plot_ipsc
+```
+
+### With all 77 cell types
+```{r}
+celltypes_77 <- vroom("data/fca/eb_cellid_labels.77celltypes.tsv")
+
+sc_annotated_77 <- celltypes_77 %>%
+  mutate(umap1=umap$UMAP_1, umap2=umap$UMAP_2)
+
+donor_celltype_77 <- dplyr::select(cell_metadata, c("cell", "donor_id")) %>%
+  inner_join(dplyr::select(sc_annotated_77, c("cell", "value"))) %>%
+  dplyr::count(donor_id, value)
+
+atleast_5cells_alltypes <- filter(donor_celltype_77, n >= 5)  %>%
+  dplyr::count(value)
+```
+

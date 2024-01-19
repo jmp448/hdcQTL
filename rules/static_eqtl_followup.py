@@ -270,7 +270,7 @@ rule list_yri_tagged_snps_crm:
 	      module load plink
 	      plink --bfile {params.genotypes} --show-tags {input.snps} --tag-r2 0.5 --tag-kb 1000 --list-all --out {params.outfiles}
 	      """
-
+	      
 rule dynamic_to_bed_tags:
     resources:
         mem_mb=50000,
@@ -292,20 +292,148 @@ rule crm_to_bed_tags:
     input:
         eqtls="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/crm-signif_variant_gene_pairs.bed",
         tags="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_crm_gwas_snplist.tags.list",
-        bim_file="data/genotypes/yri_maf0.1_all.hg38.bim"
+        bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
     output:
         bedfile="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/crm-signif-tags_variant_gene_pairs.bed"
     conda: "../slurmy/r-mashr.yml"
     script:
         "../code/static_eqtl_followup/dynamic_to_bed_tags.R"
 
-rule silly_copy_hack:
-  # make sure to fix this for both dynamic and crm eqtls
+rule mash_to_bed_tags:
+    resources:
+        mem_mb=50000,
+        time="15:00"
     input:
-        #"results/dynamic_qtl_calling/{trajectory}_15binstrimmed/dynamic-{trajectory}-signif-tags_variant_gene_pairs.bed"
-        "results/static_eqtl_followup/qtl_sets/dynamic-eqtls/crm-signif_variant_gene_pairs.bed"
+        eqtls="results/static_eqtl_followup/qtl_sets/mash/original/mash-signif_variant_gene_pairs.bed",
+        tags="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_mash_gwas_snplist.tags.list",
+        bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
     output:
-        #"results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/dynamic-{trajectory}-signif-tags_variant_gene_pairs.bed"
-        "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/crm-signif_variant_gene_pairs.bed"
-    shell: "cp {input} {output}"
+        bedfile="results/static_eqtl_followup/qtl_sets/mash/original/mash-signif-tags_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/dynamic_to_bed_tags.R"
+        
+rule list_yri_tagged_snps_tensorqtl:
+    resources:
+        mem_mb=50000,
+        time="03:00:00"
+    input:
+	      genotypes=expand("data/genotypes/yri_maf0.1_all.hg38.deduplicated.{out}", out=['bed', 'bim', 'fam']),
+	      snps="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_tensorqtl_gwas_snplist.txt"
+    output:
+    	  expand("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_tensorqtl_gwas_snplist.{ext}", ext=['tags.list', 'tags', 'nosex', 'log'])
+    params:
+        genotypes="data/genotypes/yri_maf0.1_all.hg38.deduplicated",
+        outfiles="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_tensorqtl_gwas_snplist"
+    shell:
+	      """
+	      module load plink
+	      plink --bfile {params.genotypes} --show-tags {input.snps} --tag-r2 0.5 --tag-kb 1000 --list-all --out {params.outfiles}
+	      """
 
+rule tensorqtl_to_bed_tags:
+    resources:
+        mem_mb=50000,
+        time="15:00"
+    input:
+        eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
+        tags="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_tensorqtl_gwas_snplist.tags.list",
+        bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif-tags_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/dynamic_to_bed_tags.R"
+
+# rule silly_copy_hack:
+#   # make sure to fix this for both dynamic and crm eqtls
+#     input:
+#         #"results/dynamic_qtl_calling/{trajectory}_15binstrimmed/dynamic-{trajectory}-signif-tags_variant_gene_pairs.bed"
+#         "results/static_eqtl_followup/qtl_sets/dynamic-eqtls/crm-signif_variant_gene_pairs.bed"
+#     output:
+#         #"results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/dynamic-{trajectory}-signif-tags_variant_gene_pairs.bed"
+#         "results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/crm-signif_variant_gene_pairs.bed"
+#     shell: "cp {input} {output}"
+
+### Update LD tagging analysis so variants aren't filtered to MAF 0.1
+rule make_genotype_bed_nofilter:
+    resources:
+        mem_mb=100000
+    input:
+        genotypes="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz",
+        inds="data/genotypes/all_individuals_53.tsv"
+    output:
+        expand("data/genotypes/yri_all.hg38.{out}", out=['bed', 'bim', 'fam'])
+    params:
+        prefix="data/genotypes/yri_all.hg38"
+    shell:
+        "code/static_eqtl_followup/make_genotype_bed_no_maf_filter.sh {input.genotypes} {input.inds} {params.prefix}"
+
+rule list_yri_tagged_snps_crm_allsnps:
+    resources:
+        mem_mb=50000,
+        time="03:00:00"
+    input:
+	      genotypes=expand("data/genotypes/yri_all.hg38.deduplicated.{out}", out=['bed', 'bim', 'fam']),
+	      snps="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_crm_gwas_snplist.txt"
+    output:
+    	  expand("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_crm_gwas_snplist.no_maf_filter.{ext}", ext=['tags.list', 'tags', 'nosex', 'log']) 
+    params:
+        genotypes="data/genotypes/yri_all.hg38.deduplicated",
+        outfiles="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/novel_crm_gwas_snplist"
+    shell:
+	      """
+	      module load plink
+	      plink --bfile {params.genotypes} --show-tags {input.snps} --tag-r2 0.5 --tag-kb 1000 --list-all --out {params.outfiles}
+	      """
+
+rule make_genotype_bed_nofilter_dynamic:
+    resources:
+        mem_mb=100000
+    input:
+        genotypes="data/genotypes/human.YRI.hg38.all.AF.gencode.vcf.gz",
+        inds="data/dynamic_qtl_calling/{trajectory}_15binstrimmed/pseudobulk_tmm/nipals/individuals_plink.tsv"
+    output:
+        expand("data/genotypes/yri_{{trajectory}}_donors.hg38.{out}", out=['bed', 'bim', 'fam'])
+    params:
+        prefix="data/genotypes/yri_{trajectory}_donors.hg38"
+    shell:
+        "code/static_eqtl_followup/make_genotype_bed_no_maf_filter.sh {input.genotypes} {input.inds} {params.prefix}"
+
+rule remove_duplicated_snps_no_maf_filter:
+    resources:
+        mem_mb=50000,
+        time="03:00:00"
+    input:
+	      expand("data/genotypes/yri_{{trajectory}}_donors.hg38.{out}", out=['bed', 'bim', 'fam'])
+    output:
+    	  expand("data/genotypes/yri_{{trajectory}}_donors.hg38.deduplicated.{out}", out=['bed', 'bim', 'fam'])
+    params:
+        genotypes="data/genotypes/yri_{trajectory}_donors.hg38",
+        temp_allsnp="temp/all_snps",
+        temp_dupsnp="temp/duplicated_snps"
+    shell:
+	      """
+	      module load plink
+	      plink --bfile {params.genotypes} --write-snplist --out {params.temp_allsnp}
+	      cat {params.temp_allsnp}.snplist | sort | uniq -d > {params.temp_dupsnp}.snplist
+	      plink --bfile {params.genotypes} --exclude {params.temp_dupsnp}.snplist --make-bed --out {params.genotypes}.deduplicated
+	      """
+
+rule list_yri_tagged_snps_no_maf_filter:
+    resources:
+        mem_mb=50000,
+        time="03:00:00"
+    input:
+	      genotypes=expand("data/genotypes/yri_{{trajectory}}_donors.hg38.deduplicated.{out}", out=['bed', 'bim', 'fam']),
+	      snps="results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/novel_dynamic_gwas_snplist.txt"
+    output:
+    	  expand("results/dynamic_qtl_calling/{{trajectory}}_{{nbins}}/pseudobulk_tmm/{{pca}}/novel_dynamic_gwas_snplist_nomafcutoff.{ext}", ext=['tags.list', 'tags', 'nosex', 'log']) 
+    params:
+        genotypes="data/genotypes/yri_{trajectory}_donors.hg38.deduplicated",
+        outfiles="results/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/novel_dynamic_gwas_snplist_nomafcutoff"
+    shell:
+	      """
+	      module load plink
+	      plink --bfile {params.genotypes} --show-tags {input.snps} --tag-r2 0.5 --tag-kb 1000 --list-all --out {params.outfiles}
+	      """

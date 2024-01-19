@@ -7,6 +7,8 @@ library(tidyverse)
 library(gplots)
 library(mashr)
 library(rmeta)
+library(vroom)
+library(patchwork)
 ```
 
 ## Characterizing mash patterns
@@ -437,3 +439,81 @@ mash_example_plot <- ggplot(mash_comp_viz, aes(x=celltype, y=beta, color=celltyp
   xlab("Cell Type") +
   ylab("Estimated Effect Size") 
 ```
+
+```{r fig.height=4, fig.width=12}
+layout <- "
+  ABEEEE
+  CDEEEE
+"
+mash_factor_1 + mash_factor_2 + mash_factor_3 + mash_factor_4 + mash_example_plot + 
+  plot_layout(design = layout)
+```
+
+Rework the mash factors plot to have a shared y-axis 
+```{r}
+mash_factor_1 <- ggplot(factor_1, aes(x=type, y=value, fill=color)) +
+  geom_bar(stat="identity") +
+  theme_classic(base_size=20) +
+  theme(axis.text.x = element_text(angle=30, hjust=1), legend.position="none") +
+  xlab("Cell Type") + ylab("Weight") +
+  scale_fill_identity() +
+  coord_flip() +
+  lims(x = rev(levels(factor_1$type)))
+
+mash_factor_2 <- ggplot(factor_2, aes(x=type, y=value, fill=color)) +
+    geom_bar(stat="identity") +
+    theme_classic(base_size=20) +
+    theme(axis.text.x = element_text(angle=30, hjust=1), 
+          axis.text.y = element_blank(),
+          legend.position="none") +
+    xlab("") + ylab("Weight") +
+    scale_fill_identity() +
+    coord_flip() +
+    lims(x = rev(levels(factor_2$type)))
+
+mash_factor_3 <- ggplot(factor_3, aes(x=type, y=value, fill=color)) +
+    geom_bar(stat="identity") +
+    theme_classic(base_size=20) +
+    theme(axis.text.x = element_text(angle=30, hjust=1), 
+          axis.text.y = element_blank(),
+          legend.position="none") +
+    xlab("") + ylab("Weight") +
+    scale_fill_identity() +
+    coord_flip() +
+    lims(x = rev(levels(factor_3$type)))
+
+mash_factor_4 <- ggplot(factor_4, aes(x=type, y=value, fill=color)) +
+    geom_bar(stat="identity") +
+    theme_classic(base_size=20) +
+    theme(axis.text.x = element_text(angle=30, hjust=1), 
+          axis.text.y = element_blank(),
+          legend.position="none") +
+    xlab("") + ylab("Weight") +
+    scale_fill_identity() +
+    coord_flip() +
+    lims(x = rev(levels(factor_4$type)))
+```
+
+
+```{r fig.height=8, fig.width=20}
+factors_all <- bind_rows(factor_1, factor_2, factor_3, factor_4) %>%
+  mutate(factor_name=rep(c("Factor 1", "Factor 2", "Factor 3", "Factor 4"), each=29)) 
+
+mash_factors_all <- ggplot(factors_all, aes(x=type, y=value, fill=color)) +
+    geom_bar(stat="identity") +
+    theme_classic(base_size=20) +
+    theme(axis.text.x = element_text(angle=30, hjust=1), 
+          legend.position="none") +
+    xlab("Cell Type") + ylab("Weight") +
+    scale_fill_identity() +
+    coord_flip() +
+    lims(x = rev(type_order)) +
+  facet_grid(cols=vars(factor_name))
+layout <- "
+  AAAABBB
+  AAAABBB
+"
+mash_factors_all + mash_example_plot +
+  plot_layout(design=layout)
+```
+

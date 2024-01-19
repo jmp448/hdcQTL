@@ -1,0 +1,213 @@
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+library(ggblend)
+library(patchwork)
+library(vroom)
+library(snpStats)
+library(tricycle)
+```
+
+Get all effect sizes
+```{r}
+crm_signif <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.sighits.tsv")
+crm_iegenes <- crm_signif$EB_HGNC
+
+crm_betas <- vroom(paste0("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.", crm_iegenes, ".cellregmap.betas.tsv"))
+crm_betas_wide <- dplyr::select(crm_betas, c(PSEUDOCELL, BETA_GXC, EB_HGNC, EB_VARIANT_ID)) %>%
+  unite(EB_QTL, EB_HGNC, EB_VARIANT_ID, sep="_") %>%
+  pivot_wider(id_cols=PSEUDOCELL, names_from=EB_QTL, values_from=BETA_GXC)
+
+topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
+
+crm_betas_loadings <- left_join(crm_betas_wide, topic_loadings, by=c("PSEUDOCELL"="pseudocell"))
+
+beta_topic_corrs <- cor(dplyr::select(crm_betas_loadings, -c(PSEUDOCELL, paste0("k", seq(10)))),
+                        dplyr::select(crm_betas_loadings, c(k8)))
+```
+
+### CENPP_rs10119535
+```{r}
+pseudocell_exp_loc <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/eb_pseudocells_normalized.tsv"
+plink_prefix <- "/project2/gilad/jpopp/ebQTL/data/genotypes/yri_maf0.1_all.hg38"
+g <- "CENPP"
+v <- "rs10119535"
+pseudocell_exp <- vroom(pseudocell_exp_loc)
+genotypes <- read.plink(bed=paste0(plink_prefix, ".bed"),
+                        bim=paste0(plink_prefix, ".bim"),
+                        fam=paste0(plink_prefix, ".fam"),
+                        select.snps = v)
+crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
+
+pseudocell_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", "CENPP_rs10119535"))) %>% 
+  dplyr::rename(beta_gxc = `CENPP_rs10119535`) %>%
+  left_join(select(pseudocell_exp, c(`...1`, CENPP)), by=c("PSEUDOCELL"="...1")) %>%
+  mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
+  left_join(crm_genotypes_df, by=c("donor")) %>%
+  mutate(genotype=factor(genotype))
+
+pseudocell_df_phased <- pseudocell_df %>% 
+  left_join(pseudocell_phases, by=c("PSEUDOCELL"="pseudocell"))
+
+crm_qtl_plot_phase <- ggplot(pseudocell_df_phased, aes(x=state, y=CENPP, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "loess") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("TROAP Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_phase
+```
+### CDK5RAP2_rs10760101
+```{r}
+g <- "CDK5RAP2"
+v <- "rs10760101"
+genotypes <- read.plink(bed=paste0(plink_prefix, ".bed"),
+                        bim=paste0(plink_prefix, ".bim"),
+                        fam=paste0(plink_prefix, ".fam"),
+                        select.snps = v)
+crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
+
+pseudocell_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", "CDK5RAP2_rs10760101"))) %>% 
+  dplyr::rename(beta_gxc = `CDK5RAP2_rs10760101`) %>%
+  left_join(select(pseudocell_exp, c(`...1`, CDK5RAP2)), by=c("PSEUDOCELL"="...1")) %>%
+  mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
+  left_join(crm_genotypes_df, by=c("donor")) %>%
+  mutate(genotype=factor(genotype))
+
+pseudocell_df_phased <- pseudocell_df %>% 
+  left_join(pseudocell_phases, by=c("PSEUDOCELL"="pseudocell"))
+
+crm_qtl_plot_phase <- ggplot(pseudocell_df_phased, aes(x=state, y=CDK5RAP2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "loess") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_phase
+```
+```{r}
+crm_qtl_plot_linear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=CDK5RAP2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "lm") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("CDK5RAP Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_linear
+
+crm_qtl_plot_nonlinear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=CDK5RAP2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "loess") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("TROAP Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_nonlinear
+```
+
+### DNA2_rs10998212
+```{r}
+g <- "DNA2"
+v <- "rs10998212"
+genotypes <- read.plink(bed=paste0(plink_prefix, ".bed"),
+                        bim=paste0(plink_prefix, ".bim"),
+                        fam=paste0(plink_prefix, ".fam"),
+                        select.snps = v)
+crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
+
+pseudocell_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", "DNA2_rs10998212"))) %>% 
+  dplyr::rename(beta_gxc = `DNA2_rs10998212`) %>%
+  left_join(select(pseudocell_exp, c(`...1`, DNA2)), by=c("PSEUDOCELL"="...1")) %>%
+  mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
+  left_join(crm_genotypes_df, by=c("donor")) %>%
+  mutate(genotype=factor(genotype))
+
+pseudocell_df_phased <- pseudocell_df %>% 
+  left_join(pseudocell_phases, by=c("PSEUDOCELL"="pseudocell"))
+```
+
+For visualization, we will also plot the periodic loess fit specific to each genotype
+```{r}
+periodic_loess_1 <- fit_periodic_loess(theta.v=filter(pseudocell_df_phased, genotype==1)$state,
+                                       y=filter(pseudocell_df_phased, genotype==1)$DNA2,
+                                       plot=F)
+periodic_loess_2 <- fit_periodic_loess(theta.v=filter(pseudocell_df_phased, genotype==2)$state,
+                                       y=filter(pseudocell_df_phased, genotype==2)$DNA2,
+                                       plot=F)
+periodic_loess_3 <- fit_periodic_loess(theta.v=filter(pseudocell_df_phased, genotype==3)$state,
+                                       y=filter(pseudocell_df_phased, genotype==3)$DNA2,
+                                       plot=F)
+loess_fits <- as_tibble(bind_rows(periodic_loess_1$pred.df,
+                        periodic_loess_2$pred.df,
+                        periodic_loess_3$pred.df)) %>%
+  mutate(genotype=factor(rep(c(1, 2, 3), each=200)))
+```
+
+```{r}
+crm_qtl_plot_phase_periodic_loess <- ggplot(pseudocell_df_phased, aes(x=state, y=DNA2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  labs(color=v) +
+  geom_line(data=loess_fits, aes(x=x, y=y, color=genotype), linewidth=1.2) +
+  xlab("Cell Cycle Phase") + ylab("DNA2 Expression")
+crm_qtl_plot_phase_periodic_loess
+```
+Try with a circular plot
+```{r}
+crm_qtl_plot_phase_circle_loess <- ggplot(pseudocell_df_phased, aes(x=state, y=DNA2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(),
+        axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  labs(color=v) +
+  geom_line(data=loess_fits, aes(x=x, y=y, color=genotype)) +
+  coord_polar()
+crm_qtl_plot_phase_circle_loess
+```
+
+
+
+```{r}
+crm_qtl_plot_linear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=DNA2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "lm") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("DNA2 Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_linear
+
+crm_qtl_plot_nonlinear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=DNA2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "loess") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("DNA2 Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_nonlinear
+```
+

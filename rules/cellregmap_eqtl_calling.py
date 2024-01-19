@@ -99,7 +99,7 @@ rule run_interaction_test_fasttopics:
         mem_mb = 20000,
         time = "24:00:00"
     input:
-        test_eqtl_file="data/cellregmap/mash-signif_variant_gene_pairs.maf0.1.bed",
+        test_eqtl_file="data/cellregmap/{variant_group}_variant_gene_pairs.maf0.1.bed",
         sample_mapping_file = "data/cellregmap/pseudocell_metadata.tsv",
         genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed" ,
         kinship_file = "data/genotypes/yri_kinship.tsv",
@@ -197,3 +197,19 @@ rule crm_to_bed:
     conda: "../slurmy/r-mashr.yml"
     script:
         "../code/static_eqtl_followup/crm_to_bed.R"
+        
+## TROAP
+rule filter_tests_troap:
+    resources:
+        mem_mb=50000,
+        time="3:00:00"
+    input:
+        test_eqtl_file="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/troap-region_variant_gene_pairs.bed",
+        genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed"
+    output:
+        filtered_eqtl_file="data/cellregmap/troap-region_variant_gene_pairs.maf0.1.bed"
+    conda: 
+        "../slurmy/cellregmap.yml"
+    script:
+        "../code/cellregmap_eqtl_calling/filter_tests_fullpanel_maf_0.1.py"
+

@@ -75,6 +75,7 @@ rule list_trans_qtl_candidate_variants:
         eb_hits="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/signif_variant_gene_pairs.tsv",
         eb_gtex_overlap="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
         gmt="data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt",
+        gtf="data/gencode/gencode.hg38.filtered.gtf",
         bim="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
     output:
         candidate_info="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/trans_eqtl_variant_candidate_info.{gs}.tsv",

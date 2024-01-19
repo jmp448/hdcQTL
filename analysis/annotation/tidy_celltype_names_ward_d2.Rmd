@@ -28,7 +28,7 @@ eb_pseudobulk_norm <- DGEList(counts=t(eb_pseudobulk_counts_agg)) %>%
   calcNormFactors(method="TMM") %>% 
   edgeR::cpm(log=T)
 
-hierarchical_clustering <- hclust(dist(t(eb_pseudobulk_norm)), method="ward.D2")
+hierarchical_clustering <- hclust(dist(t(eb_pseudobulk_norm)), method="ward.D")
 plot(hierarchical_clustering)
 
 type_order <- hierarchical_clustering$labels[hierarchical_clustering$order]
@@ -36,40 +36,22 @@ type_order <- hierarchical_clustering$labels[hierarchical_clustering$order]
 
 ```{r}
 avg_dend_obj <- as.dendrogram(hierarchical_clustering)
-avg_col_dend <- color_branches(avg_dend_obj, col=c("#004D80", "#00AB8E", "#970E53", "#0076BA", "#FEAE00", "#965C3D", "#B51700"), h = 125)
+avg_col_dend <- color_branches(avg_dend_obj, col=c("#004D80", "#00AB8E", "#0076BA", "#B51700", "#FEAE00", "#965C3D", "#970E53"), h = 125)
 plot(avg_col_dend)
 ```
-```{r fig.height=8, fig.width=10}
-rotated_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells", 
-                   "CNS-neurons" , "Retinal-cells", "CNS-glia",
-                   "Metanephric-cells", "Ciliated-epithelial-cells",
-                   "Acinar-cells", "Ductal-cells", "Erythroblasts",
-                   "PNS-glia",  "Lymphoid-cells", "Megakaryocytes",
-                   "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
+```{r fig.height=4, fig.width=6}
+rotated_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+                   "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia",
+                   "Metanephric-cells", "Erythroblasts", "Ciliated-epithelial-cells",
+                   "Acinar-cells", "Ductal-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
                    "Parietal-and-chief-cells", "Ureteric-bud-cells",
-                   "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts",
                    "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
                    "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
-                   "Vascular-endothelial-cells")  
+                   "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                   "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts")  
 par(mar = c(2,2,2,20))
 rotate(avg_col_dend, order=rotated_order) %>% 
   set("labels_cex", 1.2) %>%
   plot(horiz=T)
 ```
-
-## Heat map
-```{r}
-markers <- c("POU5F1", "NANOG", "SOX2", "NES", "MAP2", "PAX6", "SOX10",
-             "MIXL1", "SOX17", "HAND1", "TNNT2", "AFP",
-             "GNG11")
-
-marker_exp <- as_tibble(eb_pseudobulk_norm[intersect(markers, rownames(eb_pseudobulk_norm)),], rownames="gene") %>%
-  pivot_longer(!gene, names_to="celltype", values_to="exp") 
-  
-ggplot(marker_exp, aes(x=gene, y=celltype, fill=exp)) +
-  geom_tile() + 
-  scale_fill_viridis()
-```
-
-
 

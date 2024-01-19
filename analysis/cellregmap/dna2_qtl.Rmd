@@ -1,0 +1,183 @@
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+library(ggblend)
+library(patchwork)
+library(vroom)
+library(snpStats)
+library(tricycle)
+```
+
+Get all effect sizes
+```{r}
+crm_signif <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.sighits.tsv")
+crm_iegenes <- crm_signif$EB_HGNC
+
+crm_betas <- vroom(paste0("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.", crm_iegenes, ".cellregmap.betas.tsv"))
+crm_betas_wide <- dplyr::select(crm_betas, c(PSEUDOCELL, BETA_GXC, EB_HGNC, EB_VARIANT_ID)) %>%
+  unite(EB_QTL, EB_HGNC, EB_VARIANT_ID, sep="_") %>%
+  pivot_wider(id_cols=PSEUDOCELL, names_from=EB_QTL, values_from=BETA_GXC)
+
+topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
+
+crm_betas_loadings <- left_join(crm_betas_wide, topic_loadings, by=c("PSEUDOCELL"="pseudocell"))
+
+beta_topic_corrs <- cor(dplyr::select(crm_betas_loadings, -c(PSEUDOCELL, paste0("k", seq(10)))),
+                        dplyr::select(crm_betas_loadings, c(k8)))
+
+pseudocell_phases <- read_tsv("temp/pseudocell_phases_tricycle.tsv")
+```
+
+### DNA2_rs10998212
+```{r}
+pseudocell_exp_loc <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/eb_pseudocells_normalized.tsv"
+plink_prefix <- "/project2/gilad/jpopp/ebQTL/data/genotypes/yri_maf0.1_all.hg38"
+
+g <- "DNA2"
+v <- "rs10998212"
+
+pseudocell_exp <- vroom(pseudocell_exp_loc)
+genotypes <- read.plink(bed=paste0(plink_prefix, ".bed"),
+                        bim=paste0(plink_prefix, ".bim"),
+                        fam=paste0(plink_prefix, ".fam"),
+                        select.snps = v)
+crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
+
+pseudocell_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", "DNA2_rs10998212"))) %>% 
+  dplyr::rename(beta_gxc = `DNA2_rs10998212`) %>%
+  left_join(select(pseudocell_exp, c(`...1`, DNA2)), by=c("PSEUDOCELL"="...1")) %>%
+  mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
+  left_join(crm_genotypes_df, by=c("donor")) %>%
+  mutate(genotype=factor(genotype))
+
+pseudocell_df_phased <- pseudocell_df %>% 
+  left_join(pseudocell_phases, by=c("PSEUDOCELL"="pseudocell"))
+```
+
+For visualization, we will also plot the periodic loess fit specific to each genotype
+```{r}
+periodic_loess_1 <- fit_periodic_loess(theta.v=filter(pseudocell_df_phased, genotype==1)$state,
+                                       y=filter(pseudocell_df_phased, genotype==1)$DNA2,
+                                       plot=F)
+periodic_loess_2 <- fit_periodic_loess(theta.v=filter(pseudocell_df_phased, genotype==2)$state,
+                                       y=filter(pseudocell_df_phased, genotype==2)$DNA2,
+                                       plot=F)
+periodic_loess_3 <- fit_periodic_loess(theta.v=filter(pseudocell_df_phased, genotype==3)$state,
+                                       y=filter(pseudocell_df_phased, genotype==3)$DNA2,
+                                       plot=F)
+loess_fits <- as_tibble(bind_rows(periodic_loess_1$pred.df,
+                        periodic_loess_2$pred.df,
+                        periodic_loess_3$pred.df)) %>%
+  mutate(genotype=factor(rep(c(1, 2, 3), each=200)))
+```
+
+```{r}
+phase_breaks <- c(0, pi/2, pi, 3*pi/2, 2*pi)
+phase_labels <- c("0", "\U03C0/2", "\U03C0", "3\U03C0/2", "2\U03C0")
+
+crm_qtl_plot_phase_periodic_loess <- ggplot(pseudocell_df_phased, aes(x=state, y=DNA2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank()) +
+  scale_x_continuous(breaks=phase_breaks, 
+                     labels=phase_labels) +
+  labs(color=v) +
+  geom_line(data=loess_fits, aes(x=x, y=y, color=genotype), linewidth=1.2) +
+  xlab("Cell Cycle Phase") + ylab("DNA2 Expression")
+crm_qtl_plot_phase_periodic_loess
+```
+
+
+```{r}
+crm_qtl_plot_linear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=DNA2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "lm") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("DNA2 Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_linear
+
+crm_qtl_plot_nonlinear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=DNA2, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "loess") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("DNA2 Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_nonlinear
+```
+
+```{r, fig.width=8, fig.height=4}
+topics_kept <- c('k1','k2', 'k4','k5','k6', 'k7', 'k8', 'k10')
+structure_df <- topic_loadings %>%
+  dplyr::select(all_of(c("pseudocell", topics_kept))) %>%
+  inner_join(filter(crm_betas, (EB_VARIANT_ID=="rs10998212") & (EB_HGNC=="DNA2")), by=c("pseudocell"="PSEUDOCELL")) %>%
+  pivot_longer(cols=topics_kept, names_to="topic", values_to="loading") %>%
+  mutate(topic=factor(topic, levels=topics_kept))
+
+structure_plot <- ggplot(structure_df, aes(x=BETA_GXC, y=loading, fill=topic)) +
+  geom_col(width=1e-3) +
+  theme_classic(base_size=15) +
+  scale_fill_manual(values=brewer.pal(9, 'Set1')) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("Topic Loadings") +
+  labs(fill="Topic")
+structure_plot
+```
+
+Last, show the relationship between topic 8 loadings and cell cycle phase
+```{r}
+loadings_phase <- left_join(topic_loadings, pseudocell_phases, by="pseudocell")
+loadings_phase_sample <- sample_n(loadings_phase, size=5000)
+k8_fit <- as_tibble(fit_periodic_loess(theta.v=loadings_phase_sample$state,
+                             y=loadings_phase_sample$k8,
+                             plot=F)$pred.df) %>%
+  dplyr::rename(state=x, k8=y)
+
+k8_cell_cycle <- ggplot(loadings_phase, aes(x=state, y=k8)) +
+  geom_point(size=0.25, color="grey", alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  scale_x_continuous(breaks=phase_breaks, 
+                     labels=phase_labels) +
+  xlab("Cell cycle phase") + ylab("Topic 8 loading") +
+  geom_line(data=k8_fit, aes(x=state, y=k8)) +
+  theme_classic(base_size=15)
+k8_cell_cycle
+```
+
+
+```{r, fig.width=8, fig.height=6}
+layout <- "
+AACCC
+AADDD
+BBEEE"
+loadings_plot +
+  wrap_elements(full=k8_cell_cycle) + 
+  structure_plot + crm_qtl_plot_linear +
+  crm_qtl_plot_phase_periodic_loess +
+  plot_layout(design=layout)
+```
+
+
+<!-- ### Circular plot -->
+<!-- ```{r} -->
+<!-- crm_qtl_plot_phase_circle_loess <- ggplot(pseudocell_df_phased, aes(x=state, y=DNA2, color=genotype)) + -->
+<!--   geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) + -->
+<!--   theme_classic(base_size=15)+ -->
+<!--   scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) + -->
+<!--   theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), -->
+<!--         axis.ticks.x=element_blank(), axis.text.x=element_blank()) + -->
+<!--   labs(color=v) + -->
+<!--   geom_line(data=loess_fits, aes(x=x, y=y, color=genotype)) + -->
+<!--   coord_polar() -->
+<!-- crm_qtl_plot_phase_circle_loess -->
+<!-- ``` -->
+

@@ -107,17 +107,76 @@ ora %>% arrange(pFishersExact) %>%
   dplyr::select(geneSet, oddsRatio, bhFishersExact) %>%
   filter(bhFishersExact <= 0.05)
 ```
+Save result for supplemental table
+```{r}
+gsea_results <- select(ora, c(geneSet, geneListSize, geneSetSize,
+                              overlap, nGenes, propInList, propInSet,
+                              oddsRatio, pFishersExact)) %>%
+  write_tsv("/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/gsea_results.tsv")
+```
+
+
+
+```{r fig.height=3, fig.width=10}
+gsea_viz <- ora %>% arrange(pFishersExact) %>% 
+  dplyr::select(geneSet, oddsRatio, bhFishersExact) %>%
+  filter(bhFishersExact <= 0.05) 
+
+or_order <- gsea_viz %>% 
+  arrange(desc(oddsRatio)) %>%
+  pull(geneSet)
+
+is_dev <- tibble("geneSet"=c("GOBP_MUSCLE_TISSUE_DEVELOPMENT",
+                             "GOBP_MUSCLE_STRUCTURE_DEVELOPMENT",
+                             "GOBP_POSITIVE_REGULATION_OF_TRANSCRIPTION_BY_RNA_POLYMERASE_II",
+                             "GOBP_ANIMAL_ORGAN_MORPHOGENESIS",
+                             "GOBP_GROWTH",
+                             "GOBP_CIRCULATORY_SYSTEM_DEVELOPMENT",
+                             "GOBP_CENTRAL_NERVOUS_SYSTEM_DEVELOPMENT",
+                             "GOBP_TISSUE_DEVELOPMENT",
+                             "GOBP_REGULATION_OF_CELL_POPULATION_PROLIFERATION",
+                             "GOBP_POSITIVE_REGULATION_OF_RNA_METABOLIC_PROCESS",
+                             "GOBP_POSITIVE_REGULATION_OF_SIGNALING"),
+                 "geneSetLower"=c("Muscle Tissue Development",
+                                  "Muscle Structure Development",
+                                  "Positive Regulation of Transcription by RNA Polymerase II",
+                                  "Animal Organ Morphogenesis",
+                                  "Growth",
+                                  "Circulatory System Development",
+                                  "Central Nervous System Development",
+                                  "Tissue Development",
+                                  "Regulation of Cell Population Proliferation",
+                                  "Positive Regulation of RNA Metabolic Process",
+                                  "Positive Regulation of Signaling"),
+                 "is_dev"=c(T, T, F, T, F, T, T, T, F, F, F))
+
+gsea_viz <- gsea_viz %>%
+  left_join(is_dev, by="geneSet") %>%
+  arrange(desc(oddsRatio)) %>%
+  mutate(geneSetLower = factor(geneSetLower, levels=rev(.$geneSetLower)))
+
+ggplot(gsea_viz, aes(x=geneSetLower, y=oddsRatio, fill=is_dev)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  theme_classic(base_size=30) +
+  ylab("Odds Ratio") + xlab("Gene Set") +
+  scale_fill_manual(values=c("#DEDEDE", "#B51700")) +
+  geom_hline(aes(yintercept=1), linetype="dashed") +
+  theme(legend.position="none", axis.text.x=element_text(colour="black"))
+```
+
 
 ### Validation
-We expect to see some of these due to the depletion of some of these gene sets in regular eQTLs
+We expect to see some of these results arise exclusively due to the depletion these gene sets 
+among GTEx eQTLs
 
 To validate, let's look at the distribution of TSS distance among the tissue development eQTLs
 ```{r}
 tissue_dev_genes <- rownames(gmt_mat)[which(gmt_mat[,"GOBP_TISSUE_DEVELOPMENT"]==1)]
-novel_egenes_tissue_dev <- intersect(tissue_dev_genes, setdiff(all_egenes, overlap_egenes))
+novel_egenes_tissue_dev <- intersect(tissue_dev_genes, setdiff(unique(eb_all$phenotype_id), intersect(eb_distinct$EB_HGNC, gtex_distinct$EB_HGNC)))
 
-novel_tissue_dev_qtls <- filter(eb_all, EB_HGNC %in% novel_egenes_tissue_dev) %>%
-  unite(gv, EB_HGNC, EB_VARIANT_ID, sep="--", remove=F)
+novel_tissue_dev_qtls <- filter(eb_all, phenotype_id %in% novel_egenes_tissue_dev) %>%
+  unite(gv, phenotype_id, variant_id, sep="--", remove=F)
 ```
 
 To do so, we also need the gene TSS
@@ -126,6 +185,33 @@ gtf <- vroom("data/gencode/gencode.hg38.filtered.gtf") %>%
   mutate(tss = if_else(strand == "+", start, end)) %>%
   dplyr::select(hgnc, tss)
 ```
+
+We also need variant positions
+```{r}
+bim <- vroom("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim",
+             col_names=c("#CHR", "variant_id", "POS_CM", "POS_BP", "ALLELE_1", "ALLELE_2"),
+             col_select=c("#CHR", "variant_id", "POS_BP"))
+```
+
+Now compare the distribution of tissue development QTLs vs all tested variants
+```{r}
+all_tests <- vroom("")
+novel_tissue_dev_indicator <- select(novel_tissue_dev_qtls, c(phenotype_id, variant_id)) %>%
+  mutate(is_dev = T) %>%
+  distinct()
+
+all_qtls_labeled <- eb_distinct %>%
+  left_join(novel_tissue_dev_indicator, by=c("EB_HGNC"="phenotype_id", "EB_VARIANT_ID"="variant_id")) %>%
+  replace_na(list(is_dev=F)) %>%
+  left_join(gtf, by=c("EB_HGNC"="hgnc")) %>%
+  left_join(select(bim, c(variant_id, POS_BP)), by=c("EB_VARIANT_ID"="variant_id")) %>%
+  mutate(tssdist=map2_int(tss, POS_BP, `-`))
+
+ggplot(all_qtls_labeled, aes(x=tssdist, fill=is_dev)) +
+  geom_density()
+```
+
+
 
 <!-- The connective tissue development enrichment is exciting, see which cell types that came from -->
 <!-- ```{r} -->

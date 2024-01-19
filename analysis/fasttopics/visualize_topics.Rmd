@@ -5,7 +5,6 @@ output: html_document
 
 ##### Use the eb data of pseudocell samples
 ```{r setup, include=FALSE}
-# load necessary packages
 library(gseasusie)
 library(pathways)
 library(dplyr)
@@ -15,23 +14,53 @@ library(susieR)
 library(data.table)
 library(qvalue)
 library(RColorBrewer)
+library(viridis)
+library(vroom)
 ```
 
-# Load Model from Topic DE Analysis
-Load the following objects from the topic DE Analysis
-- counts
-- dfa_out
-- fit
-- fit_multinom
+
+## Comparing topics to cell type labels
 ```{r}
-de_fitted_model_loc <- "results/fast_topics/fasttopics_10topics_de_analysis.Rdata"
-load(de_fitted_model_loc)
+topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
+pseudocell_map <- vroom("data/fast_topics/cell_pseudocell_mapping.tsv")
+celltype_labels <- vroom("data/fca/eb_cellid_labels.tsv")
 ```
 
-# Structure Plot
 ```{r}
-structure_plot(fit_multinom, colors=brewer.pal(10, "Paired"), topics = 1:10,gap = 50, perplexity=4, num_threads = 4, verbose = F) 
+celltypes_topics <- celltype_labels %>%
+  left_join(pseudocell_map, by="cell") %>%
+  right_join(topic_loadings, by=c("pseudocell_15"="pseudocell"))
 ```
+
+Get the median topic loading per cell type
+```{r fig.height=4, fig.width=7}
+type_levels <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+                   "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia",
+                   "Metanephric-cells", "Erythroblasts", "Ciliated-epithelial-cells",
+                   "Acinar-cells", "Ductal-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
+                   "Parietal-and-chief-cells", "Ureteric-bud-cells",
+                   "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
+                   "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                   "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                   "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts")  
+
+celltypes_topics_summarized <- celltypes_topics %>%
+  dplyr::select(value, starts_with("k")) %>%
+  pivot_longer(cols=starts_with("k"), names_to="topic", values_to="loading") %>%
+  group_by(value, topic) %>%
+  summarize(celltype_median=median(loading)) %>%
+  mutate(type=factor(str_replace_all(value, " ", "-"), levels=type_levels)) %>%
+  mutate(topic=factor(topic, levels=paste0("k", seq(10)))) %>%
+  drop_na() 
+
+loadings_plot <- ggplot(celltypes_topics_summarized, aes(x=topic, y=type, fill=celltype_median)) +
+  geom_tile() +
+  scale_fill_viridis() +
+  xlab("Topic") + ylab("Cell Type") + labs(fill="Median Topic Loading") +
+  theme_classic(base_size=15)
+loadings_plot
+```
+
 
 ## Topic Characterization
 ### Load GO BP pathways and filter to genes in the EB dataset
@@ -246,20 +275,4 @@ if (!is.null(logistic.fit.10$sets$cs)) {
 
 ora.10 %>% arrange(pHypergeometric) %>% head(n=5)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

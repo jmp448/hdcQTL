@@ -1,0 +1,133 @@
+```{r}
+library(vroom)
+library(tidyverse)
+library(qvalue)
+library(RColorBrewer)
+library(data.table)
+library(snpStats)
+library(ggblend)
+library(patchwork)
+```
+
+### Visualizing CRM
+Load all effect size estimates of significant CRM eQTLs
+```{r}
+crm_sighits <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.sighits.tsv")
+crm_siggenes <- crm_sighits$EB_HGNC
+
+crm_betas <- vroom(paste0("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.",crm_siggenes, ".cellregmap.betas.tsv"))
+
+crm_betas_wide <- select(crm_betas, c(PSEUDOCELL, BETA_GXC, EB_HGNC, EB_VARIANT_ID)) %>%
+  unite(EB_QTL, EB_HGNC, EB_VARIANT_ID, sep="_") %>%
+  pivot_wider(id_cols=PSEUDOCELL, names_from=EB_QTL, values_from=BETA_GXC)
+```
+
+Next, load the topic loadings
+```{r}
+topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
+
+crm_betas_loadings <- left_join(crm_betas_wide, topic_loadings, by=c("PSEUDOCELL"="pseudocell"))
+
+betas_only <- crm_betas_loadings[, seq(ncol(crm_betas_loadings)-10)] %>%
+  column_to_rownames("PSEUDOCELL")
+topics_only <- crm_betas_loadings[, c(1, seq(ncol(crm_betas_loadings)-9, ncol(crm_betas_loadings)))] %>%
+  column_to_rownames("PSEUDOCELL")
+
+beta_topic_cor <- cor(betas_only, topics_only)
+
+write_tsv(as_tibble(betas_only, rownames="PSEUDOCELL"), "results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.betas.tsv")
+```
+
+Visualize an example of a nonlinear dynamic eQTL 
+```{r}
+ex_gene = "AS3MT"
+ex_snp = "rs7096169"
+```
+
+```{r}
+neur_exp <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene ==g) %>%
+  select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+neur_genotype_df <- as_tibble(fread("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/5clpcs/genotype_df.tsv")[snp == ex_snp,]) %>% 
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+neur_pseudotime <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+```
+
+```{r}
+dynamic_qtl_plot <- inner_join(dplyr::select(neur_exp, c("ind_type", "expression")), 
+           dplyr::select(neur_genotype_df, c("ind_type", "genotype")), 
+           by="ind_type") %>%
+  inner_join(neur_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(lwd=1.25) +
+  theme_classic(base_size=15) +
+  theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
+  scale_fill_manual(labels=c("TT", "TA", "AA"), values=brewer.pal(3, "Set1")) +
+  xlab("Pseudotime Bin") +
+  ylab(paste0(ex_gene, " Expression")) +
+  labs(fill=ex_snp)
+dynamic_qtl_plot
+```
+
+Look at the structure plot for this variant
+```{r}
+topics_kept <- c('k1','k2', 'k4','k5','k6', 'k7', 'k8', 'k10')
+structure_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", paste0(ex_gene, "_", ex_snp), topics_kept))) %>%
+  pivot_longer(-c(PSEUDOCELL, as.name(paste0(ex_gene, "_", ex_snp))), names_to="topic", values_to="loading") %>%
+  mutate(topic=factor(topic, levels=topics_kept))
+```
+
+```{r, fig.width=8, fig.height=4}
+structure_plot <- ggplot(structure_df, aes(x=`AS3MT_rs7096169`, y=loading, fill=topic)) +
+  geom_col(width=1e-3) +
+  theme_classic(base_size=15) +
+  scale_fill_manual(values=brewer.pal(10, 'Set1')) +
+  theme(legend.position="none", axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("Topic Loadings")
+structure_plot
+```
+
+Also get the pseudobulk expression 
+```{r}
+pseudocell_exp <- vroom("data/single_cell_objects/eb_pseudocells_normalized.tsv")
+genotypes <- read.plink(bed="data/genotypes/yri_maf0.1_all.hg38.bed",
+                        bim="data/genotypes/yri_maf0.1_all.hg38.bim",
+                        fam="data/genotypes/yri_maf0.1_all.hg38.fam",
+                        select.snps = ex_snp)
+crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
+
+pseudocell_df <- crm_betas_loadings %>%
+  select(all_of(c("PSEUDOCELL", "AS3MT_rs7096169"))) %>% 
+  rename(beta_gxc = AS3MT_rs7096169) %>%
+  left_join(select(pseudocell_exp, c(`...1`, AS3MT)), by=c("PSEUDOCELL"="...1")) %>%
+  mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
+  left_join(crm_genotypes_df, by=c("donor")) %>%
+  mutate(genotype=factor(genotype))
+
+crm_qtl_plot <- ggplot(pseudocell_df, aes(x=beta_gxc, y=AS3MT, color=genotype)) +
+  geom_point(size=0.25) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
+  geom_smooth(method = "lm") +
+  theme_classic(base_size=15)+
+  scale_color_manual(labels=c("TT", "TA", "AA"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("AS3MT Expression") +
+  labs(color=ex_snp)
+crm_qtl_plot
+```
+```{r, fig.height=6, fig.width=10}
+layout <- "
+AABBB
+AACCC
+##DDD
+"
+loadings_plot + structure_plot + crm_qtl_plot + dynamic_qtl_plot +
+  plot_layout(design = layout)
+```
+
+
