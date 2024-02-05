@@ -2,6 +2,7 @@
 #TODO incorporate pull_differentiation_genesets.R, maybe wrangle_geneset.R
 
 rule process_gtf:
+    # gtf from https://www.10xgenomics.com/support/software/cell-ranger/downloads
     resources:
         mem_mb=10000,
         time="30:00"
@@ -102,6 +103,7 @@ rule h5ad_to_sce:
         "../slurmy/r-fca.yml"
     script:
         "../code/annotation/convert_h5ad_to_sce.R"
+
 rule learn_signatures_77:
     resources:
         mem_mb=200000,
@@ -135,7 +137,69 @@ rule classify_ebs_77:
         "../slurmy/r-fca.yml"
     script:
         "../code/annotation/classify_ebs.R"
- 
+
+rule assess_signatures_77:
+    resources:
+        mem_mb=200000,
+        time="06:00:00"
+    input:
+        counts="data/fca/counts.sampled.rds",
+        cell_metadata="data/fca/cell_metadata.rds",
+        gene_metadata="data/fca/gene_metadata.rds",
+        pc_genes="data/fca/protein_coding_genes.tsv"
+    output:
+        train_77="data/fca/fca_train.lognorm.mca.77celltypes.sce",
+        test_77="data/fca/fca_test.lognorm.mca.77celltypes.sce",
+        signatures_77="data/fca/assessment_signatures.77celltypes.rds"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/assess_signatures_77.R"
+        
+rule compare_signatures_77:
+    resources:
+        mem_mb=200000,
+        time="06:00:00"
+    input:
+        test_77="data/fca/fca_test.lognorm.mca.77celltypes.sce",
+        signatures_77="data/fca/assessment_signatures.77celltypes.rds"
+    output:
+        labeled_test_77="data/fca/fca_test.lognorm.labeled.77celltypes.sce"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/compare_signatures_77.R"
+
+rule assess_signatures_subset:
+    resources:
+        mem_mb=200000,
+        time="06:00:00"
+    input:
+        sce="data/fca/counts.subsampled.sce",
+        pc_genes="data/fca/protein_coding_genes.tsv"
+    output:
+        train_subset="data/fca/fca_train.lognorm.mca.subset_celltypes.sce",
+        test_subset="data/fca/fca_test.lognorm.mca.subset_celltypes.sce",
+        signatures_subset="data/fca/assessment_signatures.subset_celltypes.rds"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/assess_signatures_subset.R"
+        
+rule compare_signatures_subset:
+    resources:
+        mem_mb=200000,
+        time="06:00:00"
+    input:
+        test_subset="data/fca/fca_test.lognorm.mca.subset_celltypes.sce",
+        signatures_subset="data/fca/assessment_signatures.subset_celltypes.rds"
+    output:
+        labeled_test_subset="data/fca/fca_test.lognorm.labeled.subset_celltypes.sce"
+    conda:
+        "../slurmy/r-fca.yml"
+    script:
+        "../code/annotation/compare_signatures_subset.R"
+
 rule classify_ebs:
     resources:
         mem_mb=250000,

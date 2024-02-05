@@ -1,0 +1,23 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+cell_types <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                        
+                "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia","Metanephric-cells", 
+                "Erythroblasts", "Ciliated-epithelial-cells", "Acinar-cells", "Ductal-cells", 
+                "Bronchiolar-and-alveolar-epithelial-cells","Adrenocortical-cells", "Parietal-and-chief-cells", "Ureteric-bud-cells", 
+                "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells", 
+                "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts") 
+
+for (c in cell_types) {
+  type_exp <- read_tsv(paste0("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", c, "/expression.tsv"))
+  exp_median <- pivot_longer(type_exp, !gene, values_to="exp", names_to=NULL) %>%
+    group_by(gene) %>%
+    summarize(exp_med=median(exp))
+}
+```
+
+

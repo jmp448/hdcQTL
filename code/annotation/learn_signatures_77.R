@@ -7,11 +7,11 @@ library(CelliD)
 
 set.seed(42)
 
-fca_counts_loc="data/fca/counts.sampled.rds"
-fca_cell_metadata_loc="data/fca/cell_metadata.rds"
-fca_gene_metadata_loc="data/fca/gene_metadata.rds"
-hvg_loc="data/fca/fca_subsampled_hvg.tsv"
-pcg_loc="data/gencode/gencode.hg38.filtered.gtf"
+# fca_counts_loc="data/fca/counts.sampled.rds"
+# fca_cell_metadata_loc="data/fca/cell_metadata.rds"
+# fca_gene_metadata_loc="data/fca/gene_metadata.rds"
+# hvg_loc="data/fca/fca_subsampled_hvg.tsv"
+# pcg_loc="data/gencode/gencode.hg38.filtered.gtf"
 
 # Read snakemake inputs
 fca_counts_loc <- snakemake@input[['counts']]
