@@ -1,0 +1,196 @@
+```{r}
+library(tidyverse)
+library(SingleCellExperiment)
+library(Matrix)
+library(Matrix.utils)
+library(corrplot)
+library(gplots)
+library(edgeR)
+library(dendextend)
+library(vroom)
+library(patchwork)
+```
+
+## Hierarchical clustering of annotated cell types
+```{r fig.height=6, fig.width=6}
+eb_pseudobulk_counts <- vroom("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/pseudobulk_all.tsv") %>%
+  column_to_rownames("gene") %>% t %>% as("dgCMatrix")
+
+eb_pseudobulk_counts_agg <- aggregate.Matrix(eb_pseudobulk_counts, 
+                                             groupings=str_extract(rownames(eb_pseudobulk_counts), "[^_]+$"), 
+                                             fun="sum")
+
+gtf_pcgs <- vroom("data/gencode/gencode.hg38.filtered.gtf")
+pcgs <- gtf_pcgs$hgnc
+hvgs <- read_tsv("data/fca/fca_subsampled_hvg.tsv")
+
+keeper_genes <- intersect(intersect(colnames(eb_pseudobulk_counts_agg), pcgs), hvgs$gene)
+eb_pseudobulk_counts_agg <- eb_pseudobulk_counts_agg[,keeper_genes]
+eb_pseudobulk_norm <- DGEList(counts=t(eb_pseudobulk_counts_agg)) %>% 
+  calcNormFactors(method="TMM") %>% 
+  edgeR::cpm(log=T)
+
+hierarchical_clustering <- hclust(dist(t(eb_pseudobulk_norm)), method="ward.D2")
+plot(hierarchical_clustering)
+
+type_order <- hierarchical_clustering$labels[hierarchical_clustering$order]
+```
+
+```{r fig.height=8, fig.width=10}
+avg_dend_obj <- as.dendrogram(hierarchical_clustering)
+avg_col_dend <- color_branches(avg_dend_obj, col=c("#004D80", "#00AB8E", "#970E53", "#0076BA", "#FEAE00", "#965C3D", "#B51700"), h = 125)
+
+rotated_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells", 
+                   "CNS-neurons" , "Retinal-cells", "CNS-glia",
+                   "Metanephric-cells", "Ciliated-epithelial-cells",
+                   "Acinar-cells", "Ductal-cells", "Erythroblasts",
+                   "PNS-glia",  "Lymphoid-cells", "Megakaryocytes",
+                   "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
+                   "Parietal-and-chief-cells", "Ureteric-bud-cells",
+                   "Vascular-endothelial-cells",
+                   "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
+                   "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                   "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts")  
+```
+
+```{r fig.height=4, fig.width=5}
+par(mar = c(2,2,2,40))
+rotate(avg_col_dend, order=rotated_order) %>% 
+  set("labels_cex", 1.5) %>%
+  plot(horiz=T)
+```
+
+## UMAP Embedding
+Load the UMAP embedding and cell type assignments
+```{r}
+umap <- vroom("data/single_cell_objects/eb_pflog1ppfnorm.hvg.umap_embedding.txt", col_names=c("UMAP_1", "UMAP_2"))
+celltypes <- vroom("data/fca/eb_cellid_labels.tsv")
+
+sc_annotated <- celltypes %>%
+  mutate(umap1=umap$UMAP_1, umap2=umap$UMAP_2)
+```
+
+Assign colors for each cell type in following with the hierarchical clustering above
+```{r}
+type_order_with_unassigned <- c(rotated_order, "unassigned")
+type_colors <- c("#130063", "#192594", "#004D80", 
+                 "#7F7FFF", "#316DFF", "#1B7FFF", "#0097FF", "#7298BB", 
+                 "#7F9ACE", "#8CB4D5", "#96C0E5", "#98BEC6", 
+                 "#00AB8E", "#3EBFBB", "#55D0B7", "#25C683", 
+                 "#860B1E", "#9B1716", "#B51700", "#B13B3E", 
+                 "#CC4E4F", "#D32323", "#FF0000",
+                 "#965C3D", "#8410D3", "#84108A",  
+                 "#FEDE7F", "#FED255", "#FEAE00", 
+                 "#D5D5D5") 
+
+color_map <- tibble(type = type_order_with_unassigned, color = type_colors) %>%
+  mutate(type_spaced = str_replace_all(type, "-", " "))
+```
+
+```{r fig.width=8, fig.height=4}
+umap_viz <- sc_annotated %>%
+  mutate(value = factor(value, levels=color_map$type_spaced)) %>%
+  drop_na() # removes a few very rare cell types in the EB data
+
+umap_plot <- ggplot(umap_viz, aes(x=umap1, y=umap2, color=value)) +
+  geom_point(size=1e-5) +
+  theme_classic(base_size=20) +
+  scale_color_manual(values = color_map$color) + 
+  theme(axis.ticks.x = element_blank(), axis.text.x=element_blank(),
+        axis.ticks.y=element_blank(), axis.text.y=element_blank(),
+        legend.position="none") +
+  xlab("UMAP1") + ylab("UMAP2")
+```
+
+### Cell reassignment
+How many of the unassigned cells are re-annotated using a classifier that includes an IPSC label?
+```{r}
+celltypes_ipsc <- vroom("data/fca/eb_cellid_labels.with_ipsc.tsv")
+
+reassigned_cells <- filter(celltypes, value=="unassigned") %>%
+  left_join(celltypes_ipsc, by="cell")
+
+sum(reassigned_cells$value.y=="IPSC") / nrow(reassigned_cells)
+```
+
+
+## Overview of Pseudobulk Data
+We see that the proportion of cells mapping to each cell type varies widely between donors
+```{r, fig.height=8, fig.width=8}
+cell_metadata <- vroom("data/single_cell_objects/highpass/eb_metadata.tsv")
+
+donor_celltype <- dplyr::select(cell_metadata, c("cell", "donor_id")) %>%
+  inner_join(dplyr::select(sc_annotated, c("cell", "value"))) 
+```
+
+Here's what it looks like for different cutoffs on the number of cells req'd for a 
+pseudobulk sample
+```{r}
+thresholds <- seq(10) * 5
+all_donors <- unique(donor_celltype$donor_id)
+
+count_celltypes <- function(df, thresh, d) {
+  dplyr::count(df, donor_id, value) %>% filter((n>=thresh) & (donor_id==d)) %>% nrow
+}
+
+n_types <- expand_grid(thresholds, all_donors) %>%
+  mutate(n_types=map2_dbl(thresholds, all_donors, count_celltypes, df=donor_celltype))
+
+ggplot(n_types, aes(x=thresholds, y=n_types, color=all_donors)) +
+  geom_line()
+```
+
+But most donors to generate most cell types
+```{r fig.height=4, fig.width=3}
+atleast_5cells <- filter(n_types, thresholds==5)  %>%
+  mutate(all_donors = factor(all_donors, levels=pull(arrange(., n_types), all_donors)))
+donor_order <- levels(atleast_5cells$all_donors)
+
+types_plot <- ggplot(atleast_5cells, aes(x=all_donors, y=n_types)) +
+  geom_segment( aes(x=all_donors, xend=all_donors, y=0, yend=n_types), color="skyblue") +
+  geom_point( color="blue", size=5, alpha=0.8) +
+  geom_hline(linetype="dashed", color="red", yintercept=median(atleast_5cells$n_types)) +
+  theme_classic(base_size=18) +
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  xlab("Donor") + ylab("Number of Cell Types")
+```
+
+```{r}
+proportions_per_celltype <- donor_celltype %>%
+  add_count(donor_id, name="donor_n") %>%
+  add_count(donor_id, value, name="donor_type_n") %>%
+  mutate(proportion=donor_type_n / donor_n) %>%
+  dplyr::select(value, donor_id, proportion) %>%
+  distinct %>%
+  mutate(value = factor(value, levels=color_map$type_spaced)) %>%
+  drop_na() %>% # removes rare cell types
+  mutate(donor_id=factor(donor_id, levels=donor_order))
+
+props_plot <- ggplot(proportions_per_celltype, aes(x=donor_id, y=proportion, fill=value)) +
+  geom_bar(stat="identity", color="black") +
+  theme_classic(base_size=18) +
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  scale_fill_manual(values=color_map$color) +
+  xlab("Donor") + ylab("Cell Type Proportion") + 
+  theme(legend.position="none")
+props_plot
+```
+
+Stitch them all together
+```{r fig.width=14, fig.height=8}
+layout <- "
+##AAA###
+##AAA###
+##AAA###
+##AAA###
+##AAA###
+##AAA###
+BBBBCCCC
+BBBBCCCC
+BBBBCCCC
+"
+umap_plot + types_plot + props_plot +
+  plot_layout(design = layout)
+
+```
+

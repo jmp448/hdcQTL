@@ -28,7 +28,7 @@ eb_pseudobulk_norm <- DGEList(counts=t(eb_pseudobulk_counts_agg)) %>%
   calcNormFactors(method="TMM") %>% 
   edgeR::cpm(log=T)
 
-hierarchical_clustering <- hclust(dist(t(eb_pseudobulk_norm)), method="ward.D2")
+hierarchical_clustering <- hclust(dist(t(eb_pseudobulk_norm)), method="ward.D")
 plot(hierarchical_clustering)
 
 type_order <- hierarchical_clustering$labels[hierarchical_clustering$order]

@@ -1,9 +1,6 @@
 #TODO loop in the analysis files where pseudobulking is actually applied (right now analysis/annotation/assign_cellid, analysis/trajectory_inference/assign_cmstages)
 #TODO move all finalized code to the static_qtl_calling folder
 #TODO address discrepancy with elorbany data getting SCT counts for dynamic, RNA counts for static
-#TODO look into whether identity matrix should actually be included with mash 
-#TODO use proper variant and phenotype ID format
-#TODO find a better way to track files through pseudobulk aggregation and qc
 #TODO find more stable software solution than installing flashier from github for mash https://github.com/willwerscheid/flashier
 
 import numpy as np
@@ -30,6 +27,7 @@ def list_bims(wildcards):
     return [f"data/static_qtl_calling/{{annotation}}/pseudobulk_tmm/basic/{c}/genotypes_filtered_plink.bim" for c in celltypes]
 
 ### PSEUDOBULK PREPROCESSING
+## Initial pseudobulk aggregation is implemented in analysis/annotation/assign_cellid.ipynb
 rule pseudobulk_qc:
     resources:
         mem_mb=10000,
@@ -46,6 +44,8 @@ rule pseudobulk_qc:
     script:
         "../code/static_qtl_calling/pseudobulk_tmm-basic-qc.R"
         
+# Pseudobulk QC is implemented in `analysis/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/pseudobulk_qc.Rmd`
+
 rule pseudobulk_agg:
     resources:
         mem_mb=10000,
