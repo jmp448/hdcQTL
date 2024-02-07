@@ -29,7 +29,7 @@ rule preprocess_fca_wenhe:
 
 rule subset_ebs_wenhe:
     resources:
-        mem_mb=550000,
+        mem_mb=500000,
         partition="bigmem2",
         time="02:00:00"
     input:

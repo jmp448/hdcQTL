@@ -1,0 +1,205 @@
+---
+title: "MASH"
+output: html_notebook
+---
+```{r, echo=FALSE, results=FALSE, warning=FALSE}
+library(tidyverse)
+library(gplots)
+library(mashr)
+library(rmeta)
+library(vroom)
+library(patchwork)
+```
+
+# Characterizing mash patterns
+```{r}
+load("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_inputs.Rdata")
+```
+
+For these visualizations, I'm going to keep the cell type order established
+by hierarchical clustering in the `analysis/annotation/tidy_celltype_names.Rmd` notebook
+```{r}
+type_levels <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+                   "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia",
+                   "Metanephric-cells", "Erythroblasts", "Ciliated-epithelial-cells",
+                   "Acinar-cells", "Ductal-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
+                   "Parietal-and-chief-cells", "Ureteric-bud-cells",
+                   "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
+                   "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                   "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                   "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts")  
+
+ectoderm_1 <- tibble(type=c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells"),
+                     layer="ecto_1", color="#004D80")
+ectoderm_2 <- tibble(type=c("PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia"),
+                     layer="ecto_2", color="#0076BA")
+neuroepithelium <- tibble(type=c("Metanephric-cells", "Erythroblasts", "Ciliated-epithelial-cells",
+                                 "Acinar-cells", "Ductal-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
+                                 "Parietal-and-chief-cells", "Ureteric-bud-cells"),
+                          layer="neuroepithelium", color="#00AB8E")
+mesoderm <- tibble(type=c("Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
+                          "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells"),
+                   layer="mesoderm", color="#B51700")
+vasc <- tibble(type=c("Vascular-endothelial-cells"),
+               layer="vasc", color="#965C3D")
+immune <- tibble(type=c("Lymphoid-cells", "Megakaryocytes"),
+                 layer="immune", color="#970E53")
+endoderm <- tibble(type=c("Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts"),
+                   layer="endoderm", color="#FEAE00")
+
+color_map <- bind_rows(ectoderm_1, ectoderm_2, neuroepithelium, mesoderm, vasc, immune, endoderm)
+```
+
+Component 1 - dense factor
+```{r}
+factor_1 <- as_tibble(princomp(U.flash$FLASH_nonneg_1)$loadings[,1], rownames="type") %>%
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+```
+
+Component 2 - mesoderm/ endoderm
+```{r}
+factor_2 <- as_tibble(princomp(U.flash$FLASH_nonneg_2)$loadings[,1], rownames="type") %>%
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+```
+
+FLASH 3 - Most differentiated cell types
+```{r}
+factor_3 <- as_tibble(princomp(U.flash$FLASH_nonneg_3)$loadings[,1], rownames="type") %>%
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+```
+
+FLASH 4 - Neuroepithelium
+```{r}
+factor_4 <- as_tibble(princomp(U.flash$FLASH_nonneg_4)$loadings[,1], rownames="type") %>%
+  left_join(color_map, by="type") %>%
+  arrange(type) %>%
+  mutate(type=factor(type, levels=color_map$type))
+```
+
+Visualize patterns
+```{r}
+factors_all <- bind_rows(factor_1, factor_2, factor_3, factor_4) %>%
+  mutate(factor_name=rep(c("Factor 1", "Factor 2", "Factor 3", "Factor 4"), each=29)) 
+
+mash_factors_all <- ggplot(factors_all, aes(x=type, y=value, fill=color)) +
+    geom_bar(stat="identity") +
+    theme_classic(base_size=20) +
+    theme(axis.text.x = element_text(angle=30, hjust=1), 
+          legend.position="none") +
+    xlab("Cell Type") + ylab("Weight") +
+    scale_fill_identity() +
+    coord_flip() +
+    lims(x = rev(type_order)) +
+  facet_grid(cols=vars(factor_name))
+
+mash_factors_all
+```
+
+## Comparing weights
+```{r, fig.width=6, fig.height=8}
+fitted_m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_trained_model.rds")
+```
+
+```{r}
+as_tibble(get_estimated_pi(fitted_m), rownames="component") %>%
+  mutate(component=factor(component, levels=names(get_estimated_pi(fitted_m)))) %>%
+  ggplot(aes(x=component, y=value)) +
+  geom_bar(stat="identity") +
+  scale_x_discrete(limits=rev) +
+  xlab("Regulatory Pattern") +
+  ylab("Weight") +
+  coord_flip() +
+  theme_classic(base_size = 10)
+```
+
+
+
+## Exploring Specific Examples
+```{r}
+full_m <- readRDS("/project2/gilad/jpopp/ebQTL/results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_fitted_model.full.rds")
+```
+
+```{r}
+mash_colors <- color_map %>%
+  arrange(type) %>%
+  pull(color)
+```
+
+```{r}
+mash_plot_meta(full_m, "SH3PXD2B_rs10042482", labels=colnames(full_m$result$lfsr),
+               colors=meta.colors(box=mash_colors))
+```
+
+How does this compare to the effects we learned in the celltype-by-celltype analysis?
+```{r fig.width=4, fig.height=5}
+nonmash_viz <- filter(nonmash_effects, (variant_id=="rs10042482") & (phenotype_id=="SH3PXD2B"))
+
+nonmash_colors <- color_map %>%
+  right_join(nonmash_viz, by=c("type"="celltype")) %>%
+  arrange(type) %>%
+  pull(color)
+
+color_map_mash_fig <- color_map %>%
+  mutate(layer=factor(layer, levels=c("epithelium", "immune", "ecto_1", "ecto_2", "endoderm", "Squa_Epi", "mesoderm", "Vasc_Endo"))) %>%
+  arrange(layer)
+
+type_order <- color_map_mash_fig$type
+color_order <- color_map_mash_fig$color
+```
+
+
+```{r}
+mash_posterior_betas <- get_pm(full_m)["SH3PXD2B_rs10042482",]
+mash_posterior_sds <- get_psd(full_m)["SH3PXD2B_rs10042482",]
+mash_precision <- 1 / mash_posterior_sds ** 2
+mash_celltypes <- colnames(get_pm(full_m))
+mash_ests <- tibble(celltype=mash_celltypes,
+                    beta=mash_posterior_betas,
+                    sd=mash_posterior_sds,
+                    precision=mash_precision,
+                    approach=rep("mash", length(mash_celltypes)))
+
+nonmash_betas <- nonmash_viz$slope
+nonmash_sds <- nonmash_viz$slope_se
+nonmash_precision <- 1 / nonmash_sds ** 2
+nonmash_celltypes <- nonmash_viz$celltype
+nonmash_ests <- tibble(celltype=nonmash_celltypes,
+                    beta=nonmash_betas,
+                    sd=nonmash_sds,
+                    precision=nonmash_precision,
+                    approach=rep("non-mash", length(nonmash_celltypes)))
+
+mash_comp_viz <- bind_rows(mash_ests, nonmash_ests) %>%
+  mutate(approach=case_match(factor(approach, levels=c("non-mash", "mash")), "non-mash" ~ "Univariate Analysis", "mash" ~ "Multivariate Analysis")) %>%
+  mutate(approach=factor(approach, levels=c("Univariate Analysis", "Multivariate Analysis"))) %>%
+  mutate(celltype=factor(celltype, levels=rev(type_order)))
+
+mash_example_plot <- ggplot(mash_comp_viz, aes(x=celltype, y=beta, color=celltype)) +
+  geom_hline(aes(yintercept=0), linetype="dashed", color="red") +
+  geom_errorbar(aes(ymin=beta - sd, ymax=beta + sd), color="#D5D5D5", width=0.5) +
+  geom_point(aes(size=precision), shape=15) +
+  theme_classic(base_size=20) +
+  theme(legend.position = "none", axis.text.x = element_text(angle=45, hjust=1)) +
+  scale_color_manual(values=rev(color_order)) +
+  coord_flip() +
+  facet_grid(cols=vars(approach)) +
+  xlab("Cell Type") +
+  ylab("Estimated Effect Size") 
+```
+
+
+```{r fig.height=8, fig.width=20}
+layout <- "
+  AAAABBB
+  AAAABBB
+"
+mash_factors_all + mash_example_plot +
+  plot_layout(design=layout)
+```
+

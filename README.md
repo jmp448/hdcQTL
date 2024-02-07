@@ -21,11 +21,11 @@ All of Kenneth's stuff he has, and Katie's stuff is copied into the `filtering` 
 ## eQTL calling 
 ### Pseudobulk aggregation
 - UMI counts for each donor and cell type are first aggregated in `analysis/annotation/assign_cellid.ipynb`
-- Initial pseudobulk normalization and generation of a few QC metrics is done in `code/static_qtl_calling/pseudobulk_tmm-basic-qc.R`, followed by manual QC (based on inspection of PC plots) in `analysis/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/pseudobulk_qc.Rmd`. After removing outlier samples 
-based on this manual step, we preprocess the pseudobulk data in `code/static_qtl_calling/pseudobulk_tmm-basic-agg.R`
-- 
+- Initial pseudobulk normalization and generation of a few QC metrics is done in `code/static_qtl_calling/pseudobulk_tmm-basic-qc.R`, followed by manual QC (based on inspection of PC plots) in `analysis/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/pseudobulk_qc.Rmd`. After removing outlier samples based on this manual step, we preprocess the pseudobulk data in `code/static_qtl_calling/pseudobulk_tmm-basic-agg.R`
 
 ### eQTL calling in each cell type
+- After data wrangling (spread over several rules in `rules/static_qtl_calling.py`), we call eQTLs using tensorQTL in `code/static_qtl_calling/static_qtl_calling/tensorqtl_permutations.py`
+- We control the FDR across all genes in `code/static_qtl_calling/static_qtl_calling/tensorqtl_fdr.py`
 
 ### Mash multivariate eQTL analysis
 

@@ -1,0 +1,159 @@
+```{r}
+library(tidyverse)
+library(Matrix.utils)
+library(fgsea)
+library(susieR)
+library(pathways)
+library(vroom)
+library(gseasusie)
+```
+
+## Schematic Overview
+First, a UMAP visualization of a few cell types to help depict pseudobulk aggregation
+```{r}
+umap <- vroom("data/single_cell_objects/eb_pflog1ppfnorm.hvg.umap_embedding.txt", col_names=c("UMAP_1", "UMAP_2"))
+celltypes <- vroom("data/fca/eb_cellid_labels.tsv")
+umap <- bind_cols(umap, celltypes)
+```
+
+```{r}
+type_order <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
+                "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia","Metanephric-cells", 
+                "Erythroblasts", "Ciliated-epithelial-cells", "Acinar-cells", "Ductal-cells", 
+                "Bronchiolar-and-alveolar-epithelial-cells","Adrenocortical-cells", "Parietal-and-chief-cells", "Ureteric-bud-cells", 
+                "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells", 
+                "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
+                "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
+                "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts", 
+                "unassigned") 
+
+type_colors <- c("#130063", "#192594", "#004D80", 
+                 "#7F7FFF", "#316DFF", "#1B7FFF", "#0097FF", "#7298BB", 
+                 "#7F9ACE", "#8CB4D5", "#96C0E5", "#98BEC6", 
+                 "#00AB8E", "#3EBFBB", "#55D0B7", "#25C683", 
+                 "#860B1E", "#9B1716", "#B51700", "#B13B3E", 
+                 "#CC4E4F", "#D32323", "#FF0000",
+                 "#965C3D", "#8410D3", "#84108A",  
+                 "#FEDE7F", "#FED255", "#FEAE00", 
+                 "#D5D5D5") 
+
+color_map <- tibble(type = type_order, color = type_colors) %>%
+  mutate(type_spaced = str_replace_all(type, "-", " "))
+
+umap <- umap %>%
+  left_join(dplyr::select(color_map, c(type_spaced, color)), by=c("value"="type_spaced"))
+```
+
+
+```{r fig.height=4, fig.width=4}
+celltypes_viz <- c("Cardiomyocytes", "Hepatoblasts", "PNS neurons")
+celltype_plot <- ggplot(umap, aes(x=UMAP_1, y=UMAP_2)) +
+  geom_point(data=filter(umap, !value %in% celltypes_viz), size=1e-7, alpha=0.2, color="#D5D5D5") +
+  geom_point(data=filter(umap, value %in% celltypes_viz), aes(color=color), size=1e-7, alpha=0.5) +
+  scale_color_identity() +
+  theme_classic(base_size=15) +
+  theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.ticks.y=element_blank()) 
+celltype_plot
+```
+
+We also want a schematic example of a cell type specific eQTL
+```{r fig.height=4, fig.width=3}
+neur_g1 <- rnorm(15)
+neur_g2 <- rnorm(15)
+neur_g3 <- rnorm(15)
+hep_g1 <- rnorm(15, mean=-2.5)
+hep_g2 <- rnorm(15)
+hep_g3 <- rnorm(15, mean=2.5)
+schematic_qtl <- tibble("expression"=c(neur_g1, neur_g2, neur_g3, hep_g1, hep_g2, hep_g3),
+                        "genotype"=rep(c("AA", "AG", "GG"), each=15, times=2),
+                        "celltype"=rep(c("PNS-neurons", "Hepatoblasts"), each=45)) %>%
+  left_join(dplyr::select(color_map, c(type, color)), by=c("celltype"="type"))
+ggplot(schematic_qtl, aes(x=genotype, y=expression, color=color)) +
+  geom_boxplot(lwd=1.5) +
+  facet_grid(rows=vars(celltype)) +
+  scale_color_identity() +
+  theme_classic(base_size=15) +
+  xlab("") + 
+  ylab("") +
+  theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.ticks.y=element_blank())
+```
+
+## QTL counts
+```{r}
+eb_sighits_bed_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed"
+eb_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed"
+gtf_loc <- "/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filtered.gtf"
+```
+
+How many eQTLs do we find?
+```{r}
+eb_distinct <- vroom(eb_sighits_bed_loc) %>% 
+  dplyr::select(c(EB_HGNC, EB_VARIANT_ID)) %>%
+  distinct()
+
+nrow(eb_distinct)
+length(unique(eb_distinct$EB_HGNC))
+```
+
+How many of the eQTLs that we identify have previously been identified as an eQTL?
+```{r}
+gtex_distinct <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
+  dplyr::select(EB_HGNC, RSID) %>%
+  distinct()
+
+eb_novel <- anti_join(eb_distinct, gtex_distinct, by=c("EB_HGNC"="EB_HGNC", "EB_VARIANT_ID"="RSID"))
+nrow(eb_novel) / nrow(eb_distinct)
+```
+
+## Evaluate gene set enrichment results
+```{r}
+gsea_results <- vroom("/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/8pcs/gsea_results.tsv")
+
+gsea_viz <- gsea_results %>% arrange(pFishersExact) %>% 
+  dplyr::select(geneSet, oddsRatio, bhFishersExact) %>%
+  filter(bhFishersExact <= 0.05) 
+
+or_order <- gsea_viz %>% 
+  arrange(desc(oddsRatio)) %>%
+  pull(geneSet)
+
+is_dev <- tibble("geneSet"=c("GOBP_MUSCLE_TISSUE_DEVELOPMENT",
+                             "GOBP_MUSCLE_STRUCTURE_DEVELOPMENT",
+                             "GOBP_POSITIVE_REGULATION_OF_TRANSCRIPTION_BY_RNA_POLYMERASE_II",
+                             "GOBP_ANIMAL_ORGAN_MORPHOGENESIS",
+                             "GOBP_GROWTH",
+                             "GOBP_CIRCULATORY_SYSTEM_DEVELOPMENT",
+                             "GOBP_CENTRAL_NERVOUS_SYSTEM_DEVELOPMENT",
+                             "GOBP_TISSUE_DEVELOPMENT",
+                             "GOBP_REGULATION_OF_CELL_POPULATION_PROLIFERATION",
+                             "GOBP_POSITIVE_REGULATION_OF_RNA_METABOLIC_PROCESS",
+                             "GOBP_POSITIVE_REGULATION_OF_SIGNALING"),
+                 "geneSetLower"=c("Muscle Tissue Development",
+                                  "Muscle Structure Development",
+                                  "Positive Regulation of Transcription by RNA Polymerase II",
+                                  "Animal Organ Morphogenesis",
+                                  "Growth",
+                                  "Circulatory System Development",
+                                  "Central Nervous System Development",
+                                  "Tissue Development",
+                                  "Regulation of Cell Population Proliferation",
+                                  "Positive Regulation of RNA Metabolic Process",
+                                  "Positive Regulation of Signaling"),
+                 "is_dev"=c(T, T, F, T, F, T, T, T, F, F, F))
+
+gsea_viz <- gsea_viz %>%
+  left_join(is_dev, by="geneSet") %>%
+  arrange(desc(oddsRatio)) %>%
+  mutate(geneSetLower = factor(geneSetLower, levels=rev(.$geneSetLower)))
+
+ggplot(gsea_viz, aes(x=geneSetLower, y=oddsRatio, fill=is_dev)) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  theme_classic(base_size=30) +
+  ylab("Odds Ratio") + xlab("Gene Set") +
+  scale_fill_manual(values=c("#DEDEDE", "#B51700")) +
+  geom_hline(aes(yintercept=1), linetype="dashed") +
+  theme(legend.position="none", axis.text.x=element_text(colour="black"))
+```

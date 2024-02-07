@@ -4,8 +4,6 @@
 # write a bash script for this `ls ../GTEx_Analysis_v8_eQTL/*.txt | cut -d '/' -f 3- | cut -d '.' -f 1 | sort | uniq > temp/all_gtex_tissues.txt`
 #TODO formalize the following command: `wget -O GTEx_gene_median_tpm.gct.gz https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz`
 #TODO update the scripts where we list significant hits to NOT subset to GTEx tested variants
-#TODO write new scripts for subsetting bed files to gtex variants, and then conducting gtex overlap analysis
-#TODO add a clumping step for each time we list the top hits - they all have huge LD blocks
 #TODO tidy up so the background for static and dynamic are the same rule
 #TODO don't forget the GTEx overlap and everything done on BED files needs to be updated to reflect file reorganization (qtl_sets folder)
 #TODO note that ldetect data is from https://bitbucket.org/nygcresearch/ldetect-data/src/master/AFR/

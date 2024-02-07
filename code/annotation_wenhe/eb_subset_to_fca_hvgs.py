@@ -14,6 +14,7 @@ overlap_hvgs = fca_hvgs.loc[fca_hvgs['gene'].isin(adata.var_names)]
 
 # Filter EB data to FCA hvgs and save
 adata_hvg = adata[:, overlap_hvgs['gene']]
+del adata
 adata_hvg.X = adata_hvg.layers['log1pPF']
 
 adata_hvg.write_h5ad(subset_adata_loc)
