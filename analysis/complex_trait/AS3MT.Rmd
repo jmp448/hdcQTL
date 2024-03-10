@@ -35,7 +35,7 @@ topics_only <- crm_betas_loadings[, c(1, seq(ncol(crm_betas_loadings)-9, ncol(cr
 
 beta_topic_cor <- cor(betas_only, topics_only)
 
-write_tsv(as_tibble(betas_only, rownames="PSEUDOCELL"), "results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.betas.tsv")
+# write_tsv(as_tibble(betas_only, rownames="PSEUDOCELL"), "results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.betas.tsv")
 ```
 
 Visualize an example of a nonlinear dynamic eQTL 
@@ -46,7 +46,7 @@ ex_snp = "rs7096169"
 
 ```{r}
 neur_exp <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
-  filter(gene ==g) %>%
+  filter(gene == ex_gene) %>%
   select(-c(`#chr`, start, end)) %>%
   pivot_longer(!gene, names_to="ind_type", values_to="expression")
 neur_genotype_df <- as_tibble(fread("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/5clpcs/genotype_df.tsv")[snp == ex_snp,]) %>% 
@@ -63,7 +63,7 @@ dynamic_qtl_plot <- inner_join(dplyr::select(neur_exp, c("ind_type", "expression
   mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
   geom_boxplot(lwd=1.25) +
-  theme_classic(base_size=15) +
+  theme_classic(base_size=20) +
   theme(axis.text.x=element_blank(), axis.text.y=element_blank(), axis.ticks.y=element_blank()) +
   scale_fill_manual(labels=c("TT", "TA", "AA"), values=brewer.pal(3, "Set1")) +
   xlab("Pseudotime Bin") +
@@ -84,11 +84,12 @@ structure_df <- crm_betas_loadings %>%
 ```{r, fig.width=8, fig.height=4}
 structure_plot <- ggplot(structure_df, aes(x=`AS3MT_rs7096169`, y=loading, fill=topic)) +
   geom_col(width=1e-3) +
-  theme_classic(base_size=15) +
-  scale_fill_manual(values=brewer.pal(10, 'Set1')) +
-  theme(legend.position="none", axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
+  theme_classic(base_size=20) +
+  scale_fill_manual(values=brewer.pal(8, 'Set1')) +
+  theme(axis.text.x=element_blank(), axis.ticks.x=element_blank()) +
   xlab("Aggregate Interacting Environment") +
-  ylab("Topic Loadings")
+  ylab("Topic Loadings") +
+  labs(fill="Topic")
 structure_plot
 ```
 
@@ -112,7 +113,7 @@ pseudocell_df <- crm_betas_loadings %>%
 crm_qtl_plot <- ggplot(pseudocell_df, aes(x=beta_gxc, y=AS3MT, color=genotype)) +
   geom_point(size=0.25) * (blend("lighten") + blend("multiply", alpha = 0.5)) +
   geom_smooth(method = "lm") +
-  theme_classic(base_size=15)+
+  theme_classic(base_size=20)+
   scale_color_manual(labels=c("TT", "TA", "AA"), values=brewer.pal(3, "Set1")) +
   theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
   xlab("Aggregate Interacting Environment") +

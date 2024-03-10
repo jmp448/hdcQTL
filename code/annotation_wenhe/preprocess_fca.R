@@ -20,7 +20,7 @@ fca_subsampled <- logNormCounts(fca_subsampled)
 
 # Get highly variable features
 fca_subsampled.dec <- modelGeneVar(fca_subsampled)
-hvg.fca_subsampled <- getTopHVGs(fca_subsampled.dec, var.threshold=0)
+hvg.fca_subsampled <- getTopHVGs(fca_subsampled.dec, n=5000)
 
 tibble(gene=hvg.fca_subsampled) %>%
   write_tsv(hvg_loc)

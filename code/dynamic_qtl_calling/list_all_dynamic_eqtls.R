@@ -1,9 +1,6 @@
 library(tidyverse)
 library(vroom)
 
-# dynamic_egenes_loc <- "results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_top_assoc.txt.gz"
-# all_tests_loc <- "results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv"
-
 dynamic_egenes_loc <- snakemake@input[['egenes']]
 all_tests_loc <- snakemake@input[['alltests']]
 fdr_cutoff <- as.numeric(snakemake@wildcards[['fdr']])

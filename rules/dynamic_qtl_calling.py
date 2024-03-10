@@ -1,17 +1,13 @@
-#TODO think about whether the inverse normal transformation's tie-breaking approach is a problem
-#TODO do something better about handling duplicated SNP ID's in tensorqtl interaction test
-#TODO submit bug report to tensorqtl to fix the chromosome indexing
-#TODO find more stable solution than to manually overwrite cis.py (/project2/gilad/jpopp/ebQTL/.snakemake/conda/e138ad8ec0b845ac547107b3c3d4cf50/lib/python3.10/site-packages/tensorqtl/cis.py) with updates from https://github.com/broadinstitute/tensorqtl/commit/6879d887db13d880fc5fc0619906c4fbdbbb2843
-#TODO similar issue, /project2/gilad/jpopp/ebQTL/.snakemake/conda/633df945cb6942e683de1035f6270d68_/lib/python3.11/site-packages/tensorqtl/eigenmt.py had to change np.float (deprecated) to np.float64
-#TODO clean up cell line pca 
-#TODO clean up file name creation in pseudobulk agg, qc
+# manually overwrite cis.py (/project2/gilad/jpopp/ebQTL/.snakemake/conda/e138ad8ec0b845ac547107b3c3d4cf50/lib/python3.10/site-packages/tensorqtl/cis.py) with updates from https://github.com/broadinstitute/tensorqtl/commit/6879d887db13d880fc5fc0619906c4fbdbbb2843
+# similar issue, /project2/gilad/jpopp/ebQTL/.snakemake/conda/633df945cb6942e683de1035f6270d68_/lib/python3.11/site-packages/tensorqtl/eigenmt.py had to change np.float (deprecated) to np.float64
 
+# Generate pseudobulk expression data and latent covariates for QTL calling
 rule pseudobulk_assign_dynamic:
     resources:
         mem_mb=250000,
         time="01:30:00"
     input:
-        raw="data/single_cell_objects/highpass/eb_raw.qc.h5ad",
+        raw="data/single_cell_objects/highpass/eb_raw.h5ad",
         pseudotimed="data/trajectory_inference/{trajectory}_lineage/{trajectory}_lineage.{nbins}_pseudotime.adata",
         metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv"
     output:
@@ -62,6 +58,7 @@ rule pseudobulk_agg_dynamic:
     script:
         "../code/dynamic_qtl_calling/pseudobulk_tmm-agg-dynamic.R"
         
+# Data wrangling to prep for tensorqtl
 rule plink_rewrite_keepers_dynamic:
     input:
         "data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/individuals.tsv"
@@ -115,6 +112,7 @@ rule tensorqtl_interaction_prep:
     script:
         "../code/dynamic_qtl_calling/tensorqtl_interaction_prep.py"
 
+# Run tensorqtl
 rule tensorqtl_interaction:
     resources:
         mem_mb=80000,
@@ -164,3 +162,83 @@ rule list_all_dynamic_eqtls:
         "../slurmy/r-mashr.yml"
     script:
         "../code/dynamic_qtl_calling/list_all_dynamic_eqtls.R"
+        
+# Classify effects into early/late/switch and write to BED
+rule classify_dynamic_trajhits:
+    resources:
+        mem_mb=65000,
+        time="1:00:00"
+    input:
+        genotypes="data/dynamic_qtl_calling/{trajectory}_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv",
+        qtls="results/dynamic_qtl_calling/{trajectory}_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv",
+        pseudotime="data/dynamic_qtl_calling/{trajectory}_15binstrimmed/pseudobulk_tmm/pseudotime.tsv",
+        bim_file="data/dynamic_qtl_calling/{trajectory}_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim",
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+    output:
+        early="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-{trajectory}-signif_variant_gene_pairs.bed",
+        late="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/latedynamic-{trajectory}-signif_variant_gene_pairs.bed",
+        switch="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/switchdynamic-{trajectory}-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/dynamic_qtl_calling/classify_dynamic_eqtls.R"
+
+# Write to BED file
+rule merge_bims:
+    input:
+        cm_bim="data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim",
+        hep_bim="data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim",
+        neur_bim="data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim"
+    output:
+        "data/dynamic_qtl_calling/all_trajectories_combined/genotypes_filtered_plink.bim"
+    conda: "../slurmy/r-mashr.yml"
+    shell:
+        """
+        cat {input} | sort -u -k 1,1 -k 4,4n > {output}
+        """
+        
+# rule dynamic_to_bed_alltests:
+#     resources:
+#         mem_mb=50000,
+#         time="15:00"
+#     input:
+#         neur_tests="results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv",
+#         cm_tests="results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv",
+#         hep_tests="results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv",
+#         bim_file="data/dynamic_qtl_calling/all_trajectories_combined/genotypes_filtered_plink.bim",
+#         gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+#     output:
+#         bedfile="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/dynamic-all_variant_gene_pairs.bed"
+#     conda: "../slurmy/r-mashr.yml"
+#     script:
+#         "../code/static_eqtl_followup/dynamic_to_bed_alltests.R"
+        
+rule dynamic_to_bed_allhits:
+    resources:
+        mem_mb=50000,
+        time="15:00"
+    input:
+        cm_eqtls="results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv",
+        neur_eqtls="results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv",
+        hep_eqtls="results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv",
+        bim_file="data/dynamic_qtl_calling/all_trajectories_combined/genotypes_filtered_plink.bim",
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/original/dynamic-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/dynamic_to_bed_allhits.R"
+
+rule dynamic_to_bed_trajhits:
+    resources:
+        mem_mb=50000,
+        time="15:00"
+    input:
+        eqtls="results/dynamic_qtl_calling/{trajectory}_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv",
+        bim_file="data/dynamic_qtl_calling/{trajectory}_15binstrimmed/pseudobulk_tmm/nipals/genotypes_filtered_plink.bim",
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/original/dynamic-{trajectory}-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/dynamic_to_bed_hits.R"
+        

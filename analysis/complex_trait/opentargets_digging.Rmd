@@ -1,0 +1,55 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+dynamic_eqtls_opentargets <- read_tsv("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/opentargets_overlap/dynamic-signif_variant_gene_pairs.gtex_removed.opentargets_overlap.tagged_gtex_removed.bed")
+```
+
+# Start with neuronal dynamic eQTLs
+```{r}
+neur_opentargets <- filter(dynamic_eqtls_opentargets, EB_TRAJECTORY=="neur") %>%
+  dplyr::select(`#CHR`, END, EB_HGNC, EB_VARIANT_ID) %>%
+  group_by(EB_HGNC) %>% slice_head(n=1)
+
+neur_opentargets
+```
+# Hepatocyte dynamic eQTLs
+```{r}
+hep_opentargets <- filter(dynamic_eqtls_opentargets, EB_TRAJECTORY=="hep") %>%
+  dplyr::select(`#CHR`, END, EB_HGNC, EB_VARIANT_ID) %>%
+  group_by(EB_HGNC) %>% slice_head(n=1)
+
+hep_opentargets
+```
+
+# Cardiomyocyte dynamic eQTLs
+```{r}
+cm_opentargets <- filter(dynamic_eqtls_opentargets, EB_TRAJECTORY=="cm") %>%
+  dplyr::select(`#CHR`, END, EB_HGNC, EB_VARIANT_ID) %>%
+  group_by(EB_HGNC) %>% slice_head(n=1)
+
+cm_opentargets
+```
+
+```{r}
+crm_eqtls_opentargets <- read_tsv("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/opentargets_overlap/crm-all-signif_variant_gene_pairs.gtex_removed.opentargets_overlap.tagged_gtex_removed.bed")
+```
+
+```{r}
+crm_opentargets <- crm_eqtls_opentargets %>%
+  dplyr::select(`#CHR`, END, EB_HGNC, EB_VARIANT_ID) %>%
+  group_by(EB_HGNC) %>% slice_head(n=1)
+
+crm_opentargets
+```
+
+## Save file
+Combined file with both dynamic and topic interaction eQTLs
+```{r}
+all_interaction_eqtls_opentargets <- dynamic_eqtls_opentargets %>%
+  rename(EB_CONTEXT=EB_TRAJECTORY) %>%
+  bind_rows(crm_eqtls_opentargets) %>%
+  write_tsv("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/opentargets_overlap/combined_interaction_variant_gene_pairs.gtex_removed.opentargets_overlap.tagged_gtex_removed.bed")
+```
+

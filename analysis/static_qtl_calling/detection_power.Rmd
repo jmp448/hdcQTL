@@ -1,0 +1,57 @@
+---
+title: "Limitations on Power"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(vroom)
+```
+
+```{r}
+hdc_eqtls_bed_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed"
+sample_summary_loc <- "/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv"
+color_map <- readRDS("/project2/gilad/jpopp/ebQTL/temp/color_map.rds") %>%
+  filter(type != "unassigned")
+```
+
+Load eQTLs
+```{r}
+nhits_by_celltype <- vroom(hdc_eqtls_bed_loc) %>%
+  separate_rows(EB_CELLTYPE, sep=",") %>%
+  dplyr::count(EB_CELLTYPE)
+
+add_underpowered_types <- tibble("EB_CELLTYPE"=c("Lymphoid-cells", "Bronchiolar-and-alveolar-epithelial-cells"),
+                                 "n"=c(0, 0)) %>%
+  bind_rows(nhits_by_celltype)
+```
+
+Load number of cells per sample
+```{r}
+sample_summary <- vroom(sample_summary_loc)
+```
+Relationship between number of cells and number of eQTLs
+```{r fig.width=6, fig.height=3}
+
+median_cells_per_sample <- sample_summary %>%
+  dplyr::select(type, n_cells_filtered) %>%
+  group_by(type) %>%
+  summarize(n_median=median(n_cells_filtered)) 
+
+ncells_nqtls <- left_join(add_underpowered_types, median_cells_per_sample, by=c("EB_CELLTYPE"="type")) %>%
+  left_join(color_map, by=c("EB_CELLTYPE"="type")) %>%
+  mutate(type_spaced=factor(type_spaced, levels=color_map$type_spaced))
+
+png(filename="figs/supplement/s_detection_rates.png", width=1800, height=900, res=300)
+ggplot(ncells_nqtls, aes(x=n_median, y=n, color=type_spaced)) +
+  geom_point() +
+  xlab("Median Cell Count") +
+  ylab("Number of eQTLs Detected") +
+  theme_classic(base_size=8) + 
+  theme(legend.key.size=unit(0.1, 'in')) +
+  labs(color="Cell Type") +
+  scale_color_manual(values=color_map$color)
+dev.off()
+```
+
+

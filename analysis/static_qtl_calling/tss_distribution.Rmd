@@ -24,7 +24,24 @@ gmt_loc <- "data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
 Do our novel eQTLs display the anticipated properties of eQTLs, or could they just be
 a result of the depletion of GTEx eQTLs for these gene sets?
 
-First, load the gene sets
+Load the variant-gene pairs we'll look at
+```{r}
+all_tests <- vroom(all_tests_loc)
+
+eb_distinct <- vroom(eb_sighits_bed_loc) %>% 
+  dplyr::select(c(EB_HGNC, EB_VARIANT_ID)) %>%
+  distinct()
+
+gtex_distinct <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
+  dplyr::select(EB_HGNC, RSID) %>%
+  distinct()
+
+eb_novel <- anti_join(eb_distinct, gtex_distinct, by=c("EB_HGNC"="EB_HGNC", "EB_VARIANT_ID"="RSID"))
+```
+
+Load the gene sets
 ```{r}
 gmt_lines <- readLines(gmt_loc)
 
@@ -43,30 +60,13 @@ gmt_mat <- gmt_df %>%
   pivot_wider(names_from = genes, values_from = genes, values_fn = length, values_fill = 0) %>%
   column_to_rownames("geneset")
 
-tissue_dev_genes <- rownames(gmt_mat)[which(gmt_mat[,"GOBP_TISSUE_DEVELOPMENT"]==1)]
-```
-
-Next, load the variant-gene pairs we'll look at
-```{r}
-all_tests <- vroom(all_tests_loc)
-
-eb_distinct <- vroom(eb_sighits_bed_loc) %>% 
-  dplyr::select(c(EB_HGNC, EB_VARIANT_ID)) %>%
-  distinct()
-
-gtex_distinct <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
-                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
-                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
-  dplyr::select(EB_HGNC, RSID) %>%
-  distinct()
-
-eb_novel <- anti_join(eb_distinct, gtex_distinct, by=c("EB_HGNC"="EB_HGNC", "EB_VARIANT_ID"="RSID"))
+tissue_dev_genes <- colnames(gmt_mat)[which(gmt_mat["GOBP_TISSUE_DEVELOPMENT",]==1)]
 ```
 
 Tidy up the three sets of variants we'll be looking at
 ```{r}
 tested_variants_dev <- filter(all_tests, phenotype_id %in% tissue_dev_genes) %>%
-  select(phenotype_id, variant_id) %>%
+  dplyr::select(phenotype_id, variant_id) %>%
   mutate(group="All tested variants")
 qtl_variants_dev <- filter(eb_distinct, EB_HGNC %in% tissue_dev_genes) %>%
   dplyr::rename(phenotype_id=EB_HGNC, variant_id=EB_VARIANT_ID) %>%
@@ -91,7 +91,7 @@ tss_comparison <- bind_rows(tested_variants_dev,
                             qtl_variants_dev,
                             novel_variants_dev) %>%
   left_join(gtf, by=c("phenotype_id"="hgnc")) %>%
-  left_join(select(bim, c(variant_id, POS_BP)), by="variant_id") %>%
+  left_join(dplyr::select(bim, c(variant_id, POS_BP)), by="variant_id") %>%
   mutate(tssdist=map2_int(tss, POS_BP, `-`))
 ```
 
@@ -100,12 +100,13 @@ And compare the distribution of the three variant groups
 tss_comparison <- mutate(tss_comparison, group=factor(group, levels=c("All tested variants",
                                                                       "HDC eQTL variants",
                                                                       "Novel HDC eqtl variants")))
-  
+
+png(filename="figs/supplement/s_tss_dist.png", width=1200, height=750, res=300)
 ggplot(tss_comparison, aes(x=tssdist, color=group)) +
-  geom_density(linewidth=1.1) +
-  theme_classic(base_size=15) +
+  geom_density() +
+  theme_classic(base_size=8) +
   xlab("Distance to TSS") + ylab("Density") +
   labs(color="Variant Class") +
-  scale_color_manual(values=c("#D5D5D5", "#004D80", "#D41876")) +
-  guides(colour = guide_legend(override.aes = list(shape = 10)))
+  scale_color_manual(values=c("#D5D5D5", "#004D80", "#D41876")) 
+dev.off()
 ```

@@ -59,61 +59,6 @@ rule mash_full:
     script:
         "../code/mash_qtl_calling/mash_full.R"
 
-# rule list_significant_variant_gene_pairs_mash:
-#     resources:
-#         mem_mb=100000,
-#         time="30:00"
-#     input:
-#         full_fitted_model="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_fitted_model.full.rds"
-#     output:
-#         hit_list="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash-signif_variant_gene_pairs.tsv"
-#     conda:
-#         "../slurmy/r-mashr.yml"
-#     script:
-#         "../code/static_qtl_calling/list_significant_tests_mash.R"
-# 
-# rule tidy_mash_hits:
-#     resources:
-#         mem_mb=50000,
-#         time="01:00:00"
-#     input:
-#         mash_model="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_fitted_model.tophits.rds"
-#     output:
-#         mash_hits="results/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/{npcs}pcs/mash_sighits_lfsr_{threshold}.tsv"
-#     conda:
-#         "../slurmy/r-mashr.yml"
-#     script:
-#         "../code/static_qtl_calling/tidy_mash_hits.R"
-        
-# note still uses the bim file of only one celltype
-# rule mash_to_bed_alltests:
-#     resources:
-#         mem_mb=50000,
-#         time="15:00"
-#     input:
-#         mash_model="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/mash_fitted_model.full.rds",
-#         bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/PNS-glia/genotypes_filtered_plink.bim",
-#         gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
-#     output:
-#         bedfile="results/static_eqtl_followup/qtl_sets/mash-all_variant_gene_pairs.bed"
-#     conda: "../slurmy/r-mashr.yml"
-#     script:
-#         "../code/static_eqtl_followup/mash_to_bed_alltests.R"
-
-# rule mash_to_bed_tophits:
-# This is for if you fit the mash model to just the top hits per gene rather than all
-#     resources:
-#         mem_mb=10000,
-#         time="05:00"
-#     input:
-#         mash_model="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash_fitted_model.tophits.rds",
-#         harmonized_tests="results/static_eqtl_followup/eb_cellid/pseudobulk_tmm/basic/{npcs}/eb_gtex_harmonized_tests.txt"
-#     output:
-#         bedfile="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/{npcs}/mash-tophits_variant_gene_pairs.bed"
-#     conda: "../slurmy/r-mashr.yml"
-#     script:
-#         "../code/static_eqtl_followup/mash_to_bed_allsigtests.R"
-    
 rule merge_bims_mash:
     resources:
         mem_mb=50000,
@@ -139,6 +84,6 @@ rule mash_to_bed_allsigtests:
         bedfile="results/static_eqtl_followup/qtl_sets/mash/original/mash-signif_variant_gene_pairs.bed"
     conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/static_eqtl_followup/mash_to_bed_allsigtests.R"
+        "../code/mash_qtl_calling/mash_to_bed_allsigtests.R"
 
 

@@ -198,18 +198,47 @@ rule crm_to_bed:
     script:
         "../code/static_eqtl_followup/crm_to_bed.R"
         
-## TROAP
-rule filter_tests_troap:
+
+rule cellregmap_mtc_all_signif:
+    resources:
+        mem_mb = 10000,
+        time = "10:00"
+    input:
+        eqtls="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.tsv"
+    output:
+        all_qtls="results/cellregmap_eqtl_calling/{annotation}/pseudobulk_tmm/basic/all_genes_merged.{variant_group}.fasttopics_{k}topics.cellregmap.all_signif.fdr0.1.tsv"
+    conda:
+        "../slurmy/r-mashr.yml"
+    script:
+        "../code/cellregmap_eqtl_calling/cellregmap_mtc_all.R"
+
+rule crm_full_to_bed:
     resources:
         mem_mb=50000,
-        time="3:00:00"
+        time="15:00"
     input:
-        test_eqtl_file="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/troap-region_variant_gene_pairs.bed",
-        genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed"
+        crm_hits="results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.all_signif.fdr0.1.tsv",
+        bim_file="data/genotypes/yri_maf0.1_all.hg38.bim",
+        gtf_loc="data/gencode/gencode.hg38.filtered.gtf"
     output:
-        filtered_eqtl_file="data/cellregmap/troap-region_variant_gene_pairs.maf0.1.bed"
-    conda: 
-        "../slurmy/cellregmap.yml"
+        bedfile="results/static_eqtl_followup/qtl_sets/dynamic-eqtls/crm-all-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
     script:
-        "../code/cellregmap_eqtl_calling/filter_tests_fullpanel_maf_0.1.py"
+        "../code/cellregmap_eqtl_calling/crm_all_to_bed.R"
+
+
+# ## TROAP
+# rule filter_tests_troap:
+#     resources:
+#         mem_mb=50000,
+#         time="3:00:00"
+#     input:
+#         test_eqtl_file="results/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/8pcs/troap-region_variant_gene_pairs.bed",
+#         genotype_file="data/genotypes/yri_maf0.1_all.hg38.bed"
+#     output:
+#         filtered_eqtl_file="data/cellregmap/troap-region_variant_gene_pairs.maf0.1.bed"
+#     conda: 
+#         "../slurmy/cellregmap.yml"
+#     script:
+#         "../code/cellregmap_eqtl_calling/filter_tests_fullpanel_maf_0.1.py"
 

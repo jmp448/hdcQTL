@@ -2,7 +2,6 @@
 title: "Check DE result and gsea"
 output: html_document
 ---
-
 ##### Use the eb data of pseudocell samples
 ```{r setup, include=FALSE}
 library(gseasusie)
@@ -18,12 +17,12 @@ library(viridis)
 library(vroom)
 ```
 
-
 ## Comparing topics to cell type labels
 ```{r}
 topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
 pseudocell_map <- vroom("data/fast_topics/cell_pseudocell_mapping.tsv")
 celltype_labels <- vroom("data/fca/eb_cellid_labels.tsv")
+color_map <- readRDS("/project2/gilad/jpopp/ebQTL/temp/color_map.rds")
 ```
 
 ```{r}
@@ -33,61 +32,47 @@ celltypes_topics <- celltype_labels %>%
 ```
 
 Get the median topic loading per cell type
-```{r fig.height=4, fig.width=7}
-type_levels <- c("Neuroendocrine-cells", "PNS-neurons", "Skeletal-muscle-cells",                               
-                   "PNS-glia", "CNS-neurons" , "Retinal-cells", "CNS-glia",
-                   "Metanephric-cells", "Erythroblasts", "Ciliated-epithelial-cells",
-                   "Acinar-cells", "Ductal-cells", "Bronchiolar-and-alveolar-epithelial-cells", "Adrenocortical-cells",
-                   "Parietal-and-chief-cells", "Ureteric-bud-cells",
-                   "Epicardial-fat-cells", "Mesothelial-cells", "Cardiomyocytes", "Mesangial-cells",
-                   "Stellate-cells", "Smooth-muscle-cells", "Stromal-cells",
-                   "Vascular-endothelial-cells", "Lymphoid-cells", "Megakaryocytes",
-                   "Squamous-epithelial-cells", "Goblet-cells", "Hepatoblasts")  
-
+```{r fig.width=9, fig.height=8}
 celltypes_topics_summarized <- celltypes_topics %>%
   dplyr::select(value, starts_with("k")) %>%
   pivot_longer(cols=starts_with("k"), names_to="topic", values_to="loading") %>%
   group_by(value, topic) %>%
   summarize(celltype_median=median(loading)) %>%
-  mutate(type=factor(str_replace_all(value, " ", "-"), levels=type_levels)) %>%
   mutate(topic=factor(topic, levels=paste0("k", seq(10)))) %>%
-  drop_na() 
+  left_join(color_map, by=c("value"="type_spaced")) %>%
+  drop_na() %>%
+  mutate(value=factor(value, levels=color_map$type_spaced))
 
-loadings_plot <- ggplot(celltypes_topics_summarized, aes(x=topic, y=type, fill=celltype_median)) +
+loadings_plot <- ggplot(celltypes_topics_summarized, aes(x=topic, y=value, fill=celltype_median)) +
   geom_tile() +
   scale_fill_viridis() +
   xlab("Topic") + ylab("Cell Type") + labs(fill="Median Topic Loading") +
-  theme_classic(base_size=15)
-loadings_plot
+  theme_classic(base_size=15) +
+  theme(axis.text.x=element_text(angle=45, hjust=1))
 ```
-
 
 ## Topic Characterization
 ### Load GO BP pathways and filter to genes in the EB dataset
 ```{r}
+load("results/fast_topics/fasttopics_10topics_de_analysis.Rdata")
 eb_genes <- rownames(dfa_out$lfsr)
 ```
 
-
 ```{r}
 gmt_file <- "/project2/gilad/jpopp/ebQTL/data/gene_sets/c5.go.bp.v2022.1.Hs.symbols.gmt"
-
 gmt_lines <- readLines(gmt_file)
-
 gmt_list <- lapply(gmt_lines, function(x) unlist(strsplit(x, "\t")))
 gmt_list2 <- lapply(gmt_list, function(x) list(x[1], x[2], x[3:length(x)]))
-
 gmt_df <- as_tibble(do.call("rbind", gmt_list2)) %>%
   mutate(across(V1:V2, unlist)) %>%
   dplyr::rename(geneset=V1, link=V2, genes=V3)
-
 gmt_mat <- gmt_df %>%
-  select(-c(link)) %>%
+  filter(str_sub(geneset, end=4)=="GOBP") %>%
+  dplyr::select(-c(link)) %>%
   unnest(genes) %>%
   filter(genes %in% eb_genes) %>%
   pivot_wider(names_from = genes, values_from = genes, values_fn = length, values_fill = 0) %>%
   column_to_rownames("geneset")
-
 # subset to genesets with between 10 and 400 genes
 valid_genesets <- (10 <= rowSums(gmt_mat)) & (rowSums(gmt_mat) <= 400)
 gmt_mat <- t(as.matrix(gmt_mat[which(valid_genesets),]))
@@ -110,169 +95,150 @@ list_de_genes <- function(lfsrs, postmeans, k, lfsr_cutoff=0.01, post_lfc_cutoff
 ```{r}
 postmeans <- dfa_out$postmean[go_genes,]
 lfsrs <- dfa_out$lfsr[go_genes,]
-
-topic_1_genes <- list_de_genes(lfsrs, postmeans, 1, lfsr_cutoff=0.01)
-topic_2_genes <- list_de_genes(lfsrs, postmeans, 2, lfsr_cutoff=0.01)
-topic_3_genes <- list_de_genes(lfsrs, postmeans, 3, lfsr_cutoff=0.01)
-topic_4_genes <- list_de_genes(lfsrs, postmeans, 4, lfsr_cutoff=0.01)
-topic_5_genes <- list_de_genes(lfsrs, postmeans, 5, lfsr_cutoff=0.01)
-topic_6_genes <- list_de_genes(lfsrs, postmeans, 6, lfsr_cutoff=0.01)
-topic_7_genes <- list_de_genes(lfsrs, postmeans, 7, lfsr_cutoff=0.01)
-topic_8_genes <- list_de_genes(lfsrs, postmeans, 8, lfsr_cutoff=0.01)
-topic_9_genes <- list_de_genes(lfsrs, postmeans, 9, lfsr_cutoff=0.01)
-topic_10_genes <- list_de_genes(lfsrs, postmeans, 10, lfsr_cutoff=0.01)
-
-de_genes <- unique(c(topic_1_genes,
-              topic_2_genes,
-              topic_3_genes,
-              topic_4_genes,
-              topic_5_genes,
-              topic_6_genes,
-              topic_7_genes,
-              topic_8_genes,
-              topic_9_genes,
-              topic_10_genes))
+topic_1_genes <- list_de_genes(lfsrs, postmeans, 1)
+topic_2_genes <- list_de_genes(lfsrs, postmeans, 2)
+topic_3_genes <- list_de_genes(lfsrs, postmeans, 3)
+topic_4_genes <- list_de_genes(lfsrs, postmeans, 4)
+topic_5_genes <- list_de_genes(lfsrs, postmeans, 5)
+topic_6_genes <- list_de_genes(lfsrs, postmeans, 6)
+topic_7_genes <- list_de_genes(lfsrs, postmeans, 7)
+topic_8_genes <- list_de_genes(lfsrs, postmeans, 8)
+topic_9_genes <- list_de_genes(lfsrs, postmeans, 9)
+topic_10_genes <- list_de_genes(lfsrs, postmeans, 10)
 ```
 
 ### Run GSEA
 Topic 1
 ```{r}
 topic_1_binary <- rownames(gmt_mat) %in% topic_1_genes
-logistic.fit.1 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_1_binary, L=10)
 ora.1 <- gseasusie::fit_ora(X=gmt_mat, y=topic_1_binary)
+ora.1$pBH <- p.adjust(ora.1$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.1$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.1$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.1 %>% arrange(pFishersExact) %>% head(n=5)
+ora.1 <- filter(ora.1, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k1")
 ```
 
 Topic 2
 ```{r}
 topic_2_binary <- rownames(gmt_mat) %in% topic_2_genes
-logistic.fit.2 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_2_binary, L=10)
 ora.2 <- gseasusie::fit_ora(X=gmt_mat, y=topic_2_binary)
+ora.2$pBH <- p.adjust(ora.2$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.2$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.2$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.2 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.2 <- filter(ora.2, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k2")
 ```
-
 
 Topic 3
 ```{r}
 topic_3_binary <- rownames(gmt_mat) %in% topic_3_genes
-logistic.fit.3 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_3_binary, L=10)
 ora.3 <- gseasusie::fit_ora(X=gmt_mat, y=topic_3_binary)
+ora.3$pBH <- p.adjust(ora.3$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.3$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.3$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.3 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.3 <- filter(ora.3, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k3")
 ```
 
 Topic 4
 ```{r}
 topic_4_binary <- rownames(gmt_mat) %in% topic_4_genes
-logistic.fit.4 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_4_binary, L=10)
 ora.4 <- gseasusie::fit_ora(X=gmt_mat, y=topic_4_binary)
+ora.4$pBH <- p.adjust(ora.4$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.4$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.4$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.4 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.4 <- filter(ora.4, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k4")
 ```
 
 Topic 5
 ```{r}
 topic_5_binary <- rownames(gmt_mat) %in% topic_5_genes
-logistic.fit.5 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_5_binary, L=10)
 ora.5 <- gseasusie::fit_ora(X=gmt_mat, y=topic_5_binary)
+ora.5$pBH <- p.adjust(ora.5$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.5$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.5$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.5 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.5 <- filter(ora.5, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k5")
 ```
 
 Topic 6
 ```{r}
 topic_6_binary <- rownames(gmt_mat) %in% topic_6_genes
-logistic.fit.6 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_6_binary, L=10)
 ora.6 <- gseasusie::fit_ora(X=gmt_mat, y=topic_6_binary)
+ora.6$pBH <- p.adjust(ora.6$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.6$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.6$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.6 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.6 <- filter(ora.6, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k6")
 ```
 
 Topic 7
 ```{r}
 topic_7_binary <- rownames(gmt_mat) %in% topic_7_genes
-logistic.fit.7 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_7_binary, L=10)
 ora.7 <- gseasusie::fit_ora(X=gmt_mat, y=topic_7_binary)
+ora.7$pBH <- p.adjust(ora.7$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.7$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.7$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.7 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.7 <- filter(ora.7, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k7")
 ```
 
 Topic 8
 ```{r}
 topic_8_binary <- rownames(gmt_mat) %in% topic_8_genes
-logistic.fit.8 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_8_binary, L=10)
 ora.8 <- gseasusie::fit_ora(X=gmt_mat, y=topic_8_binary)
+ora.8$pBH <- p.adjust(ora.8$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.8$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.8$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.8 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.8 <- filter(ora.8, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k8")
 ```
 
 Topic 9
 ```{r}
 topic_9_binary <- rownames(gmt_mat) %in% topic_9_genes
-logistic.fit.9 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_9_binary, L=10)
 ora.9 <- gseasusie::fit_ora(X=gmt_mat, y=topic_9_binary)
+ora.9$pBH <- p.adjust(ora.9$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.9$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.9$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.9 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.9 <- filter(ora.9, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k9")
 ```
+
 
 Topic 10
 ```{r}
 topic_10_binary <- rownames(gmt_mat) %in% topic_10_genes
-logistic.fit.10 <- gseasusie::fit_logistic_susie(X=gmt_mat, y=topic_10_binary, L=10)
 ora.10 <- gseasusie::fit_ora(X=gmt_mat, y=topic_10_binary)
+ora.10$pBH <- p.adjust(ora.10$pHypergeometric, method="BH")
 
-if (!is.null(logistic.fit.10$sets$cs)) {
-  pivot_longer(as_tibble(logistic.fit.10$sets$cs), everything(), names_to="component_id", values_to="index") %>%
-    mutate(component=colnames(gmt_mat)[.$index]) 
-}
-
-ora.10 %>% arrange(pHypergeometric) %>% head(n=5)
+ora.10 <- filter(ora.10, pBH <= 0.05) %>%
+  dplyr::select(geneSet, geneListSize, geneSetSize, overlap, nGenes, oddsRatio, pHypergeometric, pBH) %>% 
+  mutate(topic="k10")
 ```
+
+Combine all topics
+```{r}
+topic_gsea_all <- bind_rows(
+  ora.1,
+  ora.2,
+  ora.3,
+  ora.4,
+  ora.5,
+  ora.6,
+  ora.7,
+  ora.8,
+  ora.9,
+  ora.10
+) %>%
+  filter(oddsRatio > 1) %>%
+  filter(pBH <= 0.01)
+write_tsv(topic_gsea_all, "/project2/gilad/jpopp/ebQTL/temp/topic_gsea.tsv")
+```
+
+
+
+
 

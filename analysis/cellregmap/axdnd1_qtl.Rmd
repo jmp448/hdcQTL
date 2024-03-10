@@ -1,0 +1,93 @@
+```{r}
+library(tidyverse)
+library(RColorBrewer)
+library(ggblend)
+library(patchwork)
+library(vroom)
+library(snpStats)
+library(tricycle)
+```
+
+Get all effect sizes
+```{r}
+crm_signif <- vroom("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/all_genes_merged.mash-signif.fasttopics_10topics.cellregmap.sighits.tsv")
+crm_iegenes <- crm_signif$EB_HGNC
+
+crm_betas <- vroom(paste0("results/cellregmap_eqtl_calling/eb_cellid/pseudobulk_tmm/basic/mash-signif.fasttopics_10topics.", crm_iegenes, ".cellregmap.betas.tsv"))
+crm_betas_wide <- dplyr::select(crm_betas, c(PSEUDOCELL, BETA_GXC, EB_HGNC, EB_VARIANT_ID)) %>%
+  unite(EB_QTL, EB_HGNC, EB_VARIANT_ID, sep="_") %>%
+  pivot_wider(id_cols=PSEUDOCELL, names_from=EB_QTL, values_from=BETA_GXC)
+
+topic_loadings <- vroom("results/fast_topics/fasttopics_10topics_loadings.tsv")
+
+crm_betas_loadings <- left_join(crm_betas_wide, topic_loadings, by=c("PSEUDOCELL"="pseudocell"))
+
+beta_topic_corrs <- cor(dplyr::select(crm_betas_loadings, -c(PSEUDOCELL, paste0("k", seq(10)))),
+                        dplyr::select(crm_betas_loadings, c(k10)))
+```
+
+### AXDND1_rs16853998
+```{r}
+pseudocell_exp_loc <- "/project2/gilad/jpopp/ebQTL/data/single_cell_objects/eb_pseudocells_normalized.tsv"
+plink_prefix <- "/project2/gilad/jpopp/ebQTL/data/genotypes/yri_maf0.1_all.hg38"
+
+g <- "AXDND1"
+v <- "rs16853998"
+
+pseudocell_exp <- vroom(pseudocell_exp_loc)
+genotypes <- read.plink(bed=paste0(plink_prefix, ".bed"),
+                        bim=paste0(plink_prefix, ".bim"),
+                        fam=paste0(plink_prefix, ".fam"),
+                        select.snps = v)
+crm_genotypes_df <- tibble("donor"=rownames(genotypes$genotypes), "genotype"=as.numeric(genotypes$genotypes))
+
+pseudocell_df <- crm_betas_loadings %>%
+  dplyr::select(all_of(c("PSEUDOCELL", "AXDND1_rs16853998"))) %>% 
+  dplyr::rename(beta_gxc = `AXDND1_rs16853998`) %>%
+  left_join(dplyr::select(pseudocell_exp, c(`...1`, AXDND1)), by=c("PSEUDOCELL"="...1")) %>%
+  mutate(donor=str_extract(PSEUDOCELL, "[^_]+")) %>%
+  left_join(crm_genotypes_df, by=c("donor")) %>%
+  mutate(genotype=factor(genotype))
+```
+
+```{r}
+crm_qtl_plot_linear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=AXDND1, color=genotype)) +
+  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
+  geom_smooth(method = "lm") +
+  theme_classic(base_size=8)+
+  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("AXDND1 Expression") +
+  labs(color=v) +
+  geom_vline(aes(xintercept=0.1), linetype="dashed")
+crm_qtl_plot_linear
+```
+
+```{r, fig.width=8, fig.height=4}
+topics_kept <- c('k1','k2', 'k4','k5','k6', 'k7', 'k8', 'k10')
+structure_df <- topic_loadings %>%
+  dplyr::select(all_of(c("pseudocell", topics_kept))) %>%
+  inner_join(filter(crm_betas, (EB_VARIANT_ID=="rs16853998") & (EB_HGNC=="AXDND1")), by=c("pseudocell"="PSEUDOCELL")) %>%
+  pivot_longer(cols=topics_kept, names_to="topic", values_to="loading") %>%
+  mutate(topic=factor(topic, levels=topics_kept))
+
+structure_plot <- ggplot(structure_df, aes(x=BETA_GXC, y=loading, fill=topic)) +
+  geom_col(width=1e-3) +
+  theme_classic(base_size=8) +
+  scale_fill_manual(values=brewer.pal(9, 'Set1')) +
+  xlab("Aggregate Interacting Environment") +
+  ylab("Topic Loadings") +
+  labs(fill="Topic") +
+  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank())
+structure_plot
+```
+
+
+Combine plots
+```{r fig.height=6, fig.width=5}
+png(filename="figs/supplement/s_axdnd1.png", width=1650, height=1950, res=300)
+crm_qtl_plot_linear / structure_plot
+dev.off()
+```
+

@@ -1,0 +1,33 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+dynamic_eqtl_gwas <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/opentargets_overlap/dynamic-signif_variant_gene_pairs.gtex_removed.opentargets_overlap.tagged_gtex_removed.bed") %>%
+  rename(EB_CONTEXT=EB_TRAJECTORY)
+
+crm_eqtl_gwas <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/opentargets_overlap/crm-all-signif_variant_gene_pairs.gtex_removed.opentargets_overlap.tagged_gtex_removed.bed")
+
+ieqtl_gwas <- bind_rows(dynamic_eqtl_gwas, crm_eqtl_gwas)
+```
+
+How many genes with an ieQTL?
+```{r}
+length(unique(ieqtl_gwas$EB_HGNC))
+```
+
+```{r}
+ieqtl_gwas %>%
+  distinct(EB_HGNC, EB_CONTEXT) %>%
+  dplyr::count(EB_CONTEXT)
+```
+
+How many genes have multiple ieQTLs detected?
+```{r}
+ieqtl_gwas %>%
+  distinct(EB_HGNC, EB_CONTEXT) %>%
+  add_count(EB_HGNC) %>%
+  filter(n > 1) %>%
+  arrange(EB_HGNC)
+```
+

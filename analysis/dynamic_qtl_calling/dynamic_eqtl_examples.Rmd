@@ -4,6 +4,7 @@ suppressPackageStartupMessages(library(vroom))
 suppressPackageStartupMessages(library(qvalue))
 suppressPackageStartupMessages(library(MatrixGenerics))
 suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(patchwork))
 ```
 
 Load data from cardiomyocyte trajectory
@@ -53,35 +54,48 @@ v_early <- "rs112931584"
 cm_early <- dplyr::select(filter(cm_exp, gene==g_early), c("ind_type", "expression")) %>%
   inner_join(filter(cm_genotype_df, snp==v_early), c("ind_type", "expression"), by="ind_type") %>%
   inner_join(cm_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot(width=0.8) +
-  theme_classic(base_size=15) +
+  geom_boxplot(width=0.8, lwd=0.5, outlier.size=0.5) +
+  theme_classic(base_size=6) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.key.size = unit(0.05, "in")) +
   ylab("RILPL1 Expression") +
   xlab("Pseudotime Bin") +
-  scale_fill_manual(name="rs112931584 Genotype", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+  ggtitle("Cardiomyocyte Trajectory") +
+  scale_fill_manual(name="rs112931584", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
 
 hep_early <- dplyr::select(filter(hep_exp, gene==g_early), c("ind_type", "expression")) %>%
   inner_join(filter(hep_genotype_df, snp==v_early), c("ind_type", "expression"), by="ind_type") %>%
   inner_join(hep_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot(width=0.8) +
-  theme_classic(base_size=15) +
+  geom_boxplot(width=0.8, lwd=0.5, outlier.size=0.5) +
+  theme_classic(base_size=6) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.key.size = unit(0.05, "in")) +
   ylab("RILPL1 Expression") +
   xlab("Pseudotime Bin") +
-  scale_fill_manual(name="rs112931584 Genotype", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+  ggtitle("Hepatocyte Trajectory") +
+  scale_fill_manual(name="rs112931584", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
 
 neur_early <- dplyr::select(filter(neur_exp, gene==g_early), c("ind_type", "expression")) %>%
   inner_join(filter(neur_genotype_df, snp==v_early), c("ind_type", "expression"), by="ind_type") %>%
   inner_join(cm_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot(width=0.8) +
-  theme_classic(base_size=15) +
+  geom_boxplot(width=0.8, lwd=0.5, outlier.size=0.5) +
+  theme_classic(base_size=6) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.key.size = unit(0.05, "in")) +
   ylab("RILPL1 Expression") +
   xlab("Pseudotime Bin") +
-  scale_fill_manual(name="rs112931584 Genotype", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+  ggtitle("Neuronal Trajectory") +
+  scale_fill_manual(name="rs112931584", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+```
+
+Early figure
+```{r fig.height=4.5, fig.width=5}
+png(filename="/project2/gilad/jpopp/ebQTL/figs/fig3/fig3_early.png", width=900, height=1200, res=300)
+hep_early / cm_early / neur_early + plot_layout(axes = "collect", guides="collect")
+dev.off()
 ```
 
 Trajectory-specific late example
@@ -92,46 +106,66 @@ v_late <- "rs8088307"
 cm_late <- dplyr::select(filter(cm_exp, gene==g_late), c("ind_type", "expression")) %>%
   inner_join(filter(cm_genotype_df, snp==v_late), c("ind_type", "expression"), by="ind_type") %>%
   inner_join(cm_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot(width=0.8) +
-  theme_classic(base_size=15) +
+  geom_boxplot(width=0.8, lwd=0.5, outlier.size=0.5) +
+  theme_classic(base_size=6) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.key.size = unit(0.05, "in")) +
   ylab("ACAA2 Expression") +
   xlab("Pseudotime Bin") +
-  scale_fill_manual(name="rs8088307 Genotype", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
+  ggtitle("Cardiomyocyte Trajectory") +
+  scale_fill_manual(name="rs8088307", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
 
 hep_late <- dplyr::select(filter(hep_exp, gene==g_late), c("ind_type", "expression")) %>%
   inner_join(filter(hep_genotype_df, snp==v_late), c("ind_type", "expression"), by="ind_type") %>%
   inner_join(hep_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot(width=0.8) +
-  theme_classic(base_size=15) +
+  geom_boxplot(width=0.8, lwd=0.5, outlier.size=0.5) +
+  theme_classic(base_size=6) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.key.size = unit(0.05, "in")) +
   ylab("ACAA2 Expression") +
   xlab("Pseudotime Bin") +
-  scale_fill_manual(name="rs8088307 Genotype", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
+  ggtitle("Hepatocyte Trajectory") +
+  scale_fill_manual(name="rs8088307", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
 
 neur_late <- dplyr::select(filter(neur_exp, gene==g_late), c("ind_type", "expression")) %>%
   inner_join(filter(neur_genotype_df, snp==v_late), c("ind_type", "expression"), by="ind_type") %>%
   inner_join(cm_pseudotime, by="ind_type") %>%
-  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin)) %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
   ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
-  geom_boxplot(width=0.8) +
-  theme_classic(base_size=15) +
+  geom_boxplot(width=0.8, lwd=0.5, outlier.size=0.5) +
+  theme_classic(base_size=6) +
+  theme(axis.ticks.y = element_blank(), axis.text.y = element_blank(), legend.key.size = unit(0.05, "in")) +
   ylab("ACAA2 Expression") +
   xlab("Pseudotime Bin") +
-  scale_fill_manual(name="rs8088307 Genotype", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
+  ggtitle("Neuronal Trajectory") +
+  scale_fill_manual(name="rs8088307", labels=c("CC", "CT", "TT"), values=c("#017100", "#F27200", "#D41876"))
 ```
 
-```{r fig.height=4, fig.width=9}
+Late figure
+```{r fig.height=4.5, fig.width=5}
+png(filename="/project2/gilad/jpopp/ebQTL/figs/fig3/fig3_late.png", width=900, height=1200, res=300)
+hep_late / cm_late / neur_late + plot_layout(axes = "collect", guides="collect")
+dev.off()
+```
+
+Full figure 3
+```{r}
 layout <- "
-AAAAADDDDD
-BBBBBEEEEE
-CCCCCFFFFF
+AAAAABBBEEEEEE
+AAAAACCCEEEEEE
+AAAAADDDEEEEEE
+FFFFFFFIIIIIII
+GGGGGGGJJJJJJJ
+HHHHHHHKKKKKKK
 "
-hep_early + cm_early + neur_early + hep_late + cm_late + neur_late +
+png(filename="/project2/gilad/jpopp/ebQTL/figs/fig3/fig3.png", width=1800, height=2100, res=300)
+pseudotime_plot + pseudo_cm_plot + pseudo_neur_plot + pseudo_hep_plot + marker_plot +
+  (hep_early / cm_early / neur_early / plot_layout(guides="collect")) +
+  (hep_late / cm_late / neur_late / plot_layout(guides="collect")) +
   plot_layout(design = layout)
+dev.off()
 ```
-
 
 

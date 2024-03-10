@@ -13,13 +13,15 @@ test_sce <- readRDS("data/fca/fca_test.lognorm.labeled.77celltypes.sce")
 ```
 
 Generate a confusion matrix comparing predicted to original cell type labels
-```{r fig.height=5, fig.width=5}
+```{r fig.height=6.5, fig.width=6.5}
 celltypes <- unique(test_sce$celltype)
 
 confusion <- confusionMatrix(data=factor(test_sce$cellid_label, levels=celltypes), reference = factor(test_sce$celltype, levels=celltypes))
 
+png(filename="figs/supplement/s_classifier_77.png", width=1950, height=1950, res=300)
 corrplot(confusion$table, is.corr=F, tl.pos='lt', 
-         tl.cex=0.5, tl.col="black")
+         tl.cex=0.4, cl.cex=0.5, tl.col="black")
+dev.off()
 ```
 
 Now, look at performance of the subset classifier
@@ -33,18 +35,22 @@ celltypes_revised <- unique(test_subset$celltype)
 
 confusion_subset <- confusionMatrix(data=factor(test_subset$cellid_label, levels=celltypes_revised), reference = factor(test_subset$celltype, levels=celltypes_revised))
 
+png(filename="figs/supplement/s_classifier_33.png", width=1950, height=1950, res=300)
 corrplot(confusion_subset$table, is.corr=F, tl.pos='lt', 
-         tl.cex=0.5, tl.col="black")
+         tl.cex=0.4, cl.cex=0.5, tl.col="black")
+dev.off()
 ```
 
-```{r fig.height=4, fig.width=2}
-tibble("ntypes"=factor(c(77, 33), levels=c(77, 33)),
+```{r}
+png(filename="figs/supplement/s_classifier_comp.png", width=750, height=1200, res=300)
+tibble("ntypes"=factor(c(77, 33), levels=c(33, 77)),
        "accuracy"=c(confusion$overall["Accuracy"],
                     confusion_subset$overall["Accuracy"])) %>%
   ggplot(aes(x=ntypes, y=accuracy)) +
   geom_col(fill="#B51700") +
-  theme_classic(base_size=15) +
+  theme_classic(base_size=8) +
   xlab("Number of Cell Types") +
   ylab("Classification Accuracy")
+dev.off()
 ```
 

@@ -1,0 +1,80 @@
+```{r}
+library(vroom)
+library(tidyverse)
+library(RColorBrewer)
+```
+
+Show how topics and trajectories relate
+
+```{r}
+cell_pseudocell_map <- vroom("/project2/gilad/jpopp/ebQTL/data/fast_topics/cell_pseudocell_mapping.tsv")
+topic_loadings_pseudocell <- vroom("/project2/gilad/jpopp/ebQTL/results/fast_topics/fasttopics_10topics_loadings.tsv")
+pseudotime_neur <- vroom("/project2/gilad/jpopp/ebQTL/temp/neur_pseudotime.tsv")
+pseudotime_cm <- vroom("/project2/gilad/jpopp/ebQTL/temp/cm_pseudotime.tsv")
+# I pulled pseudotime in analysis/dynamic_qtl_calling/Untitled
+```
+
+Look at CM pseudotime compared to topics 2 (cm) and 4 (ipsc)
+```{r}
+cm_pseudotime_topics <- left_join(cell_pseudocell_map, pseudotime_cm, by="cell") %>%
+  drop_na() %>%
+  group_by(pseudocell_15) %>%
+  summarize(pseudocell_cm_pseudotime=median(pseudotime)) %>%
+  left_join(topic_loadings_pseudocell, by=c("pseudocell_15" = "pseudocell")) %>%
+  select(c(pseudocell_cm_pseudotime, k2, k4)) %>%
+  pivot_longer(!pseudocell_cm_pseudotime, names_to="topic", values_to="loading") %>%
+  mutate(topic=factor(topic, levels=c("k2", "k4")))
+
+ggplot(cm_pseudotime_topics, aes(x=pseudocell_cm_pseudotime, y=loading, fill=topic)) +
+  geom_col(width=0.05) +
+  theme_classic(base_size=15) +
+  scale_fill_manual(values=brewer.pal(10, 'Set1')[c(2,3)])
+```
+
+```{r}
+ggplot(cm_pseudotime_topics, aes(x=pseudocell_cm_pseudotime, y=loading, color=topic)) +
+  geom_smooth(width=0.05) +
+  theme_classic(base_size=15) +
+  scale_color_manual(values=brewer.pal(10, 'Set1')[c(2,3)]) +
+  xlab("Pseudotime (Cardiomyocyte Trajectory)") +
+  ylab("Topic Loading")
+```
+
+
+```{r}
+neur_pseudotime_topics <- left_join(cell_pseudocell_map, pseudotime_neur, by="cell") %>%
+  drop_na() %>%
+  group_by(pseudocell_15) %>%
+  summarize(pseudocell_neur_pseudotime=median(pseudotime)) %>%
+  left_join(topic_loadings_pseudocell, by=c("pseudocell_15" = "pseudocell")) %>%
+  dplyr::select(-c(pseudocell_15)) %>%
+  pivot_longer(!pseudocell_neur_pseudotime, names_to="topic", values_to="loading")
+neur_pseudotime_topics$topic <- factor(neur_pseudotime_topics$topic, levels=paste0("k", seq(10)))
+
+p1 <- ggplot(neur_pseudotime_topics, aes(x=pseudocell_neur_pseudotime, y=loading, fill=topic)) +
+  geom_col(width=0.05) +
+  theme_classic(base_size=8) +
+  scale_fill_manual(values=c(brewer.pal(10, "Paired"))[c(4, 5, 6, 3, 7, 2, 1, 8, 9, 10)]) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(), legend.key.size=unit(0.1, 'in')) +
+  xlab("Median Pseudotime (Neuronal Trajectory)") + ylab("Topic Loading") +
+  labs(fill='Topic')
+
+p2 <- neur_pseudotime_topics %>%
+  filter(topic %in% c("k4", "k7", "k6")) %>%
+  mutate(topic=factor(topic, levels=c("k4", "k7", "k6"))) %>%
+  ggplot(aes(x=pseudocell_neur_pseudotime, y=loading, color=topic)) +
+  geom_smooth() +
+  theme_classic(base_size=8) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(), legend.key.size=unit(0.1, 'in')) +
+  scale_color_manual(values=c(brewer.pal(10, "Paired"))[c(3, 1, 2)]) +
+  xlab("Median Pseudotime (Neuronal Trajectory)") +
+  ylab("Topic Loading") +
+  labs(color="Topic")
+```
+
+```{r}
+png(filename="figs/supplement/s_topics_v_trajectories.png", width=1200, height=900, res=300)
+p2
+dev.off()
+```
+

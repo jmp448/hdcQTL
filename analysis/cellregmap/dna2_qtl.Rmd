@@ -102,18 +102,6 @@ crm_qtl_plot_linear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=DNA2, color=genot
   labs(color=v) +
   geom_vline(aes(xintercept=0.1), linetype="dashed")
 crm_qtl_plot_linear
-
-crm_qtl_plot_nonlinear <- ggplot(pseudocell_df, aes(x=beta_gxc, y=DNA2, color=genotype)) +
-  geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) +
-  geom_smooth(method = "loess") +
-  theme_classic(base_size=15)+
-  scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) +
-  theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), axis.ticks.x=element_blank(), axis.text.x=element_blank()) +
-  xlab("Aggregate Interacting Environment") +
-  ylab("DNA2 Expression") +
-  labs(color=v) +
-  geom_vline(aes(xintercept=0.1), linetype="dashed")
-crm_qtl_plot_nonlinear
 ```
 
 ```{r, fig.width=8, fig.height=4}
@@ -156,28 +144,12 @@ k8_cell_cycle
 
 ```{r, fig.width=8, fig.height=6}
 layout <- "
-AACCC
-AADDD
-BBEEE"
+AAACCCCC
+AAADDDDD
+BBBEEEEE"
 loadings_plot +
   wrap_elements(full=k8_cell_cycle) + 
   structure_plot + crm_qtl_plot_linear +
   crm_qtl_plot_phase_periodic_loess +
   plot_layout(design=layout)
 ```
-
-
-<!-- ### Circular plot -->
-<!-- ```{r} -->
-<!-- crm_qtl_plot_phase_circle_loess <- ggplot(pseudocell_df_phased, aes(x=state, y=DNA2, color=genotype)) + -->
-<!--   geom_point(size=0.25, alpha = 0.5) * (blend("lighten", alpha = 0.5) + blend("multiply", alpha = 0.1)) + -->
-<!--   theme_classic(base_size=15)+ -->
-<!--   scale_color_manual(labels=c("TT", "TC", "CC"), values=brewer.pal(3, "Set1")) + -->
-<!--   theme(axis.ticks.y=element_blank(), axis.text.y=element_blank(), -->
-<!--         axis.ticks.x=element_blank(), axis.text.x=element_blank()) + -->
-<!--   labs(color=v) + -->
-<!--   geom_line(data=loess_fits, aes(x=x, y=y, color=genotype)) + -->
-<!--   coord_polar() -->
-<!-- crm_qtl_plot_phase_circle_loess -->
-<!-- ``` -->
-

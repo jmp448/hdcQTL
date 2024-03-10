@@ -1,0 +1,194 @@
+```{r}
+library(tidyverse)
+library(vroom)
+library(qvalue)
+library(MatrixGenerics)
+library(RColorBrewer)
+```
+
+## Cardiomyocyte Trajectory
+```{r}
+cm_early <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-eb-cm-signif_variant_gene_pairs.bed")
+
+cm_early_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-eb-cm-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+
+cm_late <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/latedynamic-eb-cm-signif_variant_gene_pairs.bed")
+
+cm_late_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/latedynamic-eb-cm-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+
+cm_switch <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/switchdynamic-eb-cm-signif_variant_gene_pairs.bed")
+cm_switch_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/switchdynamic-eb-cm-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+```
+
+How many early dynamic eQTLs overlap with GTEx?
+```{r}
+cm_early_dynamic_egenes <- length(unique(cm_early$EB_HGNC))
+cm_early_dynamic_egenes_unique <- length(setdiff(unique(cm_early$EB_HGNC), unique(cm_early_overlap$EB_HGNC)))
+```
+
+How many late dynamic eQTLs overlap with GTEx?
+```{r}
+cm_late_dynamic_egenes <- length(unique(cm_late$EB_HGNC))
+cm_late_dynamic_egenes_unique <- length(setdiff(unique(cm_late$EB_HGNC), unique(cm_late_overlap$EB_HGNC)))
+```
+
+## Neuronal Trajectory
+```{r}
+neur_early <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-eb-neur-signif_variant_gene_pairs.bed")
+
+neur_early_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-eb-neur-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+
+neur_late <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/latedynamic-eb-neur-signif_variant_gene_pairs.bed")
+
+neur_late_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/latedynamic-eb-neur-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+
+neur_switch <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/switchdynamic-eb-neur-signif_variant_gene_pairs.bed")
+neur_switch_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/switchdynamic-eb-neur-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+```
+
+How many early dynamic eQTLs overlap with GTEx?
+```{r}
+neur_early_dynamic_egenes <- length(unique(neur_early$EB_HGNC))
+neur_early_dynamic_egenes_unique <- length(setdiff(unique(neur_early$EB_HGNC), unique(neur_early_overlap$EB_HGNC)))
+```
+
+How many late dynamic eQTLs overlap with GTEx?
+```{r}
+neur_late_dynamic_egenes <- length(unique(neur_late$EB_HGNC))
+neur_late_dynamic_egenes_unique <- length(setdiff(unique(neur_late$EB_HGNC), unique(neur_late_overlap$EB_HGNC)))
+```
+
+## Hepatoblast Trajectory
+```{r}
+hep_early <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-eb-hep-signif_variant_gene_pairs.bed")
+
+hep_early_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-eb-hep-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+
+hep_late <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/latedynamic-eb-hep-signif_variant_gene_pairs.bed")
+
+hep_late_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/latedynamic-eb-hep-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+
+hep_switch <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/switchdynamic-eb-hep-signif_variant_gene_pairs.bed")
+hep_switch_overlap <- vroom("results/static_eqtl_followup/qtl_sets/dynamic-eqtls/switchdynamic-eb-hep-signif_variant_gene_pairs.all_tissue_overlap.bed",
+                   col_names=c("#CHR", "START", "END", "EB_ENSG", "EB_HGNC", "EB_VARIANT_ID", "EB_CLASS_TRAJ",
+                               "GTEX_CHR", "GTEX_START", "GTEX_END", "GTEX_ENSG", "REF", "ALT"))
+
+```
+
+How many early dynamic eQTLs overlap with GTEx?
+```{r}
+hep_early_dynamic_egenes <- length(unique(hep_early$EB_HGNC))
+hep_early_dynamic_egenes_unique <- length(setdiff(unique(hep_early$EB_HGNC), unique(hep_early_overlap$EB_HGNC)))
+```
+
+How many late dynamic eQTLs overlap with GTEx?
+```{r}
+hep_late_dynamic_egenes <- length(unique(hep_late$EB_HGNC))
+hep_late_dynamic_egenes_unique <- length(setdiff(unique(hep_late$EB_HGNC), unique(hep_late_overlap$EB_HGNC)))
+```
+
+## Combined summary
+```{r}
+all_dynamic_eqtls <- bind_rows(
+  select(cm_early, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(neur_early, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(hep_early, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(cm_switch, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(neur_switch, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(hep_switch, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(cm_late, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(neur_late, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(hep_late, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ))
+) %>%
+  separate(EB_CLASS_TRAJ, into=c("eb", "traj", "class")) %>%
+  select(-c(eb))
+```
+
+Identify any classification conflicts
+```{r}
+classification_conflicts <- all_dynamic_eqtls %>%
+  distinct(EB_HGNC, EB_VARIANT_ID, class) %>%
+  add_count(EB_HGNC, EB_VARIANT_ID) %>%
+  filter(n > 1) %>%
+  arrange(EB_HGNC, EB_VARIANT_ID, class, n)
+```
+PIGP has one early and one late eQTL at rs2298682, TMED2 and FAAP20 have late/ switch effects at rs112931584 and rs262693 respectively (randomly selected from the blocks)
+
+```{r}
+all_dynamic_eqtls_noconflict <- anti_join(all_dynamic_eqtls, classification_conflicts, by=c("EB_HGNC"))
+distinct_dynamic_eqtls_noconflict <- distinct(all_dynamic_eqtls_noconflict, EB_HGNC, EB_VARIANT_ID, class)
+
+dplyr::count(distinct_dynamic_eqtls_noconflict, class)
+```
+
+What fraction of dynamic eQTLs display GTEx overlap?
+```{r}
+all_gtex_overlaps_noconflict <- bind_rows(
+  select(cm_early_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(neur_early_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(hep_early_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(cm_switch_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(neur_switch_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(hep_switch_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(cm_late_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(neur_late_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ)),
+  select(hep_late_overlap, c(EB_HGNC, EB_VARIANT_ID, EB_CLASS_TRAJ))
+) %>%
+  separate(EB_CLASS_TRAJ, into=c("eb", "traj", "class")) %>%
+  select(-c(eb)) %>%
+  anti_join(classification_conflicts, by=c("EB_HGNC"))
+
+distinct_gtex_overlaps_noconflict <- distinct(all_gtex_overlaps_noconflict, EB_HGNC, EB_VARIANT_ID, class)
+
+nrow(distinct_gtex_overlaps_noconflict) / nrow(all_dynamic_eqtls_noconflict)
+```
+
+Break this down by classification
+```{r}
+early_dynamic_eqtls_noconflict <- filter(distinct_dynamic_eqtls_noconflict, class=="early")
+late_switch_dynamic_eqtls_noconflict <- filter(distinct_dynamic_eqtls_noconflict, class %in% c("late", "switch"))
+
+early_gtex_overlaps_noconflict <- filter(distinct_gtex_overlaps_noconflict, class=="early")
+late_switch_gtex_overlaps_noconflict <- filter(distinct_gtex_overlaps_noconflict, class %in% c("late", "switch"))
+
+nrow(early_gtex_overlaps_noconflict) / nrow(early_dynamic_eqtls_noconflict)
+nrow(late_switch_gtex_overlaps_noconflict) / nrow(late_switch_dynamic_eqtls_noconflict)
+```
+
+
+What fraction of genes with an early eQTL display GTEx overlap?
+```{r}
+
+early_dynamic_eqtls_noconflict_nogtex <- early_dynamic_eqtls_noconflict %>%
+  anti_join(cm_early_overlap, by=c("EB_HGNC")) %>%
+  anti_join(neur_early_overlap, by=c("EB_HGNC")) %>%
+  anti_join(hep_early_overlap, by=c("EB_HGNC"))
+
+length(unique(early_dynamic_eqtls_noconflict_nogtex$EB_HGNC)) / length(unique(early_dynamic_eqtls_noconflict$EB_HGNC))
+```
+
+```{r}
+late_dynamic_eqtls_noconflict <- filter(distinct_dynamic_eqtls_noconflict, class=="late")
+late_dynamic_eqtls_noconflict_nogtex <- late_dynamic_eqtls_noconflict %>%
+  anti_join(cm_late_overlap, by=c("EB_HGNC")) %>%
+  anti_join(neur_late_overlap, by=c("EB_HGNC")) %>%
+  anti_join(hep_late_overlap, by=c("EB_HGNC"))
+
+length(unique(late_dynamic_eqtls_noconflict_nogtex$EB_HGNC)) / length(unique(late_dynamic_eqtls_noconflict$EB_HGNC))
+```

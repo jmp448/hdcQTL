@@ -1,0 +1,137 @@
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(vroom))
+suppressPackageStartupMessages(library(qvalue))
+suppressPackageStartupMessages(library(MatrixGenerics))
+suppressPackageStartupMessages(library(RColorBrewer))
+suppressPackageStartupMessages(library(patchwork))
+```
+
+Load data from cardiomyocyte trajectory
+```{r}
+cm_hits <- vroom("results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+neur_hits <- vroom("results/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+hep_hits <- vroom("results/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.cis_qtl_all_signif.fdr0.1.tsv")
+all_dqtls <- c(cm_hits$variant_id, hep_hits$variant_id, neur_hits$variant_id)
+all_dgenes <- c(cm_hits$phenotype_id, hep_hits$phenotype_id, neur_hits$phenotype_id)
+
+cm_exp <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% all_dgenes) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+cm_genotype_df <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% all_dqtls) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+cm_pseudotime <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+neur_exp <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% all_dgenes) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+neur_genotype_df <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% all_dqtls) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+neur_pseudotime <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+
+hep_exp <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/expression.bed.gz") %>%
+  filter(gene %in% all_dgenes) %>%
+  dplyr::select(-c(`#chr`, start, end)) %>%
+  pivot_longer(!gene, names_to="ind_type", values_to="expression")
+hep_genotype_df <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/genotype_df.tsv") %>% 
+  filter(snp %in% all_dqtls) %>%
+  pivot_longer(!snp, names_to="ind_type", values_to="genotype")
+hep_pseudotime <- vroom("data/dynamic_qtl_calling/eb-hep_15binstrimmed/pseudobulk_tmm/pseudotime.tsv") %>%
+  mutate(pseudotime_bin=as.numeric(str_extract(ind_type, "[^bin]+$")))
+```
+
+## PIGP
+PIGP has an early eQTL in the hepatocyte trajectory and a late eQTL in the cardiomyocyte trajectory
+```{r}
+hep_pigp <- dplyr::select(filter(hep_exp, gene=="PIGP"), c("ind_type", "expression")) %>%
+  inner_join(filter(hep_genotype_df, snp=="rs2298682"), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(hep_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("PIGP Expression") +
+  xlab("Pseudotime Bin") +
+  ggtitle("Hepatoblast Trajectory") +
+  scale_fill_manual(name="rs2298682", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+cm_pigp <- dplyr::select(filter(cm_exp, gene=="PIGP"), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp=="rs2298682"), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("PIGP Expression") +
+  xlab("Pseudotime Bin") +
+  ggtitle("Cardiomyocyte Trajectory") +
+  scale_fill_manual(name="rs2298682", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+hep_pigp / cm_pigp
+```
+
+## TMED2
+TMED2 has a late eQTL in the cardiomyocyte trajectory and a switch in hepatocyte
+```{r}
+hep_tmed2 <- dplyr::select(filter(hep_exp, gene=="TMED2"), c("ind_type", "expression")) %>%
+  inner_join(filter(hep_genotype_df, snp=="rs112931584"), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(hep_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("TMED2 Expression") +
+  xlab("Pseudotime Bin") +
+  ggtitle("Hepatoblast Trajectory") +
+  scale_fill_manual(name="rs112931584", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+cm_tmed2 <- dplyr::select(filter(cm_exp, gene=="TMED2"), c("ind_type", "expression")) %>%
+  inner_join(filter(cm_genotype_df, snp=="rs112931584"), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(cm_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("TMED2 Expression") +
+  xlab("Pseudotime Bin") +
+  ggtitle("Cardiomyocyte Trajectory") +
+  scale_fill_manual(name="rs112931584", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+hep_tmed2 / cm_tmed2
+```
+
+## FAAP20
+FAAP20 has a late eQTL in the neuronal trajectory and a switch in hepatocyte
+```{r}
+hep_faap20 <- dplyr::select(filter(hep_exp, gene=="FAAP20"), c("ind_type", "expression")) %>%
+  inner_join(filter(hep_genotype_df, snp=="rs262693"), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(hep_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("FAAP20 Expression") +
+  xlab("Pseudotime Bin") +
+  ggtitle("Hepatoblast Trajectory") +
+  scale_fill_manual(name="rs262693", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+neur_faap20 <- dplyr::select(filter(neur_exp, gene=="FAAP20"), c("ind_type", "expression")) %>%
+  inner_join(filter(neur_genotype_df, snp=="rs262693"), c("ind_type", "expression"), by="ind_type") %>%
+  inner_join(neur_pseudotime, by="ind_type") %>%
+  mutate(genotype=factor(genotype), pseudotime_bin=factor(pseudotime_bin-1)) %>%
+  ggplot(aes(x=pseudotime_bin, y=expression, fill=genotype)) +
+  geom_boxplot(width=0.8) +
+  theme_classic(base_size=15) +
+  ylab("FAAP20 Expression") +
+  xlab("Pseudotime Bin") +
+  ggtitle("Neuronal Trajectory") +
+  scale_fill_manual(name="rs262693", labels=c("GG", "GA", "AA"), values=c("#017100", "#F27200", "#D41876"))
+
+neur_faap20 / hep_faap20
+```

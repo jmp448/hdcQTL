@@ -47,7 +47,6 @@ gmt_mat <- t(as.matrix(gmt_mat[which(valid_genesets),]))
 
 is_novel <- !rownames(gmt_mat) %in% gtex_distinct$EB_HGNC
 ora <- gseasusie::fit_ora(X=gmt_mat, y=is_novel)
-ora$bhHypergeometric <- p.adjust(ora$pHypergeometric, method="BH")
 ora$bhFishersExact <- p.adjust(ora$pFishersExact, method="BH")
 
 gsea_results <- select(ora, c(geneSet, geneListSize, geneSetSize,

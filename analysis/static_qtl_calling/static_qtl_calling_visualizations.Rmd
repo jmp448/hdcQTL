@@ -95,6 +95,50 @@ nrow(eb_distinct)
 length(unique(eb_distinct$EB_HGNC))
 ```
 
+How does this break down by cell type?
+```{r}
+nhits_by_celltype <- vroom(eb_sighits_bed_loc) %>%
+  separate_rows(EB_CELLTYPE, sep=",") %>%
+  dplyr::count(EB_CELLTYPE)
+```
+
+Add back in the two rows for cell types that had no eQTLs
+```{r}
+add_underpowered_types <- tibble("EB_CELLTYPE"=c("Lymphoid-cells", "Bronchiolar-and-alveolar-epithelial-cells"),
+                                 "n"=c(0, 0)) %>%
+  bind_rows(nhits_by_celltype)
+```
+
+```{r}
+ggplot(add_underpowered_types, aes(x=EB_CELLTYPE, y=n)) +
+  geom_col() + 
+  coord_flip()
+
+median(add_underpowered_types$n)
+arrange(add_underpowered_types, desc(n))
+```
+Define this in terms of eGenes
+```{r}
+ngenes_by_celltype <- vroom(eb_sighits_bed_loc) %>%
+  separate_rows(EB_CELLTYPE, sep=",") %>%
+  dplyr::select(EB_HGNC, EB_CELLTYPE) %>%
+  distinct() %>%
+  dplyr::count(EB_CELLTYPE)
+
+add_underpowered_types_genes <- tibble("EB_CELLTYPE"=c("Lymphoid-cells", "Bronchiolar-and-alveolar-cells"),
+                                 "n"=c(0, 0)) %>%
+  bind_rows(ngenes_by_celltype)
+```
+
+```{r}
+ggplot(add_underpowered_types_genes, aes(x=EB_CELLTYPE, y=n)) +
+  geom_col() + 
+  coord_flip()
+
+median(add_underpowered_types_genes$n)
+arrange(add_underpowered_types_genes, desc(n))
+```
+
 How many of the eQTLs that we identify have previously been identified as an eQTL?
 ```{r}
 gtex_distinct <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 

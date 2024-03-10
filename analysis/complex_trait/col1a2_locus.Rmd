@@ -21,38 +21,23 @@ cm_dqtl_bim <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tm
   dplyr::select(RS, POS)
 ```
 
-Will also highlight the novel EB eQTLs
-```{r}
-cm_novel_hits <- vroom("results/gwas_overlap/cm_fully_novel.tsv")
-```
-
 
 ```{r}
 col1a2_tss <- 94394561
 alm_gwas_merge <- alm_gwas %>%
   dplyr::select(END, P) %>%
   filter((col1a2_tss - 50e3 <= END) & (col1a2_tss + 50e3 >= END)) %>%
-  mutate(assay="GWAS") %>%
-  mutate(highlight= P <= 5e-8)
+  mutate(assay="GWAS")
 
 col1a2_qtl_merge <- col1a2_qtl %>%
   dplyr::select(variant_id, pval_gi) %>%
   inner_join(cm_dqtl_bim, by=c("variant_id"="RS")) %>%
-  mutate(highlight= variant_id %in% cm_novel_hits$EB_VARIANT_ID) %>%
   dplyr::select(-c(variant_id)) %>%
   dplyr::rename(END=POS, P=pval_gi) %>%
   mutate(assay="QTL") 
   
-
 locus_view <- bind_rows(alm_gwas_merge, col1a2_qtl_merge) %>%
   mutate(nlog10p=-log10(P))
-
-ggplot(locus_view, aes(x=END, y=nlog10p, color=highlight)) +
-  facet_grid(rows=vars(assay), scales="free_y") +
-  geom_point() +
-  geom_vline(aes(xintercept=col1a2_tss), color="red") +
-  theme_classic() +
-  scale_color_manual(values=c("black", "red"))
 ```
 
 Are the most significant hits really overlapping? Hard to tell here
@@ -189,43 +174,3 @@ p2 <- ggplot(col1a2_ld_plot, aes(x=POS, y=nlog10p, color=tag_ld)) +
 p1 / p2
 ```
 
-## Dissecting early and late effects across the locus
-Here, we are looking at the significance of the interaction term - this is not the same 
-as the significance of the total genetic effect, which varies across contexts but also 
-incorporates the main effect
-
-To see if this is worth looking into further, look at just the effect estimates at early and
-late pseudotime (these will be noisy). First, load the effect estimates
-```{r}
-col1a2_effects_loc <- "results/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/10clpcs/tensorqtl_interactions.all.tsv"
-col1a2_effects <- fread(col1a2_effects_loc)[(variant_id %in% col1a2_qtl_ld$RS) & (phenotype_id == "COL1A2"), ]
-```
-
-I also need to know the distribution of pseudotime values
-```{r}
-cm_pseudotimes <- vroom("data/dynamic_qtl_calling/eb-cm_15binstrimmed/pseudobulk_tmm/nipals/pseudotime.tsv")
-hist(cm_pseudotimes$pseudotime)
-range(cm_pseudotimes$pseudotime)
-```
-
-```{r fig.height=4, fig.width=4}
-col1a2_alleffects <- col1a2_qtl_ld %>%
-  left_join(dplyr::select(col1a2_effects, c(variant_id, b_g, b_gi)), by=c("RS"="variant_id")) %>%
-  mutate(early_pseudotime=-7) %>%
-  mutate(late_pseudotime=26)  %>%
-  mutate(early_effect = b_g + map2_dbl(b_gi, early_pseudotime, `*`)) %>%
-  mutate(late_effect = b_g + map2_dbl(b_gi, late_pseudotime, `*`)) %>%
-  mutate(diff_effect = late_effect - early_effect) %>%
-  mutate(credible_set = POS %in% gwas_strongest) %>% 
-  dplyr::select(c(POS, credible_set, early_effect, late_effect, diff_effect, b_g)) %>%
-  pivot_longer(cols=c(early_effect, late_effect, diff_effect, b_g),
-               names_to="effect", values_to="effect estimate") %>%
-  mutate(effect=factor(effect, levels=c("b_g", "diff_effect", "early_effect", "late_effect")))
-
-
-ggplot(col1a2_alleffects, aes(x=POS, y=`effect estimate`, color=credible_set)) +
-  geom_point() + 
-  facet_wrap(vars(effect)) +
-  scale_color_manual(values=c("black", "red")) +
-  theme_classic(base_size=12)
-```
