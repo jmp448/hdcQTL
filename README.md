@@ -1,9 +1,7 @@
-## Single-cell preprocessing and cell type annotation
-### Alignment and demultiplexing
-Alignment is at `/project2/gilad/kenneth/Pipelines/HumanCellranger/Snakefile_cellranger` with data in `kenneth/ebQTL/highpass/batch1/1001/*`
-Katie's filtering and creation of the raw data is scattered between `/project2/gilad/katie/ebQTL/highpass_combinedFiles/102andPilot_MakeAdata.py`, `AddVireoAndFormColMetadata_AfterCellrangerAgr102andPilot.ipynb`, `102andPilot_filter.ipynb`, and `102andPilot_AddQC_ApplyFilter.ipynb`. 
-These went into the creation of the raw_data file.
-All of Kenneth's stuff he has, and Katie's stuff is copied into the `filtering` subfolder in `code` and `data`
+# Code for eQTL analyses in heterogeneous differentiating cultures 
+## Single-cell preprocessing 
+- Code for filtering is available in `code/filtering/`
+- The output of this sequence is the raw data file available for download from GEO
 
 ### Classifier development (fetal cell atlas)
 - Raw fetal cell atlas data can be downloaded from `https://atlas.brotmanbaty.org/bbi/human-gene-expression-during-development/` (5,000 sampled cells from each cell type, cell annotations, and gene annotations)
@@ -16,9 +14,9 @@ All of Kenneth's stuff he has, and Katie's stuff is copied into the `filtering` 
 - Code for this part of the analysis is in the folder `code/annotation`
 
 ### UMAP visualization and hierarchical clustering of cell types
-- `rules/sc_preprocessing.py` contains the rules used to generate the UMAP embedding
+- `rules/sc_preprocessing.py` contains the rules used to generate the UMAP embedding, with associated code in `code/sc_preprocessing/`
 
-## eQTL calling 
+## Static eQTL calling 
 ### Pseudobulk aggregation
 - UMI counts for each donor and cell type are first aggregated in `analysis/annotation/assign_cellid.ipynb`
 - Initial pseudobulk normalization and generation of a few QC metrics is done in `code/static_qtl_calling/pseudobulk_tmm-basic-qc.R`, followed by manual QC (based on inspection of PC plots) in `analysis/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/pseudobulk_qc.Rmd`. After removing outlier samples based on this manual step, we preprocess the pseudobulk data in `code/static_qtl_calling/pseudobulk_tmm-basic-agg.R`
@@ -28,17 +26,19 @@ All of Kenneth's stuff he has, and Katie's stuff is copied into the `filtering` 
 - We control the FDR across all genes in `code/static_qtl_calling/static_qtl_calling/tensorqtl_fdr.py`
 
 ### Mash multivariate eQTL analysis
-
+- Snakemake rules for the multivariate (cross-celltype) mash analysis are in `rules/mash_qtl_calling.py`, with associated code in `code/mash_qtl_calling/`
 ## Interaction eQTL calling
 ### Trajectory isolation and pseudotime inference
+- Snakemake rules for trajectory isolation and pseudotime estimation are in `rules/trajectory_inference.py`, with associated code in `code/trajectory_inference/`
 ### Dynamic eQTL calling
+- Snakemake rules for pseudobulk aggregation (by pseudotime binning) and dynamic eQTL calling are in `rules/dynamic_qtl_calling.py`, with associated code in `code/dynamic_qtl_calling/`
 ### Topic modeling
+- Snakemake rules for pseudocell aggregation, topic modeling, and the topic DE analysis are in `rules/fast_topics.py`, with associated code in `code/fast_topics/`
 ### Topic eQTL calling
-
+- Snakemake rules for topic eQTL calling with CellRegMap, including multiple testing correction and *post hoc* estimation of effect sizes, are in `rules/cellregmap_eqtl_calling.py`, with associated code in `code/cellregmap_eqtl_calling/` 
+## Complex trait analysis
+- Snakemake rules for the comparison of cell type eQTLs to schizophrenia GWAS loci are in `rules/scz_analysis.py` with code in `
 ## Software notes
 - To run the `mash` analysis, we used `flashier`, which was not available on anaconda at the time
   - We therefore installed the package manually from https://github.com/willwerscheid/flashier 
   into the conda environment specified at `slurmy/r-mashr.yml` 
-
-
-

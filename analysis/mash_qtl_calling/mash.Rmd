@@ -94,6 +94,12 @@ nonmash_effects <- vroom("results/static_qtl_calling/eb_cellid/pseudobulk_tmm/ba
 nonmash_viz <- filter(nonmash_effects, (variant_id=="rs10042482") & (phenotype_id=="SH3PXD2B"))
 ```
 
+Get the number of samples from this cell type to translate standard errors into standard deviation for consistency with mash
+```{r}
+sample_summary <- vroom("data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/sample_summary_manual.tsv")
+nsamples <- sample_summary %>% filter(!dropped) %>% group_by(type) %>% dplyr::count()
+```
+
 
 ```{r}
 mash_posterior_betas <- get_pm(full_m)["SH3PXD2B_rs10042482",]
@@ -107,23 +113,28 @@ mash_ests <- tibble(type=mash_celltypes,
                     approach=rep("mash", length(mash_celltypes)))
 
 nonmash_betas <- nonmash_viz$slope
-nonmash_sds <- nonmash_viz$slope_se
-nonmash_precision <- 1 / nonmash_sds ** 2
+nonmash_ses <- nonmash_viz$slope_se 
 nonmash_celltypes <- nonmash_viz$celltype
 nonmash_ests <- tibble(type=nonmash_celltypes,
                     beta=nonmash_betas,
-                    sd=nonmash_sds,
-                    precision=nonmash_precision,
-                    approach=rep("non-mash", length(nonmash_celltypes)))
-
+                    se=nonmash_ses,
+                    approach=rep("non-mash", length(nonmash_celltypes))) %>%
+  left_join(nsamples, by="type") %>%
+  mutate(sd = nonmash_ses * sqrt(n)) %>%
+  mutate(precision = 1 / nonmash_sds ** 2) %>%
+  dplyr::select(type, beta, sd, precision, approach)
+  
 mash_comp_viz <- bind_rows(mash_ests, nonmash_ests) %>%
   mutate(approach=case_match(factor(approach, levels=c("non-mash", "mash")), "non-mash" ~ "Univariate Analysis", "mash" ~ "Multivariate Analysis")) %>%
   mutate(approach=factor(approach, levels=c("Univariate Analysis", "Multivariate Analysis"))) %>%
   left_join(color_map, by="type") %>%
   mutate(type_spaced=factor(type_spaced, levels=color_map$type_spaced))
-  
 
-mash_example_plot <- ggplot(mash_comp_viz, aes(x=type_spaced, y=beta, color=color)) +
+univariate_only_viz <- nonmash_ests %>%
+  left_join(color_map, by="type") %>%
+  mutate(type_spaced=factor(type_spaced, levels=color_map$type_spaced))
+
+univariate_only_example_plot <- ggplot(univariate_only_viz, aes(x=type_spaced, y=beta, color=color)) +
   geom_hline(aes(yintercept=0), linetype="dashed", color="red") +
   geom_errorbar(aes(ymin=beta - sd, ymax=beta + sd), color="#D5D5D5", width=0.5) +
   geom_point(aes(size=precision), shape=15) +
@@ -131,19 +142,41 @@ mash_example_plot <- ggplot(mash_comp_viz, aes(x=type_spaced, y=beta, color=colo
   theme(legend.position = "none", axis.text.x = element_text(angle=45, hjust=1)) +
   scale_color_identity() +
   coord_flip() +
-  facet_grid(cols=vars(approach)) +
   xlab("Cell Type") +
-  ylab("Estimated Effect Size") 
+  ylab("Estimated Effect Size")
+```
+
+```{r}
+mash_only_viz <- mash_ests %>%
+  left_join(color_map, by="type") %>%
+  mutate(type_spaced=factor(type_spaced, levels=color_map$type_spaced))
+
+mash_only_example_plot <- ggplot(mash_only_viz, aes(x=type_spaced, y=beta, color=color)) +
+  geom_hline(aes(yintercept=0), linetype="dashed", color="red") +
+  geom_errorbar(aes(ymin=beta - sd, ymax=beta + sd), color="#D5D5D5", width=0.5) +
+  geom_point(aes(size=precision), shape=15) +
+  theme_classic(base_size=20) +
+  theme(legend.position = "none", axis.text.x = element_text(angle=45, hjust=1)) +
+  scale_color_identity() +
+  coord_flip() +
+  xlab("Cell Type") +
+  ylab("Estimated Effect Size")
 ```
 
 
 ```{r fig.height=4, fig.width=10}
+png(filename="/project2/gilad/jpopp/ebQTL/figs/fig2/mash.png", width=1900, height=750)
 layout <- "
   AAAABBB
   AAAABBB
 "
-mash_factors_all + mash_example_plot +
+mash_factors_all + mash_only_example_plot +
   plot_layout(design=layout)
+dev.off()
+
+png(filename="/project2/gilad/jpopp/ebQTL/figs/fig2/univariate.png", width=900, height=750)
+univariate_only_example_plot
+dev.off()
 ```
 
 ## Comparing weights
