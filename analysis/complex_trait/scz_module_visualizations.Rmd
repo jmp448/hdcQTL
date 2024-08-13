@@ -1,0 +1,39 @@
+```{r}
+library(tidyverse)
+```
+
+```{r}
+scz_modules <- vroom("/project/gilad/jpopp/ebQTL/temp/SCZ.tsv")
+neur_expression <- vroom("data/dynamic_qtl_calling/eb-neur_15binstrimmed/pseudobulk_tmm/nipals/pseudobulk_normalized_alldonors.tsv")
+```
+
+View the aggregate trend across all SCZ genes
+```{r}
+scz_expression <- expression_norm %>%
+  filter(gene %in% scz_modules$gene) %>%
+  column_to_rownames("gene")
+scz_expression <- scz_expression[,paste0("bin", seq(2, 14))]
+```
+
+```{r}
+agg_scz_expression <- colMeans(scz_expression)
+```
+
+Look at interesting eQTLs for dynamically expressed disease genes
+```{r}
+gene_classification <- vroom("/project/gilad/jpopp/ebQTL/temp/SCZ.tsv")
+```
+
+Scan early dynamic eQTLs for overlap with early genes
+```{r}
+early_scz <- filter(gene_classification, cluster=="early")
+early_dynamic <- vroom("/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/dynamic-eqtls/earlydynamic-eb-neur-signif_variant_gene_pairs.bed")
+early_dynamic_scz <- filter(early_dynamic, EB_HGNC %in% early_scz$gene)
+```
+
+Scan early dynamic eQTLs for overlap with early genes
+```{r}
+mid_scz <- filter(gene_classification, cluster=="intermediate")
+topic_eqtls <- vroom("")
+mid_dynamic_scz <- filter(mid_dynamic, EB_HGNC %in% mid_scz$gene)
+```

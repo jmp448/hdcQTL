@@ -167,7 +167,19 @@ rule sumstats2bed_pardinas:
     script:
         "../code/complex_trait_analysis/sumstats2bed_pardinas.R"
 
-    
+rule sumstats2bed_trubetskoy:
+    resources:
+        mem_mb=50000,
+        time="30:00"
+    input:
+        sumstats="data/gwas/trubetskoy_2022/trubetskoy-scz.sumstats.hg19.tsv.gz"
+    output:
+        bed="data/gwas/trubetskoy_2022/trubetskoy-scz.sumstats.hg19.bed"
+    conda:
+        "../slurmy/genome-toolkit.yml"
+    script:
+        "../code/complex_trait_analysis/sumstats2bed_trubetskoy.R"
+
 rule crossmap_hg19_to_hg38:
     resources:
         mem_mb=50000,
@@ -224,3 +236,4 @@ rule munge_sumstats_sa:
         python code/ldsc/munge_sumstats.py --sumstats {input.sumstats} \
             --out TCSC/sumstats/{wildcards.trait} 
         """
+

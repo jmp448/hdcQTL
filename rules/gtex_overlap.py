@@ -28,6 +28,20 @@ rule reformat_GTEx_eqtls:
     script:
         "../code/static_eqtl_followup/reformat_gtex_snps.R"
 
+rule reformat_I2QTL_eqtls:
+# convert I2QTL significant eGene-eVariant pairs to BED format, 
+    resources:
+        mem_mb=150000,
+        disk_mb=20000
+    input:
+        "data/i2qtl_paper/i2qtl_IPSC_summary_statistics_egene.tsv" # downloaded from https://www.nature.com/articles/s41588-021-00800-7, supplementary table 3
+    output:
+        "results/static_eqtl_followup/gtex/I2QTL.signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/static_eqtl_followup/reformat_i2qtl_snps.R"
+
+
 rule list_overlap_snps_sigtests_per_tissue:
     """
     This command will:
