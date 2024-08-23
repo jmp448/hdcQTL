@@ -81,7 +81,7 @@ rule list_overlap_snps_sigtests_per_tissue:
         mem_mb=10000
     input:
         ebqtl="results/static_eqtl_followup/qtl_sets/{analysis}/{snpset}_variant_gene_pairs.sorted.bed",
-        gtex="results/static_eqtl_followup/gtex/{tissue}.signif_variant_gene_pairs.sorted.bed"
+        gtex="/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/gtex/{tissue}.signif_variant_gene_pairs.sorted.bed"
     output:
         "results/static_eqtl_followup/qtl_sets/{analysis}/{snpset}_variant_gene_pairs.{tissue}.overlap.bed"
     shell:
