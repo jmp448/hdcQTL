@@ -82,6 +82,7 @@ ggplot(schematic_qtl, aes(x=genotype, y=expression, color=color)) +
 ```{r}
 eb_sighits_bed_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed"
 eb_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed"
+i2qtl_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.I2QTL.overlap.bed"
 gtf_loc <- "/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filtered.gtf"
 ```
 
@@ -139,7 +140,7 @@ median(add_underpowered_types_genes$n)
 arrange(add_underpowered_types_genes, desc(n))
 ```
 
-How many of the eQTLs that we identify have previously been identified as an eQTL?
+How many of the eQTLs that we identify have previously been identified as an eQTL by GTEx?
 ```{r}
 gtex_distinct <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
                                                           "RSID", "CELLTYPE", "CHR1", "START1", 
@@ -150,6 +151,21 @@ gtex_distinct <- vroom(eb_sighits_overlap_loc, col_names=c("CHR", "START", "STOP
 eb_novel <- anti_join(eb_distinct, gtex_distinct, by=c("EB_HGNC"="EB_HGNC", "EB_VARIANT_ID"="RSID"))
 nrow(eb_novel) / nrow(eb_distinct)
 ```
+
+How about in IPSCs?
+```{r}
+i2qtl_distinct <- vroom(eb_sighits_i2qtl_overlap_loc, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                          "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                          "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
+  dplyr::select(EB_HGNC, RSID) %>%
+  distinct()
+
+eb_novel_noipsc <- anti_join(eb_novel, i2qtl_distinct, by=c("EB_HGNC"="EB_HGNC", "EB_VARIANT_ID"="RSID"))
+nrow(eb_novel_noipsc) / nrow(eb_distinct)
+```
+
+
+
 
 ## Evaluate gene set enrichment results
 ```{r}

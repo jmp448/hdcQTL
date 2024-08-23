@@ -1,7 +1,7 @@
 import glob
 
 baseline_cats=set(glob_wildcards("data/sldsc/baselineLD_v2.2_bedfiles/{categories}.bed").categories)
-all_traits = set(glob_wildcards("TCSC/sumstats/{traits}.sumstats.gz").traits)
+# all_traits = set(glob_wildcards("TCSC/sumstats/{traits}.sumstats.gz").traits)
 
 rule prune_ben_baseline:
     resources:
@@ -61,67 +61,67 @@ rule create_qtl_annots_geneset_specific:
     script:
         "../code/complex_trait_analysis/make_geneset_annots.py"
 
-rule estimate_ld_scores:
-    resources:
-        mem_mb=30000,
-        time="1:00:00"
-    input:
-        annot_file="data/ldsc/{annot_group}/baselineLD.{chrom}.annot.gz",
-        print_snps="data/ldsc/hg38_regression_snp_weight_files/w_hm3.noMHC.snplist"
-    output:
-        expand("data/ldsc/{{annot_group}}/baselineLD.{{chrom}}.{ext}", ext=["log", "l2.M", "l2.M_5_50", "l2.ldscore.gz"])
-    params:
-        plink_prefix="data/ldsc/hg38_plink_files/1000G.EUR.hg38"
-    conda: 
-        "../code/ldsc/environment.yml"
-    shell:
-        """
-        python code/ldsc/ldsc.py \
-            --l2 \
-            --bfile {params.plink_prefix}.{wildcards.chrom} \
-            --ld-wind-cm 1 \
-            --annot {input.annot_file} \
-            --out data/ldsc/{wildcards.annot_group}/baselineLD.{wildcards.chrom} \
-            --print-snps {input.print_snps}
-        """
+# rule estimate_ld_scores:
+#     resources:
+#         mem_mb=30000,
+#         time="1:00:00"
+#     input:
+#         annot_file="data/ldsc/{annot_group}/baselineLD.{chrom}.annot.gz",
+#         print_snps="data/ldsc/hg38_regression_snp_weight_files/w_hm3.noMHC.snplist"
+#     output:
+#         expand("data/ldsc/{{annot_group}}/baselineLD.{{chrom}}.{ext}", ext=["log", "l2.M", "l2.M_5_50", "l2.ldscore.gz"])
+#     params:
+#         plink_prefix="data/ldsc/hg38_plink_files/1000G.EUR.hg38"
+#     conda: 
+#         "../code/ldsc/environment.yml"
+#     shell:
+#         """
+#         python code/ldsc/ldsc.py \
+#             --l2 \
+#             --bfile {params.plink_prefix}.{wildcards.chrom} \
+#             --ld-wind-cm 1 \
+#             --annot {input.annot_file} \
+#             --out data/ldsc/{wildcards.annot_group}/baselineLD.{wildcards.chrom} \
+#             --print-snps {input.print_snps}
+#         """
 
-rule partition_heritability:
-    resources:
-        mem_mb=30000,
-        time="1:00:00"
-    input:
-        sumstats="TCSC/sumstats/{gwas}.sumstats.gz",
-        ld_scores=expand("data/ldsc/{{annot_group}}/baselineLD.{chrom}.l2.ldscore.gz", chrom=range(1, 23)),
-        weights_files=expand("data/ldsc/hg38_regression_snp_weight_files/weights.hm3_noMHC.{chrom}.l2.ldscore.gz", chrom=range(1, 23)),
-        annot_file=expand("data/ldsc/{{annot_group}}/baselineLD.{chrom}.annot.gz", chrom=range(1, 23))
-    output:
-        log="results/ldsc/{annot_group}/{gwas}.log",
-        results="results/ldsc/{annot_group}/{gwas}.results"
-    params:
-        plink_prefix="data/ldsc/hg38_plink_files/1000G.EUR.hg38",
-        weights_prefix="data/ldsc/hg38_regression_snp_weight_files/weights.hm3_noMHC",
-    conda: 
-        "../code/ldsc/environment.yml"
-    shell:
-        """
-        python code/ldsc/ldsc.py --h2 {input.sumstats} \
-            --ref-ld-chr data/ldsc/{wildcards.annot_group}/baselineLD. \
-            --w-ld-chr {params.weights_prefix}. \
-            --overlap-annot \
-            --frqfile-chr {params.plink_prefix}. \
-            --print-coefficients \
-            --out results/ldsc/{wildcards.annot_group}/{wildcards.gwas}
-        """
+# rule partition_heritability:
+#     resources:
+#         mem_mb=30000,
+#         time="1:00:00"
+#     input:
+#         sumstats="TCSC/sumstats/{gwas}.sumstats.gz",
+#         ld_scores=expand("data/ldsc/{{annot_group}}/baselineLD.{chrom}.l2.ldscore.gz", chrom=range(1, 23)),
+#         weights_files=expand("data/ldsc/hg38_regression_snp_weight_files/weights.hm3_noMHC.{chrom}.l2.ldscore.gz", chrom=range(1, 23)),
+#         annot_file=expand("data/ldsc/{{annot_group}}/baselineLD.{chrom}.annot.gz", chrom=range(1, 23))
+#     output:
+#         log="results/ldsc/{annot_group}/{gwas}.log",
+#         results="results/ldsc/{annot_group}/{gwas}.results"
+#     params:
+#         plink_prefix="data/ldsc/hg38_plink_files/1000G.EUR.hg38",
+#         weights_prefix="data/ldsc/hg38_regression_snp_weight_files/weights.hm3_noMHC",
+#     conda: 
+#         "../code/ldsc/environment.yml"
+#     shell:
+#         """
+#         python code/ldsc/ldsc.py --h2 {input.sumstats} \
+#             --ref-ld-chr data/ldsc/{wildcards.annot_group}/baselineLD. \
+#             --w-ld-chr {params.weights_prefix}. \
+#             --overlap-annot \
+#             --frqfile-chr {params.plink_prefix}. \
+#             --print-coefficients \
+#             --out results/ldsc/{wildcards.annot_group}/{wildcards.gwas}
+#         """
 
-rule sldsc_meta_analysis:
-    input:
-        expand("results/ldsc/{{annot_group}}/{gwas}.results", gwas=all_traits)
-    output:
-        "temp/{annot_group}.done.txt"
-    shell:
-        """
-        echo did it > {output}
-        """
+# rule sldsc_meta_analysis:
+#     input:
+#         expand("results/ldsc/{{annot_group}}/{gwas}.results", gwas=all_traits)
+#     output:
+#         "temp/{annot_group}.done.txt"
+#     shell:
+#         """
+#         echo did it > {output}
+#         """
 
 # HG19 to HG38 Liftover        
 # rule sumstats2bed_sa:
@@ -221,19 +221,33 @@ rule crossmap_hg19_to_hg38:
 #     script:
 #         "../code/complex_trait_analysis/prep_allele_merge.R"
 
-rule munge_sumstats_sa:
+# rule munge_sumstats_sa:
+#     resources:
+#         mem_mb=50000,
+#         time="30:00"
+#     input: 
+#         sumstats="data/gwas/sinnott-armstrong/{trait}.sumstats.hg38.tsv.gz"
+#     output: 
+#         "TCSC/sumstats/{trait}.sumstats.gz"
+#     conda: 
+#         "../code/ldsc/environment.yml"
+#     shell:
+#         """
+#         python code/ldsc/munge_sumstats.py --sumstats {input.sumstats} \
+#             --out TCSC/sumstats/{wildcards.trait} 
+#         """
+
+rule scdrs:
     resources:
         mem_mb=50000,
-        time="30:00"
-    input: 
-        sumstats="data/gwas/sinnott-armstrong/{trait}.sumstats.hg38.tsv.gz"
-    output: 
-        "TCSC/sumstats/{trait}.sumstats.gz"
-    conda: 
-        "../code/ldsc/environment.yml"
-    shell:
-        """
-        python code/ldsc/munge_sumstats.py --sumstats {input.sumstats} \
-            --out TCSC/sumstats/{wildcards.trait} 
-        """
-
+        time="04:00:00"
+    input:
+        adata="data/trajectory_inference/eb_scdrs_preprocessed.adata",
+        gs="data/gene_sets/zhang.magma_10kb_1000.74_traits.gs",
+        gs_map="data/gene_sets/zhang.magma_10kb_1000.74_traits.map"
+    output:
+        "results/scDRS/zhang.magma_10kb_1000.74_traits/{trait}/scores.tsv"
+    conda:
+        "../slurmy/scvi.yml"
+    script:
+        "../code/complex_trait_analysis/scDRS.py"

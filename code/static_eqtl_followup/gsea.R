@@ -8,6 +8,7 @@ library(gseasusie)
 
 eb_bed <- snakemake@input[['eb_bed']]
 gtex_overlap_bed <- snakemake@input[['gtex_bed']]
+i2qtl_overlap_bed <- snakemake@input[['i2qtl_bed']]
 gmt_loc <- snakemake@input[['gmt']]
 
 gsea_table_loc <- snakemake@output[['gsea_results']]
@@ -20,6 +21,12 @@ eb_distinct <- vroom(eb_bed) %>%
 gtex_distinct <- vroom(gtex_overlap_bed, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
                                                            "RSID", "CELLTYPE", "CHR1", "START1", 
                                                            "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
+  dplyr::select(EB_HGNC, RSID) %>%
+  distinct()
+
+i2qtl_distinct <- vroom(i2qtl_overlap_bed, col_names=c("CHR", "START", "STOP", "EB_ENSG", "EB_HGNC", 
+                                                     "RSID", "CELLTYPE", "CHR1", "START1", 
+                                                     "STOP1", "GTEX_ENSG", "GTEX_REF", "GTEX_ALT")) %>%
   dplyr::select(EB_HGNC, RSID) %>%
   distinct()
 
@@ -49,7 +56,11 @@ is_novel <- !rownames(gmt_mat) %in% gtex_distinct$EB_HGNC
 ora <- gseasusie::fit_ora(X=gmt_mat, y=is_novel)
 ora$bhFishersExact <- p.adjust(ora$pFishersExact, method="BH")
 
-gsea_results <- select(ora, c(geneSet, geneListSize, geneSetSize,
+is_novel_ipsc <- !rownames(gmt_mat) %in% c(gtex_distinct$EB_HGNC, i2qtl_distinct$EB_HGNC)
+ora_ipsc <- gseasusie::fit_ora(X=gmt_mat, y=is_novel_ipsc)
+ora_ipsc$bhFishersExact <- p.adjust(ora_ipsc$pFishersExact, method="BH")
+
+gsea_results <- dplyr::select(ora, c(geneSet, geneListSize, geneSetSize,
                               overlap, nGenes, propInList, propInSet,
                               oddsRatio, pFishersExact, bhFishersExact)) %>%
   write_tsv(gsea_table_loc)

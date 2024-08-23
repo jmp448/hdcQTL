@@ -80,6 +80,19 @@ rule pseudobulk_tmm_only:
     script:
         "../code/static_qtl_calling/tmm_normalization_only.R"
 
+rule outlier_detection:
+    resources:
+        mem_mb=250000,
+        time="30:00"
+    input:
+        pseudobulk="data/static_qtl_calling/{annotation}/pseudobulk_tmm/{annotation}.pseudobulk_tmm.tsv",
+        sample_summary="data/static_qtl_calling/{annotation}/pseudobulk_tmm/sample_summary.tsv"
+    output:
+        dstats="data/static_qtl_calling/{annotation}/pseudobulk_tmm/basic/d_statistics.tsv"
+    conda: "../slurmy/r-pseudobulk.yml"
+    script:
+        "../code/static_qtl_calling/outlier_stats.R"
+
 ### DATA WRANGLING
 #### Genotypes
 rule list_study_individuals:

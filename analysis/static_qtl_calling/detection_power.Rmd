@@ -17,14 +17,23 @@ color_map <- readRDS("/project2/gilad/jpopp/ebQTL/temp/color_map.rds") %>%
 
 Load eQTLs
 ```{r}
-nhits_by_celltype <- vroom(hdc_eqtls_bed_loc) %>%
+all_eqtls <- vroom(hdc_eqtls_bed_loc)
+n_genes_by_celltype <- all_eqtls %>%
   separate_rows(EB_CELLTYPE, sep=",") %>%
+  group_by(EB_HGNC, EB_CELLTYPE) %>% 
+  slice_head(n=1) %>%
+  ungroup() %>%
   dplyr::count(EB_CELLTYPE)
 
 add_underpowered_types <- tibble("EB_CELLTYPE"=c("Lymphoid-cells", "Bronchiolar-and-alveolar-epithelial-cells"),
                                  "n"=c(0, 0)) %>%
-  bind_rows(nhits_by_celltype)
+  bind_rows(n_genes_by_celltype)
 ```
+
+```{r}
+ggplot(nhits_by_celtype, aes(x=))
+```
+
 
 Load number of cells per sample
 ```{r}
@@ -52,6 +61,33 @@ ggplot(ncells_nqtls, aes(x=n_median, y=n, color=type_spaced)) +
   labs(color="Cell Type") +
   scale_color_manual(values=color_map$color)
 dev.off()
+```
+
+
+Plot eGenes per cell type
+```{r}
+n_genes_by_celltype <- vroom(hdc_eqtls_bed_loc) %>%
+     separate_rows(EB_CELLTYPE, sep=",") %>%
+     group_by(EB_HGNC, EB_CELLTYPE) %>% 
+     slice_head(n=1) %>%
+     ungroup() %>%
+     dplyr::count(EB_CELLTYPE)
+
+```
+
+```{r}
+all_types_egenes <- tibble("EB_CELLTYPE"=c("Lymphoid-cells", "Bronchiolar-and-alveolar-epithelial-cells"),
+                                 "n"=c(0, 0)) %>%
+  bind_rows(n_genes_by_celltype) %>%
+  left_join(color_map, by=c("EB_CELLTYPE"="type")) %>%
+  arrange(desc(n))
+all_types_egenes$type_spaced <- factor(all_types_egenes$type_spaced, levels=rev(all_types_egenes$type_spaced))
+ggplot(all_types_egenes, aes(x=type_spaced, y=n, fill=color)) +
+    geom_col() + 
+  coord_flip() +
+  theme_classic(base_size=20) +
+  scale_fill_identity() +
+  xlab("Cell Type") + ylab("Number of eGenes")
 ```
 
 

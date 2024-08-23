@@ -52,6 +52,19 @@ rule sumstats2bed_pardinas:
     script:
         "../code/complex_trait_analysis/sumstats2bed_pardinas.R"
 
+rule sumstats2bed_trubetskoy:
+    resources:
+        mem_mb=50000,
+        time="30:00"
+    input:
+        sumstats="data/gwas/trubetskoy_2022/trubetskoy-scz.sumstats.hg19.tsv.gz"
+    output:
+        bed="data/gwas/trubetskoy_2022/trubetskoy-scz.sumstats.hg19.bed"
+    conda:
+        "../slurmy/genome-toolkit.yml"
+    script:
+        "../code/complex_trait_analysis/sumstats2bed_trubetskoy.R"
+
 rule crossmap_hg19_to_hg38:
     resources:
         mem_mb=50000,
@@ -127,6 +140,28 @@ rule refine_qtl_set_scz:
         "../slurmy/r-sva.yml"
     script:
         "../code/complex_trait_analysis/refine_gwas_qtl_snplist.R"
+
+rule neur_pseudotime_pseudobulk:
+    resources:
+        mem_mb=500000,
+        time="05:00:00"
+    input:
+        raw_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/pseudobulk_raw.tsv",
+        pseudobulk="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{trajectory}_{nbins}.pseudobulk_tmm.tsv",
+        metadata="/project2/gilad/katie/ebQTL/CombinedFormationAndCollectionMetadata_102andPilot_SWAPSANDCONTAMINATIONADDED_012522.csv",
+        sample_summary_manual="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/sample_summary_manual.tsv"
+    output:
+        raw_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/pseudobulk_raw.tsv",
+        norm_expression="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/expression.tsv",
+        covariates="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/covariates.tsv",
+        individuals="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/individuals.tsv",
+        pseudotime="data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/pseudotime.tsv"
+    params:
+        table_prefix = "data/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/",
+        fig_prefix = "figs/dynamic_qtl_calling/{trajectory}_{nbins}/pseudobulk_tmm/{pca}/"
+    conda: "../slurmy/r-pseudobulk.yml"
+    script:
+        "../code/dynamic_qtl_calling/pseudobulk_tmm-agg-dynamic.R"
 
 # baseline_cats=set(glob_wildcards("data/sldsc/baselineLD_v2.2_bedfiles/{categories}.bed").categories)
 # all_traits = set(glob_wildcards("TCSC/sumstats/{traits}.sumstats.gz").traits)

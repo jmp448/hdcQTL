@@ -34,13 +34,42 @@ rule reformat_I2QTL_eqtls:
         mem_mb=150000,
         disk_mb=20000
     input:
-        "data/i2qtl_paper/i2qtl_IPSC_summary_statistics_egene.tsv" # downloaded from https://www.nature.com/articles/s41588-021-00800-7, supplementary table 3
+        #"data/i2qtl_paper/i2qtl_IPSC_summary_statistics_egene.tsv" # downloaded from https://www.nature.com/articles/s41588-021-00800-7, supplementary table 3
+        expand("data/i2qtl_paper/GeneLevel/full_qtl_results_{chrom}.txt.gz", chrom=range(1, 23))
     output:
-        "results/static_eqtl_followup/gtex/I2QTL.signif_variant_gene_pairs.bed"
+        "results/static_eqtl_followup/gtex/I2QTL.signif_variant_gene_pairs.hg19.bed"
     conda: "../slurmy/r-mashr.yml"
     script:
         "../code/static_eqtl_followup/reformat_i2qtl_snps.R"
 
+rule reformat_IPSC_PPC_eqtls:
+# convert IPSC PPC significant eGene-eVariant pairs to BED format, 
+    resources:
+        mem_mb=150000,
+        disk_mb=20000
+    input:
+        #"data/i2qtl_paper/i2qtl_IPSC_summary_statistics_egene.tsv" # downloaded from https://www.nature.com/articles/s41588-021-00800-7, supplementary table 3
+        expand("data/i2qtl_paper/GeneLevel/full_qtl_results_{chrom}.txt.gz", chrom=range(1, 23))
+    output:
+        "results/static_eqtl_followup/gtex/IPSCPPC.signif_variant_gene_pairs.hg19.bed"
+    conda: "../slurmy/r-sva.yml"
+    script:
+        "../code/static_eqtl_followup/reformat_ipsc_ppc_snps.R"
+        
+rule crossmap_i2qtl:
+    resources:
+        mem_mb=50000,
+        time="30:00"
+    input:
+        chain_file="data/genotypes/hg19ToHg38.over.chain.gz",
+        bed_input="results/static_eqtl_followup/gtex/I2QTL.signif_variant_gene_pairs.hg19.bed"
+    output:
+        bed_output="results/static_eqtl_followup/gtex/I2QTL.signif_variant_gene_pairs.bed"
+    conda: "../slurmy/genome-toolkit.yml"
+    shell:
+        """
+        python $CONDA_PREFIX/bin/CrossMap.py bed {input.chain_file} {input.bed_input} {output.bed_output}
+        """
 
 rule list_overlap_snps_sigtests_per_tissue:
     """

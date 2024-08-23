@@ -54,4 +54,3 @@ save(fit, fit_multinom, counts, dfa_out,
 # SESSION INFO
 # ------------
 print(sessionInfo())
-
