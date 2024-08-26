@@ -277,6 +277,81 @@ rule refine_qtl_set_ldl_willer:
     script:
         "../code/complex_trait_analysis/refine_gwas_qtl_snplist.R"
 
+## Keaton DBP analysis
+rule sumstats2bed_keaton:
+    resources:
+        mem_mb=50000,
+        time="30:00"
+    input:
+        sumstats="data/gwas/keaton_2024/keaton-dbp.sumstats.hg19.tsv.gz"
+    output:
+        bed="data/gwas/keaton_2024/keaton-dbp.sumstats.hg19.bed"
+    conda:
+        #"../slurmy/r-sva.yml"
+        "../slurmy/genome-toolkit.yml"
+    script:
+        "../code/complex_trait_analysis/sumstats2bed_keaton.R"
+
+rule generate_dbp_qtl_snplist_keaton:
+    resources:
+      mem_mb=100000
+    input:
+      eb_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
+      gtex_bed="/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
+      dbp_sumstats="data/gwas/keaton_2024/keaton-dbp.sumstats.hg38.bed"
+    output:
+      non_gtex_dbp_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.snplist.txt",
+      non_gtex_dbp_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.bed"
+    conda:
+        "../slurmy/r-sva.yml"
+    script:
+        "../code/complex_trait_analysis/generate_dbp_qtl_snplist.R"
+
+rule list_yri_tagged_dbp_eqtls_keaton:
+    resources:
+        mem_mb=50000,
+        time="03:00:00"
+    input:
+	      genotypes=expand("/project2/gilad/jpopp/ebQTL/data/genotypes/yri_all.hg38.deduplicated.{out}", out=['bed', 'bim', 'fam']),
+	      snps="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.snplist.txt"
+    output:
+    	  expand("results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.snplist.{ext}", ext=['tags.list', 'tags', 'nosex', 'log'])
+    params:
+        genotypes="data/genotypes/yri_all.hg38.deduplicated",
+        outfiles="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.snplist"
+    shell:
+	      """
+	      module load plink
+	      plink --bfile {params.genotypes} --show-tags {input.snps} --tag-r2 0.5 --tag-kb 1000 --list-all --out {params.outfiles}
+	      """
+
+rule expand_bed_to_tag_snps_dbp_keaton:
+    resources:
+        mem_mb=50000,
+        time="15:00"
+    input:
+        eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
+        tags="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.snplist.tags.list",
+        bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
+    output:
+        bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/tagging-signif_variant_gene_pairs.bed"
+    conda: "../slurmy/r-mashr.yml"
+    script:
+        "../code/complex_trait_analysis/expand_bed_to_tag_snps.R"
+        
+rule refine_qtl_set_dbp_keaton:
+    resources:
+      mem_mb=100000
+    input:
+      non_gtex_gwas_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.bed",
+      gtex_overlap_tag_variants="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/tagging-signif_variant_gene_pairs.all_tissue_overlap.bed"
+    output:
+      filtered_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.tagged_gtex_removed.bed"
+    conda:
+        "../slurmy/r-sva.yml"
+    script:
+        "../code/complex_trait_analysis/refine_gwas_qtl_snplist.R"
+
 rule neur_pseudotime_pseudobulk:
     resources:
         mem_mb=500000,
