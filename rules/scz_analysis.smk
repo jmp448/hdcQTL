@@ -223,14 +223,14 @@ rule generate_ldl_qtl_snplist_willer:
     input:
       eb_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
       gtex_bed="/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
-      scz_sumstats="data/gwas/willer_2022/willer-ldl.sumstats.hg38.bed"
+      ldl_sumstats="data/gwas/willer_2022/willer-ldl.sumstats.hg38.bed"
     output:
-      non_gtex_scz_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.txt",
-      non_gtex_scz_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.bed"
+      non_gtex_ldl_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.txt",
+      non_gtex_ldl_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.bed"
     conda:
         "../slurmy/r-sva.yml"
     script:
-        "../code/complex_trait_analysis/generate_scz_qtl_snplist.R"
+        "../code/complex_trait_analysis/generate_ldl_qtl_snplist.R"
 
 rule list_yri_tagged_ldl_eqtls_willer:
     resources:
@@ -238,12 +238,12 @@ rule list_yri_tagged_ldl_eqtls_willer:
         time="03:00:00"
     input:
 	      genotypes=expand("/project2/gilad/jpopp/ebQTL/data/genotypes/yri_all.hg38.deduplicated.{out}", out=['bed', 'bim', 'fam']),
-	      snps="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.txt"
+	      snps="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.txt"
     output:
-    	  expand("results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.{ext}", ext=['tags.list', 'tags', 'nosex', 'log'])
+    	  expand("results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.{ext}", ext=['tags.list', 'tags', 'nosex', 'log'])
     params:
         genotypes="data/genotypes/yri_all.hg38.deduplicated",
-        outfiles="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist"
+        outfiles="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist"
     shell:
 	      """
 	      module load plink
@@ -256,22 +256,22 @@ rule expand_bed_to_tag_snps_ldl_willer:
         time="15:00"
     input:
         eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
-        tags="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.tags.list",
+        tags="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.tags.list",
         bim_file="data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/all_celltypes_combined/genotypes_filtered_plink.bim"
     output:
-        bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/tagging-signif_variant_gene_pairs.bed"
+        bedfile="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/tagging-signif_variant_gene_pairs.bed"
     conda: "../slurmy/r-mashr.yml"
     script:
         "../code/complex_trait_analysis/expand_bed_to_tag_snps.R"
         
-rule refine_qtl_set_scz_willer:
+rule refine_qtl_set_ldl_willer:
     resources:
       mem_mb=100000
     input:
-      non_gtex_gwas_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/signif_variant_gene_pairs.gtex_removed.bed",
-      gtex_overlap_tag_variants="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/tagging-signif_variant_gene_pairs.all_tissue_overlap.bed"
+      non_gtex_gwas_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.bed",
+      gtex_overlap_tag_variants="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/tagging-signif_variant_gene_pairs.all_tissue_overlap.bed"
     output:
-      filtered_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_willer/signif_variant_gene_pairs.gtex_removed.tagged_gtex_removed.bed"
+      filtered_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.tagged_gtex_removed.bed"
     conda:
         "../slurmy/r-sva.yml"
     script:
