@@ -96,6 +96,21 @@ rule generate_scz_qtl_snplist:
     script:
         "../code/complex_trait_analysis/generate_scz_qtl_snplist.R"
 
+rule generate_scz_qtl_snplist_trubetskoy:
+    resources:
+      mem_mb=100000
+    input:
+      eb_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
+      gtex_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
+      scz_sumstats="data/gwas/trubetskoy_2022/trubetskoy-scz.sumstats.hg38.bed"
+    output:
+      non_gtex_scz_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_trubetskoy/signif_variant_gene_pairs.gtex_removed.snplist.txt",
+      non_gtex_scz_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_trubetskoy/signif_variant_gene_pairs.gtex_removed.bed"
+    conda:
+        "../slurmy/r-sva.yml"
+    script:
+        "../code/complex_trait_analysis/generate_scz_qtl_snplist.R"
+
 rule list_yri_tagged_scz_eqtls:
     resources:
         mem_mb=50000,

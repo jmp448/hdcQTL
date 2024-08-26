@@ -209,11 +209,11 @@ rule sumstats2bed_willer:
         mem_mb=50000,
         time="30:00"
     input:
-        sumstats="data/gwas/willer_2022/willer-ldl.sumstats.hg19.tsv.gz"
+        sumstats="data/gwas/willer_2021/willer-ldl.sumstats.hg19.tsv.gz"
     output:
-        bed="data/gwas/willer_2022/willer-ldl.sumstats.hg19.bed"
+        bed="data/gwas/willer_2021/willer-ldl.sumstats.hg19.bed"
     conda:
-        "../slurmy/genome-toolkit.yml"
+        "../slurmy/r-sva.yml"
     script:
         "../code/complex_trait_analysis/sumstats2bed_willer.R"
 
@@ -223,7 +223,7 @@ rule generate_ldl_qtl_snplist_willer:
     input:
       eb_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
       gtex_bed="/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
-      ldl_sumstats="data/gwas/willer_2022/willer-ldl.sumstats.hg38.bed"
+      ldl_sumstats="data/gwas/willer_2021/willer-ldl.sumstats.hg38.bed"
     output:
       non_gtex_ldl_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.txt",
       non_gtex_ldl_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.bed"

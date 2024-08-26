@@ -59,5 +59,7 @@ rule scdrs_celltype_analysis_combined:
         expand("results/scDRS/zhang.magma_10kb_1000.74_traits/{trait}/celltype_scores.tsv", trait=subset_traits)
     output:
         "results/scDRS/zhang.magma_10kb_1000.74_traits/combined_celltype_scores.tsv"
-    shell:
-        "echo done > {output}"
+    conda:
+        "../slurmy/r-pseudobulk.yml"
+    script:
+        "../code/complex_trait_analysis/scDRS_combine_celltypes.R"

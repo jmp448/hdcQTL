@@ -1,0 +1,48 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+scdrs_celltype <- read_tsv("results/scDRS/zhang.magma_10kb_1000.74_traits/combined_celltype_scores.tsv") %>%
+  dplyr::rename(n_cell_type=n_cell) %>%
+  group_by(trait) %>% mutate(n_cell_trait=sum(n_fdr_0.1)) %>%
+  ungroup %>% 
+  mutate(prop_fdr_0.1=n_fdr_0.1 / n_cell_trait, assoc_signif=p.adjust(assoc_mcp, "BH")) %>%
+  filter(celltype != "unassigned")
+```
+
+Groupings
+```{r}
+group_traits <- tibble(trait=c("ADHD", "AD", "AF", "BIP", "CAD", "FG", "ISI", "MDD", "CIR", "RCTT", "SCZ", "SD", "T2D", "AA", "AP", "CHOL", "GL", "HDL", "HBA1C", "LDL", "SHBG", "TST", "TB", "TP", "TG", "BMD-HT", "BMI", "HGHT", "WHR", "DBP", "SBP", "BC", "SMOK", "CVD", "HTN", "HT", "RR-ENT", "BMR", "FEV", "FVC"), trait_full=c("Attention Deficit/ Hyperactivity Disorder", "Alzheimer's Disease", "Atrial Fibrillation", "Bipolar Disorder", "Coronary Artery Disease", "Fasting Glucose", "Insomnia", "Major Depressive Disorder", "Primary Biliary Cirrhosis", "Reaction Time", "Schizophrenia", "Sleep Duration", "Type 2 Diabetes", "Alanine Aminotransferase", "Alkaline Phosphatase", "Cholesterol", "Glucose Levels", "High Density Lipoprotein", "Glycated A1C Hemoglobin Levels", "Low Density Lipoprotein", "Sex Hormone Binding Globulin", "Testosterone", "Total Bilirubin", "Total Protein", "Triglycerides", "Bone Mineral Density (Heel)", "Body Mass Index", "Height", "Waist Hip Ratio Adjusted for BMI", "Diastolic Blood Pressure", "Systolic Blood Pressure", "Breast Cancer", "Smoking Status", "Cardiovascular Disease", "Hypertension", "Hypothyroidism", "Respiratory and Ear-Nose-Throat Diseases", "Basal Metabolic Rate", "Forced Expiratory Volume", "Forced Vital Capacity"
+), category=factor(c("Psychiatric-Neurologic", "Psychiatric-Neurologic", "Cardiometabolic", "Psychiatric-Neurologic", "Cardiometabolic", "Cardiometabolic", "Psychiatric-Neurologic", "Psychiatric-Neurologic", "Cardiometabolic", "Psychiatric-Neurologic", "Psychiatric-Neurologic", "Psychiatric-Neurologic", "Cardiometabolic", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Biochemistry", "Anthropometric", "Anthropometric", "Anthropometric", "Anthropometric", "Cardiometabolic", "Cardiometabolic", "Cancer", "Psychiatric-Neurologic", "Cardiometabolic", "Cardiometabolic", "Endocrine", "Lung", "Cardiometabolic", "Lung", "Lung"), levels=c("Biochemistry", "Endocrine", "Lung", "Cardiometabolic", "Anthropometric", "Cancer", "Psychiatric-Neurologic")))%>%
+  arrange(category)
+trait_order <- group_traits$trait_full
+
+color_map <- readRDS("/project2/gilad/jpopp/ebQTL/temp/color_map.rds")
+type_order <- color_map$type_spaced
+
+scdrs_ordered <- scdrs_celltype %>%
+  left_join(dplyr::select(group_traits, c(trait, trait_full)), by="trait") %>%
+  mutate(trait_full=factor(trait_full, levels=trait_order), celltype=factor(celltype, levels=type_order)) %>%
+  drop_na() %>%
+  mutate(signif_assoc=factor(assoc_signif < 0.05, levels=c(F, T)))
+```
+
+Extend significance testing to 
+
+```{r fig.height=8, fig.width=9}
+ggplot(scdrs_ordered, aes(x=celltype, y=trait_full, fill=prop_fdr_0.1, color=signif_assoc)) +
+  geom_tile() +
+  theme_classic(base_size=12) +
+  theme(axis.text.x=element_text(angle=45, hjust=1)) +
+  scale_fill_gradient(low = "white", high = "#B51700", name="Prop. of sig. cells") +
+  guides(color="none") +
+  scale_color_manual(values=c("white", "black")) +
+  xlab("Cell Type") + ylab("Trai")
+```
+
