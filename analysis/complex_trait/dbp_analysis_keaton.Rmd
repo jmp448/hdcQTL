@@ -20,12 +20,12 @@ tensorqtl_eqtls <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/origin
 
 
 ```{r}
-scz <- fread("data/gwas/trubetskoy_2022/trubetskoy-scz.sumstats.hg38.bed")
+dbp <- fread("data/gwas/keaton_2024/keaton-dbp.sumstats.hg38.bed")
 
-scz_eqtls <- inner_join(mutate(tensorqtl_eqtls, `#CHR`=str_replace(`#CHR`, "chr", "")), scz, by=c("#CHR"="V1", "END"="V3"))
-random_snps_p <- sort(sample(scz$V5, nrow(scz_eqtls)))
+dbp_eqtls <- inner_join(mutate(tensorqtl_eqtls, `#CHR`=str_replace(`#CHR`, "chr", "")), dbp, by=c("#CHR"="V1", "END"="V3"))
+random_snps_p <- sort(sample(dbp$V5, nrow(dbp_eqtls)))
 
-qq_scz <- tibble(eqtls=scz_eqtls$V5) %>%
+qq_dbp <- tibble(eqtls=dbp_eqtls$V5) %>%
   arrange(eqtls) %>%
   rowid_to_column() %>%
   mutate(eqtls=-log10(eqtls)) %>%
@@ -34,28 +34,28 @@ qq_scz <- tibble(eqtls=scz_eqtls$V5) %>%
   pivot_longer(cols=c(eqtls, bg), names_to="variant", values_to="p") %>%
   mutate(variant=factor(variant, levels=c("bg", "eqtls")))
 
-scz_qq_plot <- ggplot(qq_scz, aes(x=null, y=p, color=variant)) +
+dbp_qq_plot <- ggplot(qq_dbp, aes(x=null, y=p, color=variant)) +
   geom_point() + 
   geom_abline(slope=1, intercept=0, linetype="dashed") +
   theme_classic(base_size=20) +
   xlab("Theoretical -log10(P)") + ylab("Empirical -log10(P)") +
-  scale_color_manual(values=c("#929292", "#004D80"), labels=c("Random Variants", "HDC eQTLs")) +
+  scale_color_manual(values=c("#929292", "#B51700"), labels=c("Random Variants", "HDC eQTLs")) +
   labs(color="Variant Group") +
   #theme(legend.position="none") +
-  ggtitle("Schizophrenia")
+  ggtitle("Diastolic Blood Pressure")
 ```
 
-## How many of these SCZ eQTLs are significant?
+## How many of these dbp eQTLs are significant?
 ```{r}
-scz_eqtl_hits <- filter(scz_eqtls, V5 <= 5e-8)
+dbp_eqtl_hits <- filter(dbp_eqtls, V5 <= 5e-8)
 ```
 
-How many of these SCZ eQTLs are novel?
+How many of these dbp eQTLs are novel?
 ```{r}
-scz_eqtl_novel_hits_bed <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_trubetskoy/signif_variant_gene_pairs.gtex_removed.tagged_gtex_removed.bed")
+dbp_eqtl_novel_hits_bed <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.tagged_gtex_removed.bed")
 
-length(unique(scz_eqtl_hits$EB_HGNC))
-length(unique(scz_eqtl_novel_hits_bed$EB_HGNC))
+length(unique(dbp_eqtl_hits$EB_HGNC))
+length(unique(dbp_eqtl_novel_hits_bed$EB_HGNC))
 ```
 
 ## Novel eQTL for BCL11B
@@ -73,9 +73,9 @@ snpstats2geno <- function(s) {
 
 
 ```{r}
-snp_rsid <- "rs12889721"
-gene_hgnc <- "COA8"
-celltype <- "PNS-glia"
+snp_rsid <- "rs4763297"
+gene_hgnc <- "APOLD1"
+celltype <- "Stromal-cells"
 
 bed <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bed")
 bim <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bim")
@@ -92,7 +92,7 @@ expression_df <- vroom(paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calli
 ```
 
 ```{r}
-scz_qtl_plot <- inner_join(genotypes_df, expression_df, by="sample") %>%
+dbp_qtl_plot <- inner_join(genotypes_df, expression_df, by="sample") %>%
   ggplot(aes(x=genotype, y=.data[[gene_hgnc]], color=genotype)) +
   geom_boxplot(alpha=0.25, width=0.5, lwd=1.5) +
   geom_jitter(aes(fill=genotype), position = position_jitter(seed = 1, width = 0.1), size=3.5, shape=21, lwd=1.25, color="black") +
@@ -103,5 +103,5 @@ scz_qtl_plot <- inner_join(genotypes_df, expression_df, by="sample") %>%
   scale_color_manual(values=brewer.pal(3, "Set1")) +
   theme(legend.position="none")
 
-save(scz_qtl_plot, file="/project2/gilad/jpopp/ebQTL/temp/scz_qtl_plot.Rdata")
+save(dbp_qtl_plot, file="/project2/gilad/jpopp/ebQTL/temp/dbp_qtl_plot.Rdata")
 ```

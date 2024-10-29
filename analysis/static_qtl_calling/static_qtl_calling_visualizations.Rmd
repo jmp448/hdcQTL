@@ -82,7 +82,7 @@ ggplot(schematic_qtl, aes(x=genotype, y=expression, color=color)) +
 ```{r}
 eb_sighits_bed_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed"
 eb_sighits_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed"
-i2qtl_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.I2QTL.overlap.bed"
+eb_sighits_i2qtl_overlap_loc <- "/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.I2QTL.overlap.bed"
 gtf_loc <- "/project2/gilad/jpopp/ebQTL/data/gencode/gencode.hg38.filtered.gtf"
 ```
 
@@ -163,8 +163,6 @@ i2qtl_distinct <- vroom(eb_sighits_i2qtl_overlap_loc, col_names=c("CHR", "START"
 eb_novel_noipsc <- anti_join(eb_novel, i2qtl_distinct, by=c("EB_HGNC"="EB_HGNC", "EB_VARIANT_ID"="RSID"))
 nrow(eb_novel_noipsc) / nrow(eb_distinct)
 ```
-
-
 
 
 ## Evaluate gene set enrichment results

@@ -1,5 +1,5 @@
 ---
-title: "Enrichment of eQTLs for schizophrenia risk"
+title: "Enrichment of eQTLs for LDL risk"
 output: html_notebook
 ---
 ```{r}
@@ -20,12 +20,13 @@ tensorqtl_eqtls <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/origin
 
 
 ```{r}
-scz <- fread("data/gwas/trubetskoy_2022/trubetskoy-scz.sumstats.hg38.bed")
+ldl <- fread("data/gwas/willer_2021/willer-ldl.sumstats.hg38.bed", colClasses=c("character", "integer", "integer", "character", "numeric"), header=FALSE)
+ldl$V5 <- as.numeric(ldl$V5)
 
-scz_eqtls <- inner_join(mutate(tensorqtl_eqtls, `#CHR`=str_replace(`#CHR`, "chr", "")), scz, by=c("#CHR"="V1", "END"="V3"))
-random_snps_p <- sort(sample(scz$V5, nrow(scz_eqtls)))
+ldl_eqtls <- inner_join(mutate(tensorqtl_eqtls, `#CHR`=str_replace(`#CHR`, "chr", "")), ldl, by=c("#CHR"="V1", "END"="V3"))
+random_snps_p <- sort(sample(ldl$V5, nrow(ldl_eqtls)))
 
-qq_scz <- tibble(eqtls=scz_eqtls$V5) %>%
+qq_ldl <- tibble(eqtls=ldl_eqtls$V5) %>%
   arrange(eqtls) %>%
   rowid_to_column() %>%
   mutate(eqtls=-log10(eqtls)) %>%
@@ -34,31 +35,38 @@ qq_scz <- tibble(eqtls=scz_eqtls$V5) %>%
   pivot_longer(cols=c(eqtls, bg), names_to="variant", values_to="p") %>%
   mutate(variant=factor(variant, levels=c("bg", "eqtls")))
 
-scz_qq_plot <- ggplot(qq_scz, aes(x=null, y=p, color=variant)) +
+ldl_qq_plot <- ggplot(qq_ldl, aes(x=null, y=p, color=variant)) +
   geom_point() + 
   geom_abline(slope=1, intercept=0, linetype="dashed") +
   theme_classic(base_size=20) +
   xlab("Theoretical -log10(P)") + ylab("Empirical -log10(P)") +
-  scale_color_manual(values=c("#929292", "#004D80"), labels=c("Random Variants", "HDC eQTLs")) +
+  scale_color_manual(values=c("#929292", "#FEAE00"), labels=c("Random Variants", "HDC eQTLs")) +
   labs(color="Variant Group") +
   #theme(legend.position="none") +
-  ggtitle("Schizophrenia")
+  ggtitle("Low-Density Lipoprotein")
 ```
 
-## How many of these SCZ eQTLs are significant?
+## How many of these LDL eQTLs are significant?
 ```{r}
-scz_eqtl_hits <- filter(scz_eqtls, V5 <= 5e-8)
+ldl_eqtl_hits <- filter(ldl_eqtls, V5 <= 5e-8)
 ```
 
-How many of these SCZ eQTLs are novel?
+How many of these LDL eQTLs are novel?
 ```{r}
-scz_eqtl_novel_hits_bed <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/scz_overlap_trubetskoy/signif_variant_gene_pairs.gtex_removed.tagged_gtex_removed.bed")
+ldl_eqtl_novel_hits_bed <- vroom("results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.tagged_gtex_removed.bed")
 
-length(unique(scz_eqtl_hits$EB_HGNC))
-length(unique(scz_eqtl_novel_hits_bed$EB_HGNC))
+length(unique(ldl_eqtl_hits$EB_HGNC))
+length(unique(ldl_eqtl_novel_hits_bed$EB_HGNC))
 ```
 
-## Novel eQTL for BCL11B
+## Combined QQ plots 
+Get the qq plot items from the notebooks for the SCZ and DBP analyses
+```{r, fig.width=13, fig.height=4}
+scz_qq_plot + dbp_qq_plot + ldl_qq_plot
+```
+
+
+## Novel eQTL for MTMR3
 ```{r}
 snpstats2geno <- function(s) {
   ac <- tibble(ac=as.numeric(s$genotypes@.Data), sample=rownames(s$genotypes@.Data))
@@ -73,9 +81,9 @@ snpstats2geno <- function(s) {
 
 
 ```{r}
-snp_rsid <- "rs12889721"
-gene_hgnc <- "COA8"
-celltype <- "PNS-glia"
+snp_rsid <- "rs4823057"
+gene_hgnc <- "MTMR3"
+celltype <- "Ciliated-epithelial-cells"
 
 bed <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bed")
 bim <- paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calling/eb_cellid/pseudobulk_tmm/basic/", celltype, "/genotypes_filtered_plink.bim")
@@ -92,16 +100,15 @@ expression_df <- vroom(paste0("/project2/gilad/jpopp/ebQTL/data/static_qtl_calli
 ```
 
 ```{r}
-scz_qtl_plot <- inner_join(genotypes_df, expression_df, by="sample") %>%
+ldl_qtl_plot <- inner_join(genotypes_df, expression_df, by="sample") %>%
   ggplot(aes(x=genotype, y=.data[[gene_hgnc]], color=genotype)) +
   geom_boxplot(alpha=0.25, width=0.5, lwd=1.5) +
   geom_jitter(aes(fill=genotype), position = position_jitter(seed = 1, width = 0.1), size=3.5, shape=21, lwd=1.25, color="black") +
   theme_classic(base_size=20) +
   scale_fill_manual(name=snp_rsid, values=brewer.pal(3, "Set1")) +
-  #xlab("Genotype") + ylab(paste0(gene_hgnc, " Expression")) +
   xlab(snp_rsid) + ylab(paste0(gene_hgnc, " Expression\n(", celltype, ")")) +
   scale_color_manual(values=brewer.pal(3, "Set1")) +
   theme(legend.position="none")
 
-save(scz_qtl_plot, file="/project2/gilad/jpopp/ebQTL/temp/scz_qtl_plot.Rdata")
+save(ldl_qtl_plot, file="/project2/gilad/jpopp/ebQTL/temp/ldl_qtl_plot.Rdata")
 ```

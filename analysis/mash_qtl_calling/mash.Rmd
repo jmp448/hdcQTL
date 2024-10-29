@@ -163,6 +163,20 @@ mash_only_example_plot <- ggplot(mash_only_viz, aes(x=type_spaced, y=beta, color
   ylab("Estimated Effect Size")
 ```
 
+Make a version of the mash plot without cell type labels (for graphical abstract)
+```{r}
+mash_only_example_plot <- ggplot(mash_only_viz, aes(x=type_spaced, y=beta, color=color)) +
+  geom_hline(aes(yintercept=0), linetype="dashed", color="red") +
+  geom_errorbar(aes(ymin=beta - sd, ymax=beta + sd), color="#D5D5D5", width=0.5) +
+  geom_point(aes(size=precision), shape=15) +
+  theme_classic(base_size=20) +
+  theme(legend.position = "none", axis.text.x = element_text(angle=45, hjust=1), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  scale_color_identity() +
+  coord_flip() +
+  xlab("Cell Type") +
+  ylab("Estimated Effect Size")
+```
+
 
 ```{r fig.height=4, fig.width=10}
 png(filename="/project2/gilad/jpopp/ebQTL/figs/fig2/mash.png", width=1900, height=750)

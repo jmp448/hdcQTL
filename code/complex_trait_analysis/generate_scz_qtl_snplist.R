@@ -18,6 +18,7 @@ gtex_overlap_bed <- vroom(gtex_bed_loc,
 non_gtex_eqtls <- anti_join(eb_bed, gtex_overlap_bed, by=c("EB_VARIANT_ID", "EB_HGNC"))
 
 scz_variants <- fread(scz_sumstats_loc)
+scz_variants$V5 <- as.numeric(scz_variants$V5) # while not necessary for SCZ analysis, this script is used for other traits where fread reads the pvalue column as character
 scz_hits <- scz_variants[V5 <= 5e-8, .(V1, V3)]
 
 non_gtex_scz_eqtls <- non_gtex_eqtls %>%

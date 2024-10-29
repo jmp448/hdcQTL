@@ -36,13 +36,15 @@ scdrs_ordered <- scdrs_celltype %>%
 Extend significance testing to 
 
 ```{r fig.height=8, fig.width=9}
-ggplot(scdrs_ordered, aes(x=celltype, y=trait_full, fill=prop_fdr_0.1, color=signif_assoc)) +
+celltype_disease_relevance_plot <- ggplot(scdrs_ordered, aes(x=celltype, y=trait_full, fill=prop_fdr_0.1, color=signif_assoc)) +
   geom_tile() +
-  theme_classic(base_size=12) +
+  theme_classic(base_size=18) +
   theme(axis.text.x=element_text(angle=45, hjust=1)) +
   scale_fill_gradient(low = "white", high = "#B51700", name="Prop. of sig. cells") +
   guides(color="none") +
   scale_color_manual(values=c("white", "black")) +
-  xlab("Cell Type") + ylab("Trai")
+  xlab("Cell Type") + ylab("Trait")
 ```
-
+```{r}
+save(celltype_disease_relevance_plot, file="temp/scdrs_plot.Rdata")
+```

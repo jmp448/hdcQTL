@@ -5,8 +5,11 @@ library(tidyverse)
 ```
 
 ```{r}
-load("temp/scz_qq_plot.rdata")
-load("temp/scz_qtl_plot.rdata")
+load("temp/scdrs_plot.Rdata")
+#load("temp/scz_qq_plot.rdata")
+load("temp/scz_qtl_plot.Rdata")
+load("temp/dbp_qtl_plot.Rdata")
+load("temp/ldl_qtl_plot.Rdata")
 load("temp/dynamic_qtl_plot.rdata")
 load("temp/structure_plot.rdata")
 load("temp/crm_qtl_plot.rdata")
@@ -14,19 +17,41 @@ load("temp/col1a2_qtl_plot.rdata")
 load("temp/col1a2_locus_plots.rdata")
 ```
 
-```{r, fig.width=14, fig.height=7}
-layout <- "
-  AAACCFF
-  AAACCFF
-  AAADDGG
-  BBBDDGG
-  BBBEEHH
-  BBBEEHH
+```{r, fig.width=7, fig.height=7}
+layout_1 <- "
+  AAA
+  AAA
+  BCD
 "
+celltype_disease_relevance_plot + wrap_elements(scz_qtl_plot) + dbp_qtl_plot + ldl_qtl_plot +
+  plot_layout(design=layout_1)
 
-scz_qq_plot + scz_qtl_plot + 
-  structure_plot + crm_qtl_plot + dynamic_qtl_plot +
+```
+```{r, fig.width=7, fig.height=5}
+celltype_disease_relevance_plot
+
+```
+
+```{r, fig.width=7, fig.height=2}
+
+scz_qtl_plot + dbp_qtl_plot + ldl_qtl_plot
+
+```
+
+
+```{r, fig.width=7, fig.height=7}
+layout_2 <- "
+  AADD
+  AADD
+  BBEE
+  BBEE
+  CCFF
+  CCFF
+"
+  
+
+structure_plot + crm_qtl_plot + dynamic_qtl_plot +
   p1 + p2 + col1a2_qtl_plot + 
-  plot_layout(design=layout)
+  plot_layout(design=layout_2)
 ```
 

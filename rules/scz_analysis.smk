@@ -223,14 +223,14 @@ rule generate_ldl_qtl_snplist_willer:
     input:
       eb_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
       gtex_bed="/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
-      ldl_sumstats="data/gwas/willer_2021/willer-ldl.sumstats.hg38.bed"
+      scz_sumstats="data/gwas/willer_2021/willer-ldl.sumstats.hg38.bed"
     output:
-      non_gtex_ldl_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.txt",
-      non_gtex_ldl_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.bed"
+      non_gtex_scz_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.snplist.txt",
+      non_gtex_scz_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/ldl_overlap_willer/signif_variant_gene_pairs.gtex_removed.bed"
     conda:
         "../slurmy/r-sva.yml"
     script:
-        "../code/complex_trait_analysis/generate_ldl_qtl_snplist.R"
+        "../code/complex_trait_analysis/generate_scz_qtl_snplist.R"
 
 rule list_yri_tagged_ldl_eqtls_willer:
     resources:
@@ -298,14 +298,14 @@ rule generate_dbp_qtl_snplist_keaton:
     input:
       eb_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.bed",
       gtex_bed="/project2/gilad/jpopp/ebQTL/results/static_eqtl_followup/qtl_sets/tensorqtl/original/signif_variant_gene_pairs.all_tissue_overlap.bed",
-      dbp_sumstats="data/gwas/keaton_2024/keaton-dbp.sumstats.hg38.bed"
+      scz_sumstats="data/gwas/keaton_2024/keaton-dbp.sumstats.hg38.bed"
     output:
-      non_gtex_dbp_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.snplist.txt",
-      non_gtex_dbp_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.bed"
+      non_gtex_scz_eqtls="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.snplist.txt",
+      non_gtex_scz_eqtls_bed="results/static_eqtl_followup/qtl_sets/tensorqtl/dbp_overlap_keaton/signif_variant_gene_pairs.gtex_removed.bed"
     conda:
         "../slurmy/r-sva.yml"
     script:
-        "../code/complex_trait_analysis/generate_dbp_qtl_snplist.R"
+        "../code/complex_trait_analysis/generate_scz_qtl_snplist.R"
 
 rule list_yri_tagged_dbp_eqtls_keaton:
     resources:
